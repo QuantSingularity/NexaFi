@@ -1,4 +1,4 @@
-# NexaFi Infrastructure - Production-Ready Implementation
+# NexaFi Infrastructure
 
 ## Overview
 
@@ -346,39 +346,4 @@ kubectl apply --dry-run=client -f .
 
 # Validate with kubeval (if installed)
 kubeval **/*.yaml
-```
-
-### CI/CD Workflow Validation
-
-```bash
-cd ci-cd
-
-# YAML syntax check
-yamllint *.yml
-
-# GitHub Actions workflow validation (requires act)
-act -n
-
-## 📋 Maintenance & Operations
-
-### Regular Maintenance Tasks
-
-1. **Security Updates**: Monthly security patch deployment
-2. **Compliance Reviews**: Quarterly compliance assessments
-3. **Disaster Recovery Testing**: Monthly DR drills
-4. **Performance Optimization**: Quarterly performance reviews
-5. **Cost Optimization**: Monthly cost analysis
-
-### Monitoring & Alerts
-
-- **Prometheus**: Metrics collection at `http://prometheus.nexafi.local`
-- **Grafana**: Dashboards at `http://grafana.nexafi.local`
-- **AlertManager**: Alert management at `http://alertmanager.nexafi.local`
-
-### Backup & Recovery
-
-- **Automated Backups**:
-  - Financial databases: Every 4 hours, 7-year retention
-  - User databases: Daily, 3-year retention
-  - Cluster state: Daily
 ```

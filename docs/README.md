@@ -64,26 +64,26 @@ python3 main.py
 
 ```
 NexaFi/
-├── backend/              # Python microservices (Flask/FastAPI)
-│   ├── api-gateway/      # API Gateway (Port 5000)
-│   ├── user-service/     # User management (Port 5001)
-│   ├── auth-service/     # Authentication (Port 5011)
-│   ├── ledger-service/   # Accounting ledger (Port 5002)
-│   ├── payment-service/  # Payment processing (Port 5003)
-│   ├── ai-service/       # ML predictions (Port 5004)
+├── backend/                  # Python microservices (Flask/FastAPI)
+│   ├── api-gateway/          # API Gateway (Port 5000)
+│   ├── user-service/         # User management (Port 5001)
+│   ├── auth-service/         # Authentication (Port 5011)
+│   ├── ledger-service/       # Accounting ledger (Port 5002)
+│   ├── payment-service/      # Payment processing (Port 5003)
+│   ├── ai-service/           # ML predictions (Port 5004)
 │   ├── compliance-service/   # AML/KYC (Port 5005)
 │   ├── notification-service/ # Notifications (Port 5006)
 │   ├── analytics-service/    # Business intelligence
 │   ├── credit-service/       # Credit scoring
 │   ├── document-service/     # Document processing
-│   └── shared/          # Shared libraries and middleware
-├── ml/                  # Machine learning models and pipelines
-├── web-frontend/        # React/Next.js web application
-├── mobile-frontend/     # Vue mobile application
-├── infrastructure/      # Kubernetes, Terraform, Ansible
-├── tests/               # Comprehensive test suites
-├── scripts/             # Utility scripts
-└── docs/                # This documentation
+│   └── shared/               # Shared libraries and middleware
+├── ml/                       # Machine learning models and pipelines
+├── web-frontend/             # React/Next.js web application
+├── mobile-frontend/          # Vue mobile application
+├── infrastructure/           # Kubernetes, Terraform, Ansible
+├── tests/                    # Comprehensive test suites
+├── scripts/                  # Utility scripts
+└── docs/                     # This documentation
 ```
 
 ## 🎯 Key Features at a Glance

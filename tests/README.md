@@ -164,8 +164,3 @@ Before running tests, ensure all necessary dependencies are installed for each r
 ## Conclusion
 
 The NexaFi testing suite is a critical component of the development lifecycle, ensuring the delivery of a high-quality, reliable, and secure financial application. By categorizing tests into E2E, frontend, integration, performance, security, and unit tests, the project maintains a comprehensive approach to quality assurance, covering all layers of the application from user interaction to backend services and infrastructure.
-
-## References
-
-[1] `NexaFi/tests/e2e/mobile_e2e.test.js`
-[2] `NexaFi/tests/e2e/web_e2e.test.js`

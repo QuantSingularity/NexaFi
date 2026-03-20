@@ -82,8 +82,8 @@ npm run test:coverage
 ```
 web-frontend/
 ├── src/
-│   ├── components/         # React components
-│   │   ├── ui/            # Reusable UI components (shadcn/ui)
+│   ├── components/               # React components
+│   │   ├── ui/                   # Reusable UI components (shadcn/ui)
 │   │   ├── AccountingModule.jsx
 │   │   ├── AIInsightsModule.jsx
 │   │   ├── AuthPage.jsx
@@ -92,23 +92,23 @@ web-frontend/
 │   │   ├── Layout.jsx
 │   │   ├── PaymentsModule.jsx
 │   │   └── SettingsModule.jsx
-│   ├── contexts/          # React contexts (Auth, App)
-│   ├── hooks/             # Custom React hooks
-│   ├── lib/               # Utilities and API client
-│   ├── __tests__/         # Test files
-│   ├── test/              # Test configuration
-│   ├── App.jsx            # Main app component
-│   ├── App.css            # App-specific styles
-│   ├── index.css          # Global styles
-│   └── main.jsx           # Entry point
-├── public/                # Static assets
-├── .env.example           # Environment variables example
-├── package.json           # Dependencies and scripts
-├── vite.config.js         # Vite configuration
-├── vitest.config.js       # Vitest testing configuration
-├── eslint.config.js       # ESLint configuration
-├── components.json        # shadcn/ui configuration
-└── README.md             # This file
+│   ├── contexts/                 # React contexts (Auth, App)
+│   ├── hooks/                    # Custom React hooks
+│   ├── lib/                      # Utilities and API client
+│   ├── __tests__/                # Test files
+│   ├── test/                     # Test configuration
+│   ├── App.jsx                   # Main app component
+│   ├── App.css                   # App-specific styles
+│   ├── index.css                 # Global styles
+│   └── main.jsx                  # Entry point
+├── public/                       # Static assets
+├── .env.example                  # Environment variables example
+├── package.json                  # Dependencies and scripts
+├── vite.config.js                # Vite configuration
+├── vitest.config.js              # Vitest testing configuration
+├── eslint.config.js              # ESLint configuration
+├── components.json               # shadcn/ui configuration
+└── README.md                     # This file
 ```
 
 ## Key Components

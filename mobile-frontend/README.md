@@ -2,7 +2,7 @@
 
 Enterprise-grade mobile-optimized frontend for the NexaFi financial platform built with React, Vite, and Tailwind CSS.
 
-## 🚀 Features
+## Features
 
 - **Complete Financial Management Suite**
   - Real-time dashboard with financial metrics
@@ -27,13 +27,13 @@ Enterprise-grade mobile-optimized frontend for the NexaFi financial platform bui
   - Component-based architecture
   - Comprehensive test coverage
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Node.js 18+ or npm 9+
 - Backend API running (default: `http://localhost:5000`)
 - Modern web browser with ES6+ support
 
-## 🛠️ Installation
+## Installation
 
 1. **Clone the repository** (if not already done)
 
@@ -53,7 +53,7 @@ Enterprise-grade mobile-optimized frontend for the NexaFi financial platform bui
    # Edit .env to match your backend URL if different from localhost:5000
    ```
 
-## 🏃 Running the Application
+## Running the Application
 
 ### Development Mode
 
@@ -77,7 +77,7 @@ Built files will be in the `dist/` directory.
 npm run preview
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Run all tests
 
@@ -97,7 +97,7 @@ npm test -- --watch
 npm test -- --coverage
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 mobile-frontend/
@@ -136,7 +136,7 @@ mobile-frontend/
 └── README.md                # This file
 ```
 
-## 🔌 Backend Integration
+## Backend Integration
 
 ### API Endpoints Used
 
@@ -189,7 +189,7 @@ python3 api-gateway/src/main.py
 
 The API Gateway should be available at `http://localhost:5000`.
 
-## 🎨 Styling
+## Styling
 
 This project uses:
 
@@ -198,7 +198,7 @@ This project uses:
 - **Framer Motion** for animations
 - **Lucide React** for icons
 
-## 🔒 Authentication Flow
+## Authentication Flow
 
 1. User navigates to `/auth`
 2. User enters credentials (login) or registration info (signup)
@@ -208,7 +208,7 @@ This project uses:
 6. Token is included in all subsequent API requests
 7. On logout, token is removed and user is redirected to auth page
 
-## 📱 Responsive Design
+## Responsive Design
 
 The application is optimized for:
 
@@ -218,16 +218,7 @@ The application is optimized for:
 
 All components are touch-friendly and mobile-first.
 
-## 🌐 Offline Support
-
-The application includes offline capabilities:
-
-- Automatic detection of online/offline status
-- Visual indicators when offline
-- Cached data for offline viewing
-- Queued actions that sync when back online
-
-## 🐛 Error Handling
+## Error Handling
 
 Comprehensive error handling at multiple levels:
 
@@ -236,7 +227,7 @@ Comprehensive error handling at multiple levels:
 - **User Feedback**: Toast notifications for all operations
 - **Graceful Degradation**: Fallback UI when features unavailable
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -263,13 +254,13 @@ To point to a different backend:
 
 2. Restart the development server
 
-## 📊 Performance
+## Performance
 
 - First Contentful Paint (FCP): < 1.5s
 - Time to Interactive (TTI): < 3.5s
 - Lighthouse Score: 90+
 
-## 🧩 Component Library
+## Component Library
 
 This project uses [shadcn/ui](https://ui.shadcn.com/) for base components. To add new components:
 
@@ -277,14 +268,14 @@ This project uses [shadcn/ui](https://ui.shadcn.com/) for base components. To ad
 npx shadcn-ui@latest add [component-name]
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Follow the existing code style
 2. Write tests for new features
 3. Update documentation as needed
 4. Ensure all tests pass before submitting
 
-## 📝 Available Scripts
+## Available Scripts
 
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
@@ -294,7 +285,7 @@ npx shadcn-ui@latest add [component-name]
 - `npm test -- --watch` - Run tests in watch mode
 - `npm test -- --coverage` - Run tests with coverage
 
-## 🔐 Security
+## Security
 
 - All API requests include authentication tokens
 - Passwords are never stored in localStorage
@@ -303,6 +294,6 @@ npx shadcn-ui@latest add [component-name]
 - XSS protection via React
 - CSRF tokens for state-changing operations
 
-## 📄 License
+## License
 
 MIT License - see LICENSE file for details

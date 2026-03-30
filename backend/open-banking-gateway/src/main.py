@@ -720,8 +720,8 @@ def get_accounts() -> Any:
             "cashAccountType": "CACC",
             "name": "Main Account",
             "_links": {
-                "balances": f"/api/v1/accounts/account_001/balances",
-                "transactions": f"/api/v1/accounts/account_001/transactions",
+                "balances": "/api/v1/accounts/account_001/balances",
+                "transactions": "/api/v1/accounts/account_001/transactions",
             },
         }
     ]

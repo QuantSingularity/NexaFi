@@ -561,7 +561,7 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(test_suite)
     logger.info(f"\n{'=' * 60}")
-    logger.info(f"TEST SUMMARY")
+    logger.info("TEST SUMMARY")
     logger.info(f"{'=' * 60}")
     logger.info(f"Tests run: {result.testsRun}")
     logger.info(f"Failures: {len(result.failures)}")
@@ -570,11 +570,11 @@ if __name__ == "__main__":
         f"Success rate: {(result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100:.1f}%"
     )
     if result.failures:
-        logger.info(f"\nFAILURES:")
+        logger.info("\nFAILURES:")
         for test, traceback in result.failures:
             logger.info(f"- {test}: {traceback}")
     if result.errors:
-        logger.info(f"\nERRORS:")
+        logger.info("\nERRORS:")
         for test, traceback in result.errors:
             logger.info(f"- {test}: {traceback}")
     exit_code = 0 if result.wasSuccessful() else 1

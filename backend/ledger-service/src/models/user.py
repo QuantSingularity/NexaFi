@@ -105,7 +105,6 @@ class Account(BaseModel):
         """Calculate account balance as of a specific date"""
         if as_of_date is None:
             return Decimal(str(self.current_balance))
-        query = "\n        SELECT\n            COALESCE(SUM(debit_amount), 0) as total_debits,\n            COALESCE(SUM(credit_amount), 0) as total_credits\n        FROM journal_entry_lines jel\n        JOIN journal_entries je ON jel.journal_entry_id = je.id\n        WHERE jel.account_id = ? AND je.posting_date <= ? AND je.status = 'posted'\n        "
         return Decimal(str(self.current_balance))
 
     def to_dict(self) -> Any:

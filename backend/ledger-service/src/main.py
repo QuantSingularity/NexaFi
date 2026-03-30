@@ -1,7 +1,7 @@
 import os
 import sys
 from datetime import datetime
-from typing import Any, Optional, Optional
+from typing import Any, Optional
 
 import uuid
 from decimal import Decimal

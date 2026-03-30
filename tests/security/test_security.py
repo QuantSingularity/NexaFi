@@ -2,9 +2,14 @@ from typing import Any
 import time
 import pytest
 import requests
-from core.logging import get_logger
+import logging
 
-logger = get_logger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 BASE_URLS = {
     "ai-service": "http://localhost:5004",
     "analytics-service": "http://localhost:5003",

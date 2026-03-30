@@ -20,9 +20,13 @@ from kubernetes import client, config
 from mlflow.tracking import MlflowClient
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from core.logging import get_logger
+import logging
 
-logger = get_logger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 @dataclass

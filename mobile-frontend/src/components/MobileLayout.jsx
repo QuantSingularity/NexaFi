@@ -1,27 +1,23 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Menu,
-  X,
-  Home,
   BarChart3,
-  CreditCard,
-  Brain,
-  Settings,
-  LogOut,
   Bell,
-  Search,
-  User,
+  Brain,
   Building,
-  ChevronLeft,
-  Wifi,
+  CreditCard,
+  Home,
+  LogOut,
+  Menu,
+  Settings,
   WifiOff,
+  X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useAuth, useApp } from "../contexts/MobileContext";
+import { Button } from "@/components/ui/button";
+import { useApp, useAuth } from "../contexts/MobileContext";
 import "../App.css";
 
 const MobileLayout = ({ children }) => {
@@ -46,7 +42,7 @@ const MobileLayout = ({ children }) => {
     if (currentItem) {
       setPageTitle(currentItem.label);
     }
-  }, [location.pathname]);
+  }, [location.pathname, navigationItems.find]);
 
   const handleLogout = async () => {
     await logout();

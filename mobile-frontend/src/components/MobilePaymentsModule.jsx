@@ -1,38 +1,20 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Plus,
-  Search,
-  Filter,
-  CreditCard,
-  Send,
-  TrendingUp,
-  TrendingDown,
-  Download,
-  ArrowUpRight,
   ArrowDownRight,
-  DollarSign,
-  Calendar,
-  Check,
-  X,
-  Loader2,
-  Building,
-  Wallet,
-  MoreVertical,
+  ArrowUpRight,
+  CreditCard,
+  Download,
   Eye,
   EyeOff,
+  Loader2,
+  Plus,
+  Search,
+  Send,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -49,7 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth, useApp } from "../contexts/MobileContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useApp, useAuth } from "../contexts/MobileContext";
 import mobileApiClient from "../lib/mobileApi";
 
 const MobilePaymentsModule = () => {
@@ -85,7 +69,7 @@ const MobilePaymentsModule = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const loadData = async () => {
     try {

@@ -1,3 +1,4 @@
+from typing import Any
 import random
 from locust import HttpUser, between, task
 

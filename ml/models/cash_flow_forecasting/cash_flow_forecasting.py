@@ -1,3 +1,4 @@
+from typing import Any
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
 from core.logging import get_logger

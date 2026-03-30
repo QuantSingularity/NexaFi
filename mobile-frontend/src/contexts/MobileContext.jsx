@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import mobileApiClient from "../lib/mobileApi";
 
 // Authentication Context
@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [loadUserProfile]);
 
   const loadUserProfile = async () => {
     try {

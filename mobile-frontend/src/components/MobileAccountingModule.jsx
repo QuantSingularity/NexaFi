@@ -1,28 +1,32 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  Plus,
-  Search,
-  Filter,
-  MoreVertical,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
+  BarChart3,
   Building,
-  CreditCard,
-  Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
-  Calendar,
+  ChevronRight,
+  DollarSign,
   Download,
   Eye,
-  Edit,
-  Trash2,
-  ChevronRight,
-  BarChart3,
-  PieChart,
   FileText,
+  Filter,
+  MoreVertical,
+  PieChart,
+  Plus,
+  Search,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
+import { useState } from "react";
+import {
+  Bar,
+  BarChart,
+  Cell,
+  PieChart as RechartsPieChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -30,10 +34,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -41,25 +42,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  PieChart as RechartsPieChart,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  LineChart,
-  Line,
-} from "recharts";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "../contexts/MobileContext";
-import mobileApiClient from "../lib/mobileApi";
 import "../App.css";
 
 const MobileAccountingModule = () => {
   const { addNotification, isOnline } = useApp();
   const [activeTab, setActiveTab] = useState("overview");
-  const [loading, setLoading] = useState(false);
+  const [_loading, _setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState("current-month");
 

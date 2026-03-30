@@ -1,21 +1,21 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
+  ArrowLeft,
+  Building,
+  CheckCircle,
   Eye,
   EyeOff,
-  Mail,
-  Lock,
-  User,
-  Building,
   Loader2,
-  ArrowLeft,
-  Smartphone,
+  Lock,
+  Mail,
   Shield,
-  CheckCircle,
+  Smartphone,
+  User,
 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -23,10 +23,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "../contexts/MobileContext";
-import { useNavigate } from "react-router-dom";
 import "../App.css";
 
 const MobileAuthPage = () => {
@@ -64,7 +64,7 @@ const MobileAuthPage = () => {
       } else {
         setError(result.error || "Login failed");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("An unexpected error occurred");
     } finally {
       setLoading(false);
@@ -89,7 +89,7 @@ const MobileAuthPage = () => {
       } else {
         setError(result.error || "Registration failed");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("An unexpected error occurred");
     } finally {
       setLoading(false);

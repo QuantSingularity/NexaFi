@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
+import { BrowserRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import MobileDashboard from "../components/MobileDashboard";
 import { MobileProviders } from "../contexts/MobileContext";
 import mobileApiClient from "../lib/mobileApi";

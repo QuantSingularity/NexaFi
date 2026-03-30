@@ -1,21 +1,22 @@
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Brain,
-  Send,
-  Loader2,
-  TrendingUp,
-  TrendingDown,
   AlertCircle,
-  CheckCircle,
-  Sparkles,
-  MessageCircle,
   BarChart3,
-  DollarSign,
-  Target,
+  Brain,
+  CheckCircle,
   Lightbulb,
+  Loader2,
+  MessageCircle,
   RefreshCw,
+  Send,
+  Sparkles,
+  Target,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -23,13 +24,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import { useAuth, useApp } from "../contexts/MobileContext";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useApp, useAuth } from "../contexts/MobileContext";
 import mobileApiClient from "../lib/mobileApi";
 
 const MobileAIInsightsModule = () => {
@@ -47,11 +46,11 @@ const MobileAIInsightsModule = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatMessages]);
+  }, [scrollToBottom]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

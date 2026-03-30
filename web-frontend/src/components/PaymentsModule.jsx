@@ -1,24 +1,31 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import {
-  CreditCard,
-  Wallet,
-  ArrowUpRight,
   ArrowDownLeft,
-  Plus,
-  Filter,
-  Download,
-  Eye,
-  Edit,
-  Trash2,
+  ArrowUpRight,
   CheckCircle,
   Clock,
-  AlertCircle,
+  CreditCard,
   DollarSign,
+  Download,
+  Edit,
+  Eye,
+  Filter,
+  Plus,
+  Trash2,
   TrendingUp,
-  Calendar,
-  Repeat,
+  Wallet,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -26,7 +33,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,16 +50,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -54,33 +58,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import apiClient from "../lib/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "../contexts/AppContext";
+import apiClient from "../lib/api";
 
 const PaymentsModule = () => {
   const { addNotification } = useApp();
   const [activeTab, setActiveTab] = useState("overview");
-  const [paymentMethods, setPaymentMethods] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [wallets, setWallets] = useState([]);
-  const [analytics, setAnalytics] = useState({});
+  const [_paymentMethods, setPaymentMethods] = useState([]);
+  const [_transactions, setTransactions] = useState([]);
+  const [_wallets, setWallets] = useState([]);
+  const [_analytics, setAnalytics] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadPaymentData();
-  }, []);
+  }, [loadPaymentData]);
 
   const loadPaymentData = async () => {
     try {

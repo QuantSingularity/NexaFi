@@ -1,23 +1,20 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  User,
   Bell,
-  Shield,
-  Moon,
-  Sun,
-  Globe,
-  Lock,
-  Mail,
-  Phone,
   Building,
-  CreditCard,
-  LogOut,
-  ChevronRight,
-  Save,
-  Loader2,
   Check,
+  Loader2,
+  Lock,
+  LogOut,
+  Mail,
+  Moon,
+  Phone,
+  Save,
+  Sun,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -25,17 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -44,10 +30,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useAuth, useApp } from "../contexts/MobileContext";
-import { useNavigate } from "react-router-dom";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useApp, useAuth } from "../contexts/MobileContext";
 import mobileApiClient from "../lib/mobileApi";
 
 const MobileSettingsModule = () => {

@@ -1,21 +1,22 @@
-import { useState, useEffect } from "react";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
-  Plus,
-  FileText,
+  AlertCircle,
   BarChart3,
   Calculator,
-  Download,
-  Filter,
-  Search,
-  Eye,
-  Edit,
-  Trash2,
   CheckCircle,
   Clock,
-  AlertCircle,
+  Download,
+  Edit,
+  Eye,
+  FileText,
+  Filter,
+  Plus,
+  Search,
+  Trash2,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -23,19 +24,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +32,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -52,23 +49,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import apiClient from "../lib/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useApp } from "../contexts/AppContext";
+import apiClient from "../lib/api";
 
 const AccountingModule = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const _navigate = useNavigate();
+  const _location = useLocation();
   const { addNotification } = useApp();
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -79,7 +67,7 @@ const AccountingModule = () => {
 
   useEffect(() => {
     loadAccountingData();
-  }, []);
+  }, [loadAccountingData]);
 
   const loadAccountingData = async () => {
     try {

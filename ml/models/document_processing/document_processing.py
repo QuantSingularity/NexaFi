@@ -1,3 +1,4 @@
+from typing import Any
 import pytesseract
 import spacy
 from PIL import Image

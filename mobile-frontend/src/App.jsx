@@ -1,19 +1,19 @@
 import {
+  Navigate,
+  Route,
   BrowserRouter as Router,
   Routes,
-  Route,
-  Navigate,
 } from "react-router-dom";
-import { MobileProviders, useAuth } from "./contexts/MobileContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-import MobileHomepage from "./components/MobileHomepage";
-import MobileAuthPage from "./components/MobileAuthPage";
-import MobileLayout from "./components/MobileLayout";
-import MobileDashboard from "./components/MobileDashboard";
 import MobileAccountingModule from "./components/MobileAccountingModule";
-import MobilePaymentsModule from "./components/MobilePaymentsModule";
 import MobileAIInsightsModule from "./components/MobileAIInsightsModule";
+import MobileAuthPage from "./components/MobileAuthPage";
+import MobileDashboard from "./components/MobileDashboard";
+import MobileHomepage from "./components/MobileHomepage";
+import MobileLayout from "./components/MobileLayout";
+import MobilePaymentsModule from "./components/MobilePaymentsModule";
 import MobileSettingsModule from "./components/MobileSettingsModule";
+import { MobileProviders, useAuth } from "./contexts/MobileContext";
 import "./App.css";
 
 // Protected Route Component

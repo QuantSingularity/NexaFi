@@ -1,18 +1,17 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
 import {
-  User,
-  Building,
   Bell,
-  Shield,
-  Palette,
-  Globe,
-  CreditCard,
-  Key,
-  Save,
+  Building,
   Eye,
   EyeOff,
+  Globe,
+  Key,
+  Palette,
+  Shield,
+  User,
 } from "lucide-react";
+import { useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,10 +19,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -31,10 +28,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth, useApp } from "../contexts/AppContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useApp, useAuth } from "../contexts/AppContext";
 
 const SettingsModule = () => {
   const { user, updateUser } = useAuth();
@@ -82,7 +79,7 @@ const SettingsModule = () => {
         title: "Success",
         message: "Profile updated successfully",
       });
-    } catch (error) {
+    } catch (_error) {
       addNotification({
         type: "error",
         title: "Error",
@@ -117,7 +114,7 @@ const SettingsModule = () => {
         new_password: "",
         confirm_password: "",
       });
-    } catch (error) {
+    } catch (_error) {
       addNotification({
         type: "error",
         title: "Error",

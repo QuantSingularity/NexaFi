@@ -1,24 +1,25 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
-  Building,
-  Brain,
   BarChart3,
-  Shield,
-  Zap,
-  Users,
-  TrendingUp,
+  Brain,
+  Building,
   CheckCircle,
-  Star,
-  Play,
   Menu,
-  X,
-  Smartphone,
-  Tablet,
   Monitor,
+  Play,
+  Shield,
+  Smartphone,
+  Star,
+  Tablet,
+  TrendingUp,
+  Users,
+  X,
+  Zap,
 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,7 +28,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import "../App.css";
 
 const MobileHomepage = () => {

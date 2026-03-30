@@ -1,3 +1,4 @@
+from typing import Any
 from datetime import datetime, timedelta
 import pytest
 from NexaFi.backend.ai_service.src.main import app

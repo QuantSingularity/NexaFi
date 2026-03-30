@@ -1,3 +1,4 @@
+from typing import Any
 import os
 import unittest
 from PIL import Image, ImageDraw, ImageFont

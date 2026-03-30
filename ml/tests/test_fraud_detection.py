@@ -1,3 +1,4 @@
+from typing import Any
 import unittest
 import pandas as pd
 from NexaFi.ml.models.fraud_detection.fraud_detection import FraudDetector

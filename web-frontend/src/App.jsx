@@ -1,19 +1,19 @@
 import {
+  Navigate,
+  Route,
   BrowserRouter as Router,
   Routes,
-  Route,
-  Navigate,
 } from "react-router-dom";
-import { AuthProvider, AppProvider, useAuth } from "./contexts/AppContext";
-import AuthPage from "./components/AuthPage";
-import Layout from "./components/Layout";
-import Dashboard from "./components/Dashboard";
-import AccountingModule from "./components/AccountingModule";
-import PaymentsModule from "./components/PaymentsModule";
-import AIInsightsModule from "./components/AIInsightsModule";
-import SettingsModule from "./components/SettingsModule";
-import Homepage from "./components/Homepage";
 import { Toaster } from "@/components/ui/toaster";
+import AccountingModule from "./components/AccountingModule";
+import AIInsightsModule from "./components/AIInsightsModule";
+import AuthPage from "./components/AuthPage";
+import Dashboard from "./components/Dashboard";
+import Homepage from "./components/Homepage";
+import Layout from "./components/Layout";
+import PaymentsModule from "./components/PaymentsModule";
+import SettingsModule from "./components/SettingsModule";
+import { AppProvider, AuthProvider, useAuth } from "./contexts/AppContext";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {

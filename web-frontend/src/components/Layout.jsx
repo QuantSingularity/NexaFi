@@ -1,25 +1,25 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  BookOpen,
-  CreditCard,
-  Brain,
-  Settings,
-  LogOut,
-  Menu,
-  X,
   Bell,
-  Search,
-  User,
+  BookOpen,
+  Brain,
   Building,
   ChevronDown,
-  Sun,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  Menu,
   Moon,
+  Search,
+  Settings,
+  Sun,
+  User,
+  X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,8 +28,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { useAuth, useApp } from "../contexts/AppContext";
+import { Input } from "@/components/ui/input";
+import { useApp, useAuth } from "../contexts/AppContext";
 
 const Sidebar = ({ isOpen, onClose }) => {
   const [activeItem, setActiveItem] = useState("dashboard");

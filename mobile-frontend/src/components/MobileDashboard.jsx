@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  CreditCard,
-  PieChart,
-  BarChart3,
-  ArrowUpRight,
+  AlertCircle,
   ArrowDownRight,
-  Plus,
-  RefreshCw,
+  ArrowUpRight,
+  BarChart3,
+  CreditCard,
+  DollarSign,
   Eye,
   EyeOff,
-  Zap,
+  Plus,
+  RefreshCw,
   Target,
-  AlertCircle,
-  CheckCircle,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -25,21 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  PieChart as RechartsPieChart,
-  Cell,
-} from "recharts";
-import { useAuth, useApp } from "../contexts/MobileContext";
+import { useApp, useAuth } from "../contexts/MobileContext";
 import mobileApiClient from "../lib/mobileApi";
 import "../App.css";
 
@@ -98,7 +84,7 @@ const MobileDashboard = () => {
     { month: "Jun", income: 45200, expenses: 32100 },
   ]);
 
-  const [expenseData] = useState([
+  const [_expenseData] = useState([
     { name: "Operations", value: 45, color: "#3b82f6" },
     { name: "Marketing", value: 25, color: "#8b5cf6" },
     { name: "Technology", value: 20, color: "#06b6d4" },
@@ -158,7 +144,7 @@ const MobileDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [loadDashboardData]);
 
   const loadDashboardData = async () => {
     try {

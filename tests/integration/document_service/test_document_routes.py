@@ -1,3 +1,4 @@
+from typing import Any
 import pytest
 from NexaFi.backend.document_service.src.main import app
 from NexaFi.backend.document_service.src.models.user import User, db

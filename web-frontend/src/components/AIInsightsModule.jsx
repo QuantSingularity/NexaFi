@@ -1,27 +1,35 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Brain,
-  TrendingUp,
-  TrendingDown,
-  MessageSquare,
-  Lightbulb,
-  Target,
   AlertTriangle,
-  CheckCircle,
-  Clock,
-  Send,
-  Bot,
-  User,
   BarChart3,
-  PieChart,
-  LineChart,
-  Zap,
-  Star,
+  Bot,
+  Brain,
+  CheckCircle,
   Eye,
-  ThumbsUp,
+  Lightbulb,
+  LineChart,
+  MessageSquare,
+  Send,
+  Star,
+  Target,
   ThumbsDown,
+  ThumbsUp,
+  TrendingUp,
+  User,
+  Zap,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart as RechartsLineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -29,10 +37,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -41,37 +48,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  LineChart as RechartsLineChart,
-  Line,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import apiClient from "../lib/api";
 import { useApp, useAuth } from "../contexts/AppContext";
+import apiClient from "../lib/api";
 
 const AIInsightsModule = () => {
   const { addNotification } = useApp();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("insights");
-  const [insights, setInsights] = useState([]);
+  const [_insights, setInsights] = useState([]);
   const [predictions, setPredictions] = useState({});
-  const [chatSessions, setChatSessions] = useState([]);
-  const [activeChatSession, setActiveChatSession] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
+  const [_chatSessions, setChatSessions] = useState([]);
+  const [_activeChatSession, _setActiveChatSession] = useState(null);
+  const [_chatMessages, setChatMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAIData();
-  }, []);
+  }, [loadAIData]);
 
   const loadAIData = async () => {
     try {

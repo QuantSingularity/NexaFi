@@ -1,19 +1,19 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
-  Building,
-  Brain,
   BarChart3,
-  Shield,
-  Zap,
-  Users,
-  TrendingUp,
+  Brain,
+  Building,
   CheckCircle,
-  Star,
   Play,
+  Shield,
+  Star,
+  TrendingUp,
+  Users,
+  Zap,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,7 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 const Homepage = () => {
   const navigate = useNavigate();

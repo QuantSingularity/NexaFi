@@ -7,7 +7,7 @@ logger = get_logger(__name__)
 
 class CashFlowForecaster:
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         self.model = None
         self.model_fit = None
 

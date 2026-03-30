@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 class ProductRecommender:
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         self.products_df = None
         self.tfidf_matrix = None
         self.tfidf_vectorizer = None

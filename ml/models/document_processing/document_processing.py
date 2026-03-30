@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 class DocumentProcessor:
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         try:
             self.nlp = spacy.load("en_core_web_sm")
         except OSError:

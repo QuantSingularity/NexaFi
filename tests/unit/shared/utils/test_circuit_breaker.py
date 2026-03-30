@@ -18,7 +18,7 @@ class CircuitBreaker:
 
     def __init__(
         self, failure_threshold: Any = None, recovery_timeout: Any = None
-    ) -> Any:
+    ) -> None:
         self.failure_threshold = (
             failure_threshold or InfrastructureConfig.CIRCUIT_BREAKER_FAILURE_THRESHOLD
         )

@@ -5,7 +5,7 @@ from unittest.mock import patch
 class InfrastructureConfig:
     """Simulates the class being tested."""
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         self.redis_host = os.environ.get("REDIS_HOST", "default_host")
         self.redis_port = int(os.environ.get("REDIS_PORT", "6379"))
 

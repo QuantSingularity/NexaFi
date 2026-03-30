@@ -45,7 +45,7 @@ class PipelineConfig:
 class GitManager:
     """Git operations for CI/CD pipeline"""
 
-    def __init__(self, repo_path: str) -> Any:
+    def __init__(self, repo_path: str) -> None:
         self.repo_path = repo_path
         self.repo = None
         self.logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class GitManager:
 class TestRunner:
     """Automated testing for ML models and pipelines"""
 
-    def __init__(self, project_path: str) -> Any:
+    def __init__(self, project_path: str) -> None:
         self.project_path = project_path
         self.logger = logging.getLogger(__name__)
 
@@ -258,7 +258,7 @@ class TestRunner:
 class DockerBuilder:
     """Docker image building and management"""
 
-    def __init__(self, registry_url: str) -> Any:
+    def __init__(self, registry_url: str) -> None:
         self.registry_url = registry_url
         self.docker_client = docker.from_env()
         self.logger = logging.getLogger(__name__)
@@ -364,7 +364,7 @@ class DockerBuilder:
 class KubernetesDeployer:
     """Kubernetes deployment management"""
 
-    def __init__(self, namespace: str) -> Any:
+    def __init__(self, namespace: str) -> None:
         self.namespace = namespace
         self.logger = logging.getLogger(__name__)
         try:
@@ -685,7 +685,7 @@ class KubernetesDeployer:
 class NotificationManager:
     """Notification management for CI/CD pipeline"""
 
-    def __init__(self, channels: Dict[str, str]) -> Any:
+    def __init__(self, channels: Dict[str, str]) -> None:
         self.channels = channels
         self.logger = logging.getLogger(__name__)
 
@@ -767,7 +767,7 @@ class NotificationManager:
 class CICDPipeline:
     """Main CI/CD pipeline orchestrator"""
 
-    def __init__(self, config: PipelineConfig) -> Any:
+    def __init__(self, config: PipelineConfig) -> None:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.git_manager = None

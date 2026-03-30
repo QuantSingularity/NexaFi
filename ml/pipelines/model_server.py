@@ -88,7 +88,7 @@ class PredictionResponse:
 class ModelCache:
     """Intelligent model caching with LRU eviction"""
 
-    def __init__(self, max_models: int = 5, ttl_hours: int = 24) -> Any:
+    def __init__(self, max_models: int = 5, ttl_hours: int = 24) -> None:
         self.max_models = max_models
         self.ttl_hours = ttl_hours
         self.cache = {}
@@ -164,7 +164,7 @@ class ModelCache:
 class ModelLoader:
     """Model loading with multiple backends support"""
 
-    def __init__(self, mlflow_uri: str, s3_bucket: str = None) -> Any:
+    def __init__(self, mlflow_uri: str, s3_bucket: str = None) -> None:
         self.mlflow_uri = mlflow_uri
         self.s3_bucket = s3_bucket
         self.mlflow_client = MlflowClient(mlflow_uri)
@@ -225,7 +225,7 @@ class ModelLoader:
 class PredictionLogger:
     """Comprehensive prediction logging for audit and monitoring"""
 
-    def __init__(self, redis_client: redis.Redis = None) -> Any:
+    def __init__(self, redis_client: redis.Redis = None) -> None:
         self.redis_client = redis_client
         self.logger = logging.getLogger(__name__)
         self.log_buffer = []
@@ -316,7 +316,7 @@ class PredictionLogger:
 class ModelServer:
     """High-performance model serving with enterprise features"""
 
-    def __init__(self, config: Dict[str, Any]) -> Any:
+    def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
         self.app = Flask(__name__)
         CORS(self.app)

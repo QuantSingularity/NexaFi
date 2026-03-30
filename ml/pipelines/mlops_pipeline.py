@@ -78,7 +78,7 @@ class DeploymentConfig:
 class ModelRegistry:
     """Enterprise model registry with versioning and metadata management"""
 
-    def __init__(self, registry_uri: str, s3_bucket: str = None) -> Any:
+    def __init__(self, registry_uri: str, s3_bucket: str = None) -> None:
         self.registry_uri = registry_uri
         self.s3_bucket = s3_bucket
         self.client = MlflowClient(registry_uri)
@@ -217,7 +217,7 @@ class ModelRegistry:
 class ModelValidator:
     """Comprehensive model validation for financial compliance"""
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)
         self.validation_rules = self._load_validation_rules()
 
@@ -468,7 +468,7 @@ class ModelValidator:
 class ModelDeployer:
     """Automated model deployment with Kubernetes and Docker"""
 
-    def __init__(self, registry_url: str, namespace: str = "nexafi-ml") -> Any:
+    def __init__(self, registry_url: str, namespace: str = "nexafi-ml") -> None:
         self.registry_url = registry_url
         self.namespace = namespace
         self.docker_client = docker.from_env()
@@ -713,7 +713,7 @@ class ModelDeployer:
 class ModelMonitor:
     """Comprehensive model monitoring and alerting"""
 
-    def __init__(self, metrics_backend: str = "prometheus") -> Any:
+    def __init__(self, metrics_backend: str = "prometheus") -> None:
         self.metrics_backend = metrics_backend
         self.logger = logging.getLogger(__name__)
         self.alert_thresholds = self._load_alert_thresholds()
@@ -867,7 +867,7 @@ class ModelMonitor:
 class MLOpsPipeline:
     """Main MLOps pipeline orchestrator"""
 
-    def __init__(self, config: Dict[str, Any]) -> Any:
+    def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
         self.registry = ModelRegistry(config["mlflow_uri"], config.get("s3_bucket"))
         self.validator = ModelValidator()

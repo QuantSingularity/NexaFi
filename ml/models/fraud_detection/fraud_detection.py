@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 class FraudDetector:
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         self.model = None
 
     def preprocess_data(self, df: Any) -> Any:

@@ -1,8 +1,10 @@
-from typing import Any
 from datetime import date
 from decimal import Decimal
+from typing import Any
 from unittest.mock import patch
+
 import pytest
+
 from NexaFi.backend.ledger_service.src.main import app
 from NexaFi.backend.ledger_service.src.models.user import (
     Account,

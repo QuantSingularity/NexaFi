@@ -1,6 +1,8 @@
-from typing import Any
 import unittest
+from typing import Any
+
 import pandas as pd
+
 from NexaFi.ml.models.cash_flow_forecasting.cash_flow_forecasting import (
     CashFlowForecaster,
 )

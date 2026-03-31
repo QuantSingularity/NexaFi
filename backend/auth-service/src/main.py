@@ -15,12 +15,14 @@ from flask_cors import CORS
 # --- External System Imports (Mocked paths assumed correct based on context) ---
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "shared"))
 
-from nexafi_logging.logger import get_logger, setup_request_logging
 from audit.audit_logger import AuditEventType, AuditSeverity, audit_action, audit_logger
 from database.manager import BaseModel, initialize_database
+from middleware.auth import require_auth
 
 # Assuming User model exists based on SQL references, added import
-from models.user import OAuthClient, AuthorizationCode, AccessToken, User
+from models.user import AccessToken, AuthorizationCode, OAuthClient, User
+from nexafi_logging.logger import get_logger, setup_request_logging
+from open_banking_compliance import FAPI2SecurityProfile
 from security import (
     AdvancedEncryption,
     FraudDetectionEngine,
@@ -32,8 +34,6 @@ from security import (
     SecurityMonitor,
     ThreatLevel,
 )
-from middleware.auth import require_auth
-from open_banking_compliance import FAPI2SecurityProfile
 from validation_schemas.schemas import (
     SanitizationMixin,
     Schema,

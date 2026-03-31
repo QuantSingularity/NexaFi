@@ -7,6 +7,7 @@ import logging
 from typing import Any, Callable, Dict, Optional
 
 import pika
+
 from ..config.infrastructure import InfrastructureConfig
 
 logger = logging.getLogger(__name__)

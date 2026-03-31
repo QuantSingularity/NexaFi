@@ -1,6 +1,8 @@
-from typing import Any
 import unittest
+from typing import Any
+
 import pandas as pd
+
 from NexaFi.ml.models.credit_scoring.credit_scoring import CreditScorer
 
 

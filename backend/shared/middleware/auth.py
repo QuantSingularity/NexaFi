@@ -1,8 +1,8 @@
+import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
 
-import uuid
 import bcrypt
 import jwt
 import redis

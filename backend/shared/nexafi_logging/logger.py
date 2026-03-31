@@ -7,10 +7,10 @@ import logging
 import os
 import sys
 import threading
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-import uuid
 from flask import g, has_request_context, request
 from pythonjsonlogger import jsonlogger
 

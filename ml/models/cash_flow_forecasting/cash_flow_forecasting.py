@@ -1,7 +1,8 @@
+import logging
 from typing import Any
+
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

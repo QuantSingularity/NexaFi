@@ -1,7 +1,9 @@
-from typing import Any
 import os
 import unittest
+from typing import Any
+
 from PIL import Image, ImageDraw, ImageFont
+
 from NexaFi.ml.models.document_processing.document_processing import DocumentProcessor
 
 

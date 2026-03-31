@@ -9,12 +9,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple
-from nexafi_logging.logger import get_logger
+
 import pyotp
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from nexafi_logging.logger import get_logger
 
 logger = get_logger(__name__)
 

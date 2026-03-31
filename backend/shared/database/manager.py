@@ -4,11 +4,11 @@ Implements connection pooling, transaction management, and database migrations
 """
 
 import os
+import sqlite3
 import threading
+from contextlib import contextmanager
 from typing import Any, Dict, List, Tuple
 
-import sqlite3
-from contextlib import contextmanager
 from nexafi_logging.logger import get_logger
 
 logger = get_logger(__name__)

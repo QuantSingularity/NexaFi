@@ -5,24 +5,24 @@ Handles email, SMS, and in-app notifications with compliance requirements
 
 import json
 import os
+import queue
+import smtplib
 import sys
 import threading
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
-
-import queue
-import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Any, Dict, Optional
+
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "shared"))
-from nexafi_logging.logger import get_logger, setup_request_logging
 from audit.audit_logger import AuditEventType, AuditSeverity, audit_action, audit_logger
 from database.manager import BaseModel, initialize_database
-from models.user import Notification, NotificationPreferences, NotificationTemplate
 from middleware.auth import require_auth, require_permission
+from models.user import Notification, NotificationPreferences, NotificationTemplate
+from nexafi_logging.logger import get_logger, setup_request_logging
 from validation_schemas.schemas import (
     SanitizationMixin,
     Schema,

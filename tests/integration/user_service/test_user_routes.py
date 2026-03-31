@@ -1,8 +1,10 @@
-from typing import Any
 from datetime import datetime, timedelta
+from typing import Any
 from unittest.mock import patch
+
 import jwt
 import pytest
+
 from NexaFi.backend.user_service.src.main import app
 from NexaFi.backend.user_service.src.models.user import (
     AuditLog,

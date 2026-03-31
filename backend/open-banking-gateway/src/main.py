@@ -20,22 +20,14 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Add shared directory to path
 sys.path.append(os.path.join(BASE_DIR, "..", "..", "shared"))
 
+from audit.audit_logger import AuditEventType, AuditSeverity, audit_action, audit_logger
+from database.manager import initialize_database
+from middleware.auth import require_auth, require_permission
+
 # -------------------------------------------------------------------------
 # Imports
 # -------------------------------------------------------------------------
 from nexafi_logging.logger import get_logger, setup_request_logging
-from audit.audit_logger import AuditEventType, AuditSeverity, audit_action, audit_logger
-from database.manager import initialize_database
-from security import (
-    AdvancedEncryption,
-    FraudDetectionEngine,
-    MultiFactorAuthentication,
-    SecurityEvent,
-    SecurityEventType,
-    SecurityMonitor,
-    ThreatLevel,
-)
-from middleware.auth import require_auth, require_permission
 from open_banking_compliance import (
     AuthenticationMethod,
     ConsentStatus,
@@ -44,6 +36,15 @@ from open_banking_compliance import (
     PSD2ConsentManager,
     SCAManager,
     TransactionRiskAnalysis,
+)
+from security import (
+    AdvancedEncryption,
+    FraudDetectionEngine,
+    MultiFactorAuthentication,
+    SecurityEvent,
+    SecurityEventType,
+    SecurityMonitor,
+    ThreatLevel,
 )
 from validation_schemas.schemas import (
     SanitizationMixin,

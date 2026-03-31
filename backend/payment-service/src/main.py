@@ -2,11 +2,12 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from typing import Any
+
+from database.manager import BaseModel, initialize_database
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-from database.manager import BaseModel, initialize_database
 from routes.user import payment_bp
-from typing import Any
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
 app.config["SECRET_KEY"] = "nexafi-payment-service-secret-key-2024"

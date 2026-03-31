@@ -1,16 +1,17 @@
+import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any
 
-import uuid
 from flask import Blueprint, jsonify, request
+
 from .models.user import (
-    CreditScoreModel,
     CreditScore,
-    LoanApplication,
+    CreditScoreModel,
     Loan,
-    RiskAssessment,
+    LoanApplication,
     LoanApplicationHistory,
+    RiskAssessment,
 )
 
 credit_bp = Blueprint("credit", __name__)

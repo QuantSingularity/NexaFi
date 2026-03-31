@@ -4,9 +4,9 @@ Implements comprehensive validation for financial data
 """
 
 import re
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict
 
-from decimal import Decimal, InvalidOperation
 import bleach
 from marshmallow import Schema, ValidationError, fields, post_load, pre_load, validate
 
@@ -247,6 +247,7 @@ def validate_json_request(schema_class: Any) -> Any:
 
     def decorator(f):
         from functools import wraps
+
         from flask import jsonify, request
 
         @wraps(f)

@@ -5,15 +5,15 @@ Implements immutable audit trails for financial transactions and system events
 
 import hashlib
 import json
+import queue
 import threading
 import time
+import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
-import queue
-import uuid
 from nexafi_logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -315,6 +315,7 @@ def audit_action(
 
     def decorator(f):
         from functools import wraps
+
         from flask import g, request
 
         @wraps(f)

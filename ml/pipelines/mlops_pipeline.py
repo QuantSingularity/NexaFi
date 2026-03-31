@@ -10,6 +10,7 @@ import os
 import pickle
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Tuple
+
 import boto3
 import docker
 import mlflow
@@ -20,7 +21,6 @@ from kubernetes import client, config
 from mlflow.tracking import MlflowClient
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

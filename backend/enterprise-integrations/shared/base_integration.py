@@ -9,25 +9,25 @@ import logging
 import os
 import threading
 import time
+from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
-from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import redis
 import requests
 import schedule
 from circuit_breaker import CircuitBreaker
 from cryptography.fernet import Fernet
+from nexafi_logging.logger import get_logger
 from prometheus_client import Counter, Gauge, Histogram
 from requests.adapters import HTTPAdapter
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from urllib3.util.retry import Retry
-from nexafi_logging.logger import get_logger
 
 logger = get_logger(__name__)
 INTEGRATION_REQUESTS = Counter(

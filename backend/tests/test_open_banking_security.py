@@ -11,15 +11,9 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "shared"))
-from security import (
-    AdvancedEncryption,
-    FraudDetectionEngine,
-    MultiFactorAuthentication,
-    SecurityEvent,
-    SecurityEventType,
-    SecurityMonitor,
-    ThreatLevel,
-)
+from typing import Any
+
+from nexafi_logging.logger import get_logger
 from open_banking_compliance import (
     AuthenticationMethod,
     ConsentStatus,
@@ -30,8 +24,15 @@ from open_banking_compliance import (
     SCAStatus,
     TransactionRiskAnalysis,
 )
-from nexafi_logging.logger import get_logger
-from typing import Any
+from security import (
+    AdvancedEncryption,
+    FraudDetectionEngine,
+    MultiFactorAuthentication,
+    SecurityEvent,
+    SecurityEventType,
+    SecurityMonitor,
+    ThreatLevel,
+)
 
 logger = get_logger(__name__)
 

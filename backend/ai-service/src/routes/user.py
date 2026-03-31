@@ -1,9 +1,9 @@
+import random
 from datetime import datetime, timedelta
+from decimal import Decimal
 from functools import wraps
 from typing import Any, List
 
-import random
-from decimal import Decimal
 import numpy as np
 from flask import Blueprint, jsonify, request
 from src.models.user import (

@@ -1,8 +1,9 @@
+import logging
 from typing import Any
+
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import classification_report
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

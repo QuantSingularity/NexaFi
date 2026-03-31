@@ -1,6 +1,8 @@
-from typing import Any
 from datetime import datetime, timedelta
+from typing import Any
+
 import pytest
+
 from NexaFi.backend.ai_service.src.main import app
 from NexaFi.backend.ai_service.src.models.user import (
     AIModel,

@@ -25,6 +25,7 @@ try:
 except ImportError:
     DEEP_LEARNING_AVAILABLE = False
 import uuid
+
 import matplotlib.pyplot as plt
 import redis
 import structlog

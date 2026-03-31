@@ -8,11 +8,12 @@ from flask import Flask, Response, g, jsonify, request
 from flask_cors import CORS
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "shared"))
-from nexafi_logging.logger import get_logger, log_security_event, setup_request_logging
+from typing import Any, Dict, List, Optional, Tuple, cast
+
 from audit.audit_logger import audit_logger
 from middleware.auth import init_auth_manager, optional_auth
 from middleware.rate_limiter import add_rate_limit_headers, rate_limit
-from typing import Any, Dict, List, Optional, Tuple, cast
+from nexafi_logging.logger import get_logger, log_security_event, setup_request_logging
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(

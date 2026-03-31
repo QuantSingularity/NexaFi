@@ -1,8 +1,9 @@
-from typing import Any
+import logging
 import time
+from typing import Any
+
 import pytest
 import requests
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

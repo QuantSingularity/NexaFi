@@ -12,12 +12,12 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List
+
 import docker
 import git
 from kubernetes import client
 from kubernetes import config as k8s_config
 from mlflow.tracking import MlflowClient
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

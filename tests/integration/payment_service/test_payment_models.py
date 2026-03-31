@@ -1,7 +1,9 @@
-from typing import Any
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
+
 import pytest
+
 from NexaFi.backend.payment_service.src.main import app
 from NexaFi.backend.payment_service.src.models.user import (
     ExchangeRate,

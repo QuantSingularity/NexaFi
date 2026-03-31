@@ -7,9 +7,10 @@ Tests each service's ability to start and respond to health checks
 """
 
 import os
+import subprocess
 import sys
 import time
-import subprocess
+
 import requests
 
 # Add shared to path

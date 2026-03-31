@@ -10,10 +10,7 @@ import jwt
 import qrcode
 from flask import Blueprint, current_app, jsonify, request
 from flask_cors import cross_origin
-from models.user import (
-    User,
-    UserSession,
-)
+from models.user import User, UserSession
 
 user_bp = Blueprint("user", __name__)
 

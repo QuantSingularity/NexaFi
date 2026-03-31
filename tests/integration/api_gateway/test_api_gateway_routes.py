@@ -1,8 +1,10 @@
-from typing import Any
 import json
-import requests
+from typing import Any
 from unittest.mock import MagicMock, patch
+
 import pytest
+import requests
+
 from NexaFi.backend.api_gateway.src.main import SERVICES, app
 
 

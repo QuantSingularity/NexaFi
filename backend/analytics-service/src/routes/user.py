@@ -1,9 +1,10 @@
+import uuid
 from datetime import datetime
 from functools import wraps
 from typing import Any
 
-import uuid
 from flask import Blueprint, jsonify, request
+
 from .models.user import (
     Dashboard,
     DataSource,

@@ -1,8 +1,9 @@
+import logging
 from typing import Any
+
 import pytesseract
 import spacy
 from PIL import Image
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

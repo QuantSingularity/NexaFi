@@ -1,9 +1,10 @@
+import logging
 from typing import Any
+
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

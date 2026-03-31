@@ -11,9 +11,11 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import requests
+from nexafi_logging.logger import get_logger
 from oauthlib.oauth2 import WebApplicationClient
 from pyrfc import Connection
 from requests.auth import HTTPBasicAuth
+
 from ..shared.base_integration import (
     AuthMethod,
     BaseIntegration,
@@ -21,7 +23,6 @@ from ..shared.base_integration import (
     IntegrationConfig,
     SyncResult,
 )
-from nexafi_logging.logger import get_logger
 
 logger = get_logger(__name__)
 

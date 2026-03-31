@@ -5,15 +5,15 @@ High-performance, scalable transaction processing with enterprise-grade reliabil
 
 import hashlib
 import json
+import multiprocessing as mp
 import time
+import uuid
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-import multiprocessing as mp
-import uuid
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import pika
 import redis
 import structlog

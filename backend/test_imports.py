@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Test script to identify import and runtime issues in all services"""
 
-from typing import Dict
-
 import os
 import sys
 import traceback
+from typing import Dict
 
 # Add shared to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "shared"))

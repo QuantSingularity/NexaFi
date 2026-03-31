@@ -24,13 +24,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Add shared directory to Python path for internal modules
 sys.path.append(os.path.join(BASE_DIR, "..", "..", "shared"))
 
-# -------------------------------------------------------------------------
-# Imports (Ensure these modules exist in the shared path)
-# -------------------------------------------------------------------------
-from nexafi_logging.logger import get_logger, setup_request_logging
 from audit.audit_logger import AuditEventType, AuditSeverity, audit_action, audit_logger
 from database.manager import BaseModel, initialize_database
-from models.user import User
 from middleware.auth import (
     auth_manager,
     get_user_permissions,
@@ -38,6 +33,12 @@ from middleware.auth import (
     require_auth,
     require_permission,
 )
+from models.user import User
+
+# -------------------------------------------------------------------------
+# Imports (Ensure these modules exist in the shared path)
+# -------------------------------------------------------------------------
+from nexafi_logging.logger import get_logger, setup_request_logging
 from validation_schemas.schemas import (
     UserLoginSchema,
     UserRegistrationSchema,

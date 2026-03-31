@@ -1,5 +1,6 @@
-from typing import Any
 import random
+from typing import Any
+
 from locust import HttpUser, between, task
 
 

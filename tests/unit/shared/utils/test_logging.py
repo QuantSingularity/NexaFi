@@ -1,9 +1,11 @@
-from typing import Any
 import json
 import logging
 from datetime import datetime
+from typing import Any
 from unittest.mock import MagicMock, patch
+
 import pytest
+
 from NexaFi.backend.shared.config.infrastructure import InfrastructureConfig
 from NexaFi.backend.shared.utils.logging import StructuredLogger, get_logger
 

@@ -8,16 +8,17 @@ import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Type
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import redis
 import schedule
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
+
 from .base_integration import BaseIntegration, SyncResult, setup_database
 
 try:

@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
-
 from decimal import Decimal
+from typing import Any, Dict, Optional
 
 
 class BaseModel:
@@ -19,8 +18,8 @@ class BaseModel:
         """Find record by ID - delegates to actual shared BaseModel if available"""
         # Import actual BaseModel from shared if available
         try:
-            import sys
             import os
+            import sys
 
             sys.path.insert(
                 0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "shared")
@@ -39,8 +38,8 @@ class BaseModel:
     def find_all(cls: Any, where_clause: str = "", params: tuple = ()) -> Any:
         """Find all records - delegates to actual shared BaseModel if available"""
         try:
-            import sys
             import os
+            import sys
 
             sys.path.insert(
                 0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "shared")
@@ -59,8 +58,8 @@ class BaseModel:
     def find_one(cls: Any, where_clause: str, params: tuple = ()) -> Any:
         """Find one record - delegates to actual shared BaseModel if available"""
         try:
-            import sys
             import os
+            import sys
 
             sys.path.insert(
                 0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "shared")
@@ -78,8 +77,8 @@ class BaseModel:
     def save(self) -> None:
         """Save record - delegates to actual shared BaseModel if available"""
         try:
-            import sys
             import os
+            import sys
 
             sys.path.insert(
                 0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "shared")

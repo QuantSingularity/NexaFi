@@ -1,7 +1,9 @@
-from typing import Any
 import json
+from typing import Any
 from unittest.mock import MagicMock, call, patch
+
 import pytest
+
 from NexaFi.backend.shared.config.infrastructure import InfrastructureConfig
 from NexaFi.backend.shared.utils.message_queue import (
     MessageQueue,

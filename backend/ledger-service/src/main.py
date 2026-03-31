@@ -22,7 +22,6 @@ from models.user import (
 from nexafi_logging.logger import get_logger, setup_request_logging
 from routes.user import ledger_bp
 from validation_schemas.schemas import (
-    AccountSchema,
     FinancialValidators,
     JournalEntrySchema,
     SanitizationMixin,
@@ -34,7 +33,7 @@ from validation_schemas.schemas import (
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY", "nexafi-ledger-service-secret-key-2024"
+    "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
 app.register_blueprint(ledger_bp, url_prefix="/api/v1/ledger")
 CORS(app, origins="*", allow_headers=["Content-Type", "Authorization", "X-User-ID"])
@@ -74,7 +73,7 @@ BaseModel.set_db_manager(db_manager)
 # classes are imported from models.user - no redefinition needed
 
 
-class AccountSchema(AccountSchema):
+class LedgerAccountSchema(Schema):
     account_code = fields.Str(required=True, validate=validate.Length(min=3, max=20))
     account_subtype = fields.Str(
         required=False,
@@ -303,7 +302,7 @@ def list_accounts() -> Any:
 @app.route("/api/v1/accounts", methods=["POST"])
 @require_auth
 @require_permission("account:write")
-@validate_json_request(AccountSchema)
+@validate_json_request(LedgerAccountSchema)
 @audit_action(
     AuditEventType.ACCOUNT_CREATE, "account_created", severity=AuditSeverity.MEDIUM
 )
@@ -753,4 +752,5 @@ def balance_sheet() -> Any:
 if __name__ == "__main__":
     os.makedirs(os.path.join(os.path.dirname(__file__), "database"), exist_ok=True)
     initialize_chart_of_accounts()
-    app.run(host="0.0.0.0", port=5007, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5002)), debug=debug_mode)

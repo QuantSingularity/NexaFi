@@ -59,7 +59,7 @@ from validation_schemas.schemas import (
 # -------------------------------------------------------------------------
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY", "nexafi-open-banking-gateway-secret-key-2024"
+    "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
 
 # Strict CORS policy for FAPI compliance
@@ -850,7 +850,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(BASE_DIR, "keys"), exist_ok=True)
 
     # Run app (Debug should be False in production)
-    debug_mode = os.environ.get("FLASK_DEBUG", "True").lower() == "true"
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     port = int(os.environ.get("PORT", 5010))
 
     app.run(host="0.0.0.0", port=port, debug=debug_mode)

@@ -33,12 +33,13 @@ from validation_schemas.schemas import (
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY", "nexafi-notification-service-secret-key-2024"
+    "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
 CORS(app, origins="*", allow_headers=["Content-Type", "Authorization", "X-User-ID"])
 setup_request_logging(app)
 logger = get_logger("notification_service")
 db_path = os.path.join(os.path.dirname(__file__), "database", "notifications.db")
+os.makedirs(os.path.dirname(db_path), exist_ok=True)
 db_manager, migration_manager = initialize_database(db_path)
 NOTIFICATION_MIGRATIONS = {
     "008_create_notifications_table": {
@@ -588,4 +589,5 @@ def notification_stats() -> Any:
 if __name__ == "__main__":
     os.makedirs(os.path.join(os.path.dirname(__file__), "database"), exist_ok=True)
     initialize_templates()
-    app.run(host="0.0.0.0", port=5006, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5007)), debug=debug_mode)

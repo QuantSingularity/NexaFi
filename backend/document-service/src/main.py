@@ -41,4 +41,5 @@ def serve(path: Any) -> Any:
 
 if __name__ == "__main__":
     os.makedirs("/NexaFi/backend/document-service/src/database", exist_ok=True)
-    app.run(host="0.0.0.0", port=5006, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5006)), debug=debug_mode)

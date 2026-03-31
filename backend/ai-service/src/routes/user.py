@@ -6,13 +6,12 @@ from typing import Any, List
 
 import numpy as np
 from flask import Blueprint, jsonify, request
-from src.models.user import (
+from models.user import (
     AIModel,
     AIPrediction,
     ConversationMessage,
     ConversationSession,
     FinancialInsight,
-    db,
 )
 
 user_bp = Blueprint("ai", __name__)
@@ -107,9 +106,7 @@ def predict_cash_flow() -> Any:
         forecast = generate_cash_flow_forecast(
             request.user_id, historical_data, days_ahead
         )
-        model = AIModel.query.filter_by(
-            name="cash_flow_forecast_v1", is_active=True
-        ).first()
+        model = AIModel.find_one("name = ?", ("cash_flow_forecast_v1",), is_active=True)
         if not model:
             model = AIModel(
                 name="cash_flow_forecast_v1",
@@ -121,8 +118,7 @@ def predict_cash_flow() -> Any:
                 is_active=True,
                 is_production=True,
             )
-            db.session.add(model)
-            db.session.flush()
+            model.save()
         prediction = AIPrediction(
             user_id=request.user_id,
             model_id=model.id,
@@ -140,8 +136,7 @@ def predict_cash_flow() -> Any:
             },
             execution_time_ms=245,
         )
-        db.session.add(prediction)
-        db.session.commit()
+        prediction.save()
         return (
             jsonify(
                 {
@@ -149,10 +144,10 @@ def predict_cash_flow() -> Any:
                     "forecast": forecast,
                     "summary": {
                         "total_predicted_cash_flow": sum(
-                            (f["predicted_cash_flow"] for f in forecast)
+                            f["predicted_cash_flow"] for f in forecast
                         ),
                         "average_daily_cash_flow": sum(
-                            (f["predicted_cash_flow"] for f in forecast)
+                            f["predicted_cash_flow"] for f in forecast
                         )
                         / len(forecast),
                         "confidence_score": float(prediction.confidence_score),
@@ -167,7 +162,6 @@ def predict_cash_flow() -> Any:
             200,
         )
     except Exception as e:
-        db.session.rollback()
         return (
             jsonify(
                 {"error": "Failed to generate cash flow forecast", "details": str(e)}
@@ -184,9 +178,7 @@ def predict_credit_score() -> Any:
         data = request.get_json()
         business_data = data.get("business_data", {})
         credit_result = calculate_credit_score(request.user_id, business_data)
-        model = AIModel.query.filter_by(
-            name="credit_scoring_v1", is_active=True
-        ).first()
+        model = AIModel.find_one("name = ?", ("credit_scoring_v1",), is_active=True)
         if not model:
             model = AIModel(
                 name="credit_scoring_v1",
@@ -198,8 +190,7 @@ def predict_credit_score() -> Any:
                 is_active=True,
                 is_production=True,
             )
-            db.session.add(model)
-            db.session.flush()
+            model.save()
         prediction = AIPrediction(
             user_id=request.user_id,
             model_id=model.id,
@@ -213,8 +204,7 @@ def predict_credit_score() -> Any:
             },
             execution_time_ms=156,
         )
-        db.session.add(prediction)
-        db.session.commit()
+        prediction.save()
         return (
             jsonify(
                 {
@@ -238,7 +228,6 @@ def predict_credit_score() -> Any:
             200,
         )
     except Exception as e:
-        db.session.rollback()
         return (
             jsonify({"error": "Failed to calculate credit score", "details": str(e)}),
             500,
@@ -253,8 +242,8 @@ def get_financial_insights() -> Any:
         category = request.args.get("category")
         severity = request.args.get("severity")
         is_read = request.args.get("is_read")
-        query = FinancialInsight.query.filter_by(
-            user_id=request.user_id, is_dismissed=False
+        query = FinancialInsight.find_all(
+            "user_id = ? AND is_dismissed = ?", (request.user_id, False)
         )
         if category:
             query = query.filter_by(category=category)
@@ -372,9 +361,8 @@ def generate_insights() -> Any:
                 recommendations=insight_data["recommendations"],
                 expires_at=datetime.utcnow() + timedelta(days=30),
             )
-            db.session.add(insight)
+            insight.save()
             created_insights.append(insight)
-        db.session.commit()
         return (
             jsonify(
                 {
@@ -385,7 +373,6 @@ def generate_insights() -> Any:
             201,
         )
     except Exception as e:
-        db.session.rollback()
         return (
             jsonify({"error": "Failed to generate insights", "details": str(e)}),
             500,
@@ -397,17 +384,16 @@ def generate_insights() -> Any:
 def mark_insight_read(insight_id: Any) -> Any:
     """Mark insight as read"""
     try:
-        insight = FinancialInsight.query.filter_by(
-            id=insight_id, user_id=request.user_id
-        ).first()
+        insight = FinancialInsight.find_one(
+            "id = ? AND user_id = ?", (insight_id, request.user_id)
+        )
         if not insight:
             return (jsonify({"error": "Insight not found"}), 404)
         insight.is_read = True
         insight.updated_at = datetime.utcnow()
-        db.session.commit()
+        insight.save()
         return (jsonify({"message": "Insight marked as read"}), 200)
     except Exception as e:
-        db.session.rollback()
         return (
             jsonify({"error": "Failed to mark insight as read", "details": str(e)}),
             500,
@@ -420,7 +406,7 @@ def get_chat_sessions() -> Any:
     """Get chat sessions for user"""
     try:
         sessions = (
-            ConversationSession.query.filter_by(user_id=request.user_id)
+            ConversationSession.find_all("user_id = ?", (request.user_id,))
             .order_by(ConversationSession.last_activity_at.desc())
             .all()
         )
@@ -454,8 +440,7 @@ def create_chat_session() -> Any:
             ),
             context=data.get("context", {}),
         )
-        db.session.add(session)
-        db.session.commit()
+        session.save()
         return (
             jsonify(
                 {
@@ -466,7 +451,6 @@ def create_chat_session() -> Any:
             201,
         )
     except Exception as e:
-        db.session.rollback()
         return (
             jsonify({"error": "Failed to create chat session", "details": str(e)}),
             500,
@@ -478,13 +462,13 @@ def create_chat_session() -> Any:
 def get_chat_messages(session_id: Any) -> Any:
     """Get messages for chat session"""
     try:
-        session = ConversationSession.query.filter_by(
-            id=session_id, user_id=request.user_id
-        ).first()
+        session = ConversationSession.find_one(
+            "id = ? AND user_id = ?", (session_id, request.user_id)
+        )
         if not session:
             return (jsonify({"error": "Chat session not found"}), 404)
         messages = (
-            ConversationMessage.query.filter_by(session_id=session_id)
+            ConversationMessage.find_all("session_id = ?", (session_id,))
             .order_by(ConversationMessage.created_at)
             .all()
         )
@@ -510,9 +494,9 @@ def get_chat_messages(session_id: Any) -> Any:
 def send_chat_message(session_id: Any) -> Any:
     """Send message to chat session"""
     try:
-        session = ConversationSession.query.filter_by(
-            id=session_id, user_id=request.user_id
-        ).first()
+        session = ConversationSession.find_one(
+            "id = ? AND user_id = ?", (session_id, request.user_id)
+        )
         if not session:
             return (jsonify({"error": "Chat session not found"}), 404)
         data = request.get_json()
@@ -525,7 +509,7 @@ def send_chat_message(session_id: Any) -> Any:
             content=user_message_content,
             metadata=data.get("metadata", {}),
         )
-        db.session.add(user_message)
+        user_message.save()
         ai_response = generate_ai_response(user_message_content, session.context)
         ai_message = ConversationMessage(
             session_id=session_id,
@@ -535,10 +519,10 @@ def send_chat_message(session_id: Any) -> Any:
             tokens_used=ai_response["tokens_used"],
             processing_time_ms=ai_response["processing_time_ms"],
         )
-        db.session.add(ai_message)
+        ai_message.save()
         session.last_activity_at = datetime.utcnow()
         session.updated_at = datetime.utcnow()
-        db.session.commit()
+        session.save()
         return (
             jsonify(
                 {
@@ -549,7 +533,6 @@ def send_chat_message(session_id: Any) -> Any:
             201,
         )
     except Exception as e:
-        db.session.rollback()
         return (jsonify({"error": "Failed to send message", "details": str(e)}), 500)
 
 
@@ -558,15 +541,15 @@ def generate_ai_response(user_message: Any, context: Any) -> Any:
     processing_time = random.randint(500, 2000)
     tokens_used = random.randint(50, 200)
     user_message_lower = user_message.lower()
-    if any((word in user_message_lower for word in ["cash flow", "cash", "flow"])):
+    if any(word in user_message_lower for word in ["cash flow", "cash", "flow"]):
         response = "I can help you analyze your cash flow. Based on your recent transactions, I notice some patterns that might be worth discussing. Would you like me to generate a detailed cash flow forecast for the next 30 days?"
-    elif any((word in user_message_lower for word in ["credit", "score", "loan"])):
+    elif any(word in user_message_lower for word in ["credit", "score", "loan"]):
         response = "I can assist with credit-related questions. Your current credit profile shows several positive factors. Would you like me to run a credit assessment or help you understand what factors most impact your business credit score?"
     elif any(
-        (word in user_message_lower for word in ["expense", "expenses", "spending"])
+        word in user_message_lower for word in ["expense", "expenses", "spending"]
     ):
         response = "I can analyze your expense patterns. I've noticed some interesting trends in your spending that could help optimize your budget. Would you like me to identify potential cost-saving opportunities?"
-    elif any((word in user_message_lower for word in ["revenue", "income", "sales"])):
+    elif any(word in user_message_lower for word in ["revenue", "income", "sales"]):
         response = "Let me help you with revenue analysis. Your revenue trends show some promising patterns. I can provide insights on growth opportunities and revenue optimization strategies. What specific aspect would you like to explore?"
     else:
         response = "I'm here to help with your financial questions and provide insights about your business. I can assist with cash flow analysis, expense optimization, revenue forecasting, credit assessment, and general financial planning. What would you like to know more about?"
@@ -590,7 +573,7 @@ def generate_ai_response(user_message: Any, context: Any) -> Any:
 def get_models() -> Any:
     """Get available AI models"""
     try:
-        models = AIModel.query.filter_by(is_active=True).all()
+        models = AIModel.find_all("is_active = ?", (True,))
         return (
             jsonify(
                 {"models": [model.to_dict() for model in models], "total": len(models)}
@@ -609,7 +592,7 @@ def get_predictions() -> Any:
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 20, type=int)
         prediction_type = request.args.get("type")
-        query = AIPrediction.query.filter_by(user_id=request.user_id)
+        query = AIPrediction.find_all("user_id = ?", (request.user_id,))
         if prediction_type:
             query = query.filter_by(prediction_type=prediction_type)
         predictions = query.order_by(AIPrediction.created_at.desc()).paginate(
@@ -646,7 +629,7 @@ def health_check() -> Any:
                 "status": "healthy",
                 "service": "ai-service",
                 "timestamp": datetime.utcnow().isoformat(),
-                "models_available": AIModel.query.filter_by(is_active=True).count(),
+                "models_available": len(AIModel.find_all("is_active = ?", (1,))),
             }
         ),
         200,

@@ -1,0 +1,336 @@
+version: "3.9"
+
+x-common-env: &common-env
+  FLASK_DEBUG: "false"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  networks:
+    - nexafi-network
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  # ─── Infrastructure ───────────────────────────────────────────────────────
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexafi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis_data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    networks:
+      - nexafi-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: nexafi-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-nexafi}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-nexafi123}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - nexafi-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ─── Core Services ────────────────────────────────────────────────────────
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: nexafi-api-gateway
+    ports:
+      - "5000:5000"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5000"
+      USER_SERVICE_URL: http://user-service:5001
+      LEDGER_SERVICE_URL: http://ledger-service:5002
+      PAYMENT_SERVICE_URL: http://payment-service:5003
+      AI_SERVICE_URL: http://ai-service:5004
+    depends_on:
+      redis:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: nexafi-user-service
+    ports:
+      - "5001:5001"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      DATABASE_URL: sqlite:////app/src/data/users.db
+      PORT: "5001"
+    volumes:
+      - user_data:/app/src/data
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: nexafi-auth-service
+    ports:
+      - "5011:5011"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      FAPI_PRIVATE_KEY: /app/keys/private_key.pem
+      FAPI_PUBLIC_KEY: /app/keys/public_key.pem
+      PORT: "5011"
+    volumes:
+      - auth_data:/app/src/database
+      - auth_keys:/app/keys
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5011/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ledger-service:
+    build:
+      context: .
+      dockerfile: ledger-service/Dockerfile
+    container_name: nexafi-ledger-service
+    ports:
+      - "5002:5002"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5002"
+    volumes:
+      - ledger_data:/app/src/database
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    container_name: nexafi-payment-service
+    ports:
+      - "5003:5003"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5003"
+    volumes:
+      - payment_data:/app/src/database
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+    container_name: nexafi-ai-service
+    ports:
+      - "5004:5004"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5004"
+    volumes:
+      - ai_data:/app/src/database
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5004/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  compliance-service:
+    build:
+      context: .
+      dockerfile: compliance-service/Dockerfile
+    container_name: nexafi-compliance-service
+    ports:
+      - "5005:5005"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5005"
+    volumes:
+      - compliance_data:/app/src/database
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  document-service:
+    build:
+      context: .
+      dockerfile: document-service/Dockerfile
+    container_name: nexafi-document-service
+    ports:
+      - "5006:5006"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5006"
+    volumes:
+      - document_data:/app/src/database
+      - document_uploads:/app/src/uploads
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5006/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: nexafi-notification-service
+    ports:
+      - "5007:5007"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      PORT: "5007"
+    volumes:
+      - notification_data:/app/src/database
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5007/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  credit-service:
+    build:
+      context: .
+      dockerfile: credit-service/Dockerfile
+    container_name: nexafi-credit-service
+    ports:
+      - "5008:5008"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5008"
+    volumes:
+      - credit_data:/app/src/database
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5008/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: analytics-service/Dockerfile
+    container_name: nexafi-analytics-service
+    ports:
+      - "5009:5009"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5009"
+    volumes:
+      - analytics_data:/app/src/database
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5009/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  open-banking-gateway:
+    build:
+      context: .
+      dockerfile: open-banking-gateway/Dockerfile
+    container_name: nexafi-open-banking-gateway
+    ports:
+      - "5010:5010"
+    environment:
+      <<: *common-env
+      SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
+      PORT: "5010"
+    <<: *service-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5010/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+
+volumes:
+  redis_data:
+  rabbitmq_data:
+  user_data:
+  auth_data:
+  auth_keys:
+  ledger_data:
+  payment_data:
+  ai_data:
+  compliance_data:
+  document_data:
+  document_uploads:
+  notification_data:
+  credit_data:
+  analytics_data:
+
+# ─── Networks ────────────────────────────────────────────────────────────────
+
+networks:
+  nexafi-network:
+    driver: bridge

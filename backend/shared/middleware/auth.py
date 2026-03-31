@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import datetime, timedelta
 from functools import wraps
@@ -14,7 +15,11 @@ class AuthManager:
     def __init__(self, secret_key: str, redis_client: Any = None) -> None:
         self.secret_key = secret_key
         self.redis_client = redis_client or redis.Redis(
-            host="localhost", port=6379, db=1, decode_responses=True
+            host=os.environ.get("REDIS_HOST", "localhost"),
+            port=int(os.environ.get("REDIS_PORT", 6379)),
+            password=os.environ.get("REDIS_PASSWORD", None),
+            db=1,
+            decode_responses=True,
         )
         self.token_expiry = 3600
         self.refresh_token_expiry = 86400 * 7
@@ -100,7 +105,13 @@ class AuthManager:
         if not payload:
             return None
         user_id = payload["user_id"]
-        return self.generate_tokens(user_id, f"user{user_id}@example.com", ["user"])
+        email = payload.get("email", f"{user_id}@nexafi.com")
+        roles = payload.get("roles", ["user"])
+        # Revoke old refresh token before issuing new one (rotation)
+        old_jti = payload.get("jti")
+        if old_jti:
+            self.redis_client.delete(f"refresh_token:{old_jti}")
+        return self.generate_tokens(user_id, email, roles)
 
 
 auth_manager = None

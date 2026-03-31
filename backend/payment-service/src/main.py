@@ -10,7 +10,9 @@ from flask_cors import CORS
 from routes.user import payment_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
-app.config["SECRET_KEY"] = "nexafi-payment-service-secret-key-2024"
+app.config["SECRET_KEY"] = os.environ.get(
+    "SECRET_KEY", "nexafi-default-secret-change-in-production"
+)
 CORS(app, origins="*", allow_headers=["Content-Type", "Authorization", "X-User-ID"])
 app.register_blueprint(payment_bp, url_prefix="/api/v1/payment")
 db_path = os.path.join(os.path.dirname(__file__), "database", "app.db")
@@ -57,4 +59,5 @@ def internal_error(error: Any) -> Any:
 
 if __name__ == "__main__":
     os.makedirs(os.path.join(os.path.dirname(__file__), "database"), exist_ok=True)
-    app.run(host="0.0.0.0", port=5008, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5003)), debug=debug_mode)

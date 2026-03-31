@@ -46,8 +46,13 @@ from validation_schemas.schemas import (
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY", "nexafi-auth-service-secret-key-2024"
+    "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
+
+# Initialize auth manager for require_auth decorator
+from middleware.auth import init_auth_manager
+
+init_auth_manager(app.config["SECRET_KEY"])
 
 # Optimization: Restrict CORS origins in production
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*")
@@ -441,7 +446,7 @@ def login() -> Any:
 def setup_mfa() -> Any:
     """Setup Multi-Factor Authentication"""
     data = request.validated_data  # type: ignore[attr-defined]
-    user_id = g.user_id
+    user_id = g.current_user["user_id"]
 
     # Retrieve user email for TOTP issuer (optimization)
     user = User.find_by_field("id", user_id)
@@ -494,8 +499,8 @@ def setup_mfa() -> Any:
 def verify_mfa() -> Any:
     """Verify Multi-Factor Authentication"""
     data = request.validated_data  # type: ignore[attr-defined]
-    user_id = g.user_id
-    session_id = g.session_id
+    user_id = g.current_user["user_id"]
+    session_id = g.current_user.get("session_id", "")
     is_verified = False
 
     try:
@@ -896,8 +901,8 @@ def oauth2_userinfo() -> Any:
 @audit_action(AuditEventType.USER_LOGOUT, "logout", severity=AuditSeverity.LOW)
 def logout() -> Any:
     """Secure logout"""
-    user_id = g.user_id
-    session_id = g.session_id
+    user_id = g.current_user["user_id"]
+    session_id = g.current_user.get("session_id", "")
 
     session_manager.invalidate_session(session_id)
 

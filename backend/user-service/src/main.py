@@ -60,7 +60,7 @@ if not SECRET_KEY:
 app.config["SECRET_KEY"] = SECRET_KEY
 app.config["DEBUG"] = os.getenv("DEBUG", "False").lower() == "true"
 HOST = os.getenv("HOST", "0.0.0.0")
-PORT = int(os.getenv("PORT", 5000))
+PORT = int(os.getenv("PORT", 5001))
 
 # Initialize Auth Manager
 init_auth_manager(app.config["SECRET_KEY"])

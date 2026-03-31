@@ -17,7 +17,7 @@ from nexafi_logging.logger import get_logger, log_security_event, setup_request_
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY", "nexafi-api-gateway-secret-key-2024"
+    "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
 init_auth_manager(app.config["SECRET_KEY"])
 CORS(app, origins="*", allow_headers=["Content-Type", "Authorization", "X-User-ID"])
@@ -25,7 +25,7 @@ setup_request_logging(app)
 logger = get_logger("api_gateway")
 SERVICES = {
     "user-service": {
-        "url": "http://localhost:5001",
+        "url": os.environ.get("USER_SERVICE_URL", "http://user-service:5001"),
         "health_endpoint": "/api/v1/health",
         "routes": ["/api/v1/auth", "/api/v1/users"],
         "timeout": 30,
@@ -33,7 +33,7 @@ SERVICES = {
         "circuit_breaker": {"failure_threshold": 5, "recovery_timeout": 60},
     },
     "ledger-service": {
-        "url": "http://localhost:5002",
+        "url": os.environ.get("LEDGER_SERVICE_URL", "http://ledger-service:5002"),
         "health_endpoint": "/api/v1/health",
         "routes": ["/api/v1/accounts", "/api/v1/journal-entries", "/api/v1/reports"],
         "timeout": 30,
@@ -41,7 +41,7 @@ SERVICES = {
         "circuit_breaker": {"failure_threshold": 5, "recovery_timeout": 60},
     },
     "payment-service": {
-        "url": "http://localhost:5003",
+        "url": os.environ.get("PAYMENT_SERVICE_URL", "http://payment-service:5003"),
         "health_endpoint": "/api/v1/health",
         "routes": [
             "/api/v1/payment-methods",
@@ -56,7 +56,7 @@ SERVICES = {
         "circuit_breaker": {"failure_threshold": 5, "recovery_timeout": 60},
     },
     "ai-service": {
-        "url": "http://localhost:5004",
+        "url": os.environ.get("AI_SERVICE_URL", "http://ai-service:5004"),
         "health_endpoint": "/api/v1/health",
         "routes": [
             "/api/v1/predictions",
@@ -355,4 +355,5 @@ def internal_error(error: Exception) -> Tuple[Response, int]:
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=debug_mode)

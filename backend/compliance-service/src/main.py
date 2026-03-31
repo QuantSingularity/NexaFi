@@ -28,12 +28,13 @@ from validation_schemas.schemas import (
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY", "nexafi-compliance-service-secret-key-2024"
+    "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
 CORS(app, origins="*", allow_headers=["Content-Type", "Authorization", "X-User-ID"])
 setup_request_logging(app)
 logger = get_logger("compliance_service")
 db_path = os.path.join(os.path.dirname(__file__), "database", "compliance.db")
+os.makedirs(os.path.dirname(db_path), exist_ok=True)
 db_manager, migration_manager = initialize_database(db_path)
 COMPLIANCE_MIGRATIONS = {
     "004_create_kyc_table": {
@@ -516,4 +517,5 @@ def compliance_dashboard() -> Any:
 
 if __name__ == "__main__":
     os.makedirs(os.path.join(os.path.dirname(__file__), "database"), exist_ok=True)
-    app.run(host="0.0.0.0", port=5005, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5005)), debug=debug_mode)

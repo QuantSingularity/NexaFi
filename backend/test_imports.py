@@ -4,7 +4,7 @@
 import os
 import sys
 import traceback
-from typing import Dict
+from typing import Any, Dict
 
 # Add shared to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "shared"))

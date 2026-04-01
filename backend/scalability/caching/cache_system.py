@@ -5,6 +5,7 @@ Multi-tier, high-performance caching with intelligent cache management
 
 import hashlib
 import json
+import logging
 import pickle
 import threading
 import time
@@ -29,11 +30,12 @@ from cachetools import LFUCache, LRUCache, TTLCache
 from consistent_hash import ConsistentHash
 from prometheus_client import Counter, Histogram
 from pybloom_live import BloomFilter
-from pymemcache.client.base import Client as MemcacheClient
+from pymemcache.client.hash import HashClient as MemcacheHashClient
 from sqlalchemy import Column, DateTime, Float, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 
@@ -211,7 +213,7 @@ class SerializationManager:
         elif serialization_type == SerializationType.JSON:
             return json.dumps(data).encode("utf-8")
         elif serialization_type == SerializationType.MSGPACK:
-            return msgpack.packb(data)
+            return msgpack.packb(data, use_bin_type=True)
         elif serialization_type == SerializationType.CBOR:
             return cbor2.dumps(data)
         elif serialization_type == SerializationType.ORJSON:
@@ -300,7 +302,7 @@ class L1MemoryCache:
                 self.logger.error(f"L1 cache delete failed: {str(e)}")
                 return False
 
-    def clear(self) -> Any:
+    def clear(self) -> None:
         """Clear all cache entries"""
         with self.lock:
             self.cache.clear()
@@ -339,10 +341,12 @@ class L2RedisCache:
         self.compression = config.get("compression", CompressionType.LZ4)
         self.serialization = config.get("serialization", SerializationType.MSGPACK)
         self.default_ttl = config.get("ttl_seconds", 3600)
+        self.bloom_capacity = config.get("bloom_filter_size", 1000000)
+        self.bloom_error_rate = config.get("bloom_filter_error_rate", 0.01)
         if config.get("enable_bloom_filter", True):
-            bloom_size = config.get("bloom_filter_size", 1000000)
-            error_rate = config.get("bloom_filter_error_rate", 0.01)
-            self.bloom_filter = BloomFilter(capacity=bloom_size, error_rate=error_rate)
+            self.bloom_filter = BloomFilter(
+                capacity=self.bloom_capacity, error_rate=self.bloom_error_rate
+            )
         else:
             self.bloom_filter = None
         self.stats = CacheStats(0, 0, 0, 0, 0, 0.0, 0.0, 0.0)
@@ -406,14 +410,16 @@ class L2RedisCache:
             self.logger.error(f"L2 cache delete failed: {str(e)}")
             return False
 
-    def clear(self) -> Any:
+    def clear(self) -> None:
         """Clear all cache entries"""
         try:
             self.redis_client.flushdb()
             with self.lock:
                 self.stats = CacheStats(0, 0, 0, 0, 0, 0.0, 0.0, 0.0)
             if self.bloom_filter:
-                self.bloom_filter.clear()
+                self.bloom_filter = BloomFilter(
+                    capacity=self.bloom_capacity, error_rate=self.bloom_error_rate
+                )
         except Exception as e:
             self.logger.error(f"L2 cache clear failed: {str(e)}")
 
@@ -434,9 +440,13 @@ class L3MemcachedCache:
         self.config = config
         self.logger = structlog.get_logger(__name__)
         memcached_config = config.get("memcached", {})
-        servers = memcached_config.get("servers", ["localhost:11211"])
-        self.memcached_client = MemcacheClient(
-            servers, serializer=self._serialize, deserializer=self._deserialize
+        server_strings = memcached_config.get("servers", ["localhost:11211"])
+        parsed_servers = []
+        for server in server_strings:
+            host, port = server.rsplit(":", 1)
+            parsed_servers.append((host, int(port)))
+        self.memcached_client = MemcacheHashClient(
+            parsed_servers, serializer=self._serialize, deserializer=self._deserialize
         )
         self.compression = config.get("compression", CompressionType.LZ4)
         self.serialization = config.get("serialization", SerializationType.MSGPACK)
@@ -444,10 +454,10 @@ class L3MemcachedCache:
         self.stats = CacheStats(0, 0, 0, 0, 0, 0.0, 0.0, 0.0)
         self.lock = threading.RLock()
 
-    def _serialize(self, key: str, value: Any) -> bytes:
+    def _serialize(self, key: str, value: Any):
         """Custom serializer for Memcached"""
         serialized_data = SerializationManager.serialize(value, self.serialization)
-        return CompressionManager.compress(serialized_data, self.compression)
+        return CompressionManager.compress(serialized_data, self.compression), 0
 
     def _deserialize(self, key: str, data: bytes, flags: int) -> Any:
         """Custom deserializer for Memcached"""
@@ -548,8 +558,8 @@ class MultiTierCache:
                 value = cache.get(key)
             if value is not None:
                 self.cache_hits.labels(level=level.name).inc()
-                self._promote_to_higher_levels(key, value, level)
                 self.access_counts[key] += 1
+                self._promote_to_higher_levels(key, value, level)
                 return value
             else:
                 self.cache_misses.labels(level=level.name).inc()
@@ -579,7 +589,7 @@ class MultiTierCache:
 
     def _promote_to_higher_levels(
         self, key: str, value: Any, current_level: CacheLevel
-    ) -> Any:
+    ) -> None:
         """Promote frequently accessed items to higher cache levels"""
         access_count = self.access_counts[key]
         if access_count >= self.promotion_threshold:
@@ -595,7 +605,7 @@ class MultiTierCache:
             stats[level.name] = cache.get_stats()
         return stats
 
-    def clear_all(self) -> Any:
+    def clear_all(self) -> None:
         """Clear all cache levels"""
         for cache in self.caches.values():
             cache.clear()
@@ -612,8 +622,7 @@ class CacheManager:
         self.caches = {}
         db_url = config.get("database_url", "sqlite:///cache_metrics.db")
         self.db_engine = create_engine(db_url)
-        Session = sessionmaker(bind=self.db_engine)
-        self.db_session = Session()
+        self.Session = sessionmaker(bind=self.db_engine)
         Base.metadata.create_all(bind=self.db_engine)
         self.is_running = False
         self.metrics_thread = None
@@ -644,14 +653,14 @@ class CacheManager:
         cache = self.get_cache(cache_name)
         return cache.delete(key)
 
-    def invalidate_by_tags(self, cache_name: str, tags: List[str]) -> Any:
+    def invalidate_by_tags(self, cache_name: str, tags: List[str]) -> None:
         """Invalidate cache entries by tags"""
         self.get_cache(cache_name)
         self.logger.info(f"Tag-based invalidation requested for {cache_name}: {tags}")
 
     def warm_cache(
         self, cache_name: str, data_loader: Callable[[str], Any], keys: List[str]
-    ) -> Any:
+    ) -> None:
         """Warm cache with data"""
         cache = self.get_cache(cache_name)
 
@@ -668,7 +677,7 @@ class CacheManager:
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = [executor.submit(load_and_cache, key) for key in keys]
-            successful = sum((1 for future in futures if future.result()))
+            successful = sum(1 for future in futures if future.result())
         self.logger.info(
             f"Cache warming completed: {successful}/{len(keys)} keys loaded"
         )
@@ -697,7 +706,7 @@ class CacheManager:
             )
         return global_stats
 
-    def start_metrics_collection(self) -> Any:
+    def start_metrics_collection(self) -> None:
         """Start background metrics collection"""
         if self.is_running:
             return
@@ -716,15 +725,16 @@ class CacheManager:
         self.metrics_thread.start()
         self.logger.info("Started metrics collection")
 
-    def stop_metrics_collection(self) -> Any:
+    def stop_metrics_collection(self) -> None:
         """Stop background metrics collection"""
         self.is_running = False
         if self.metrics_thread:
             self.metrics_thread.join()
         self.logger.info("Stopped metrics collection")
 
-    def _collect_and_store_metrics(self) -> Any:
+    def _collect_and_store_metrics(self) -> None:
         """Collect and store cache metrics"""
+        session = self.Session()
         try:
             for cache_name, cache in self.caches.items():
                 stats = cache.get_stats()
@@ -741,11 +751,13 @@ class CacheManager:
                         avg_access_time=level_stats.avg_access_time,
                         memory_usage=level_stats.memory_usage,
                     )
-                    self.db_session.add(metric)
-            self.db_session.commit()
+                    session.add(metric)
+            session.commit()
         except Exception as e:
             self.logger.error(f"Metrics storage failed: {str(e)}")
-            self.db_session.rollback()
+            session.rollback()
+        finally:
+            session.close()
 
 
 def cached(

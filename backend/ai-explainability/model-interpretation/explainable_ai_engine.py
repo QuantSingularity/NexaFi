@@ -4,6 +4,7 @@ Comprehensive AI model interpretation and explanation system for regulatory comp
 """
 
 import json
+import logging
 import os
 import warnings
 from dataclasses import dataclass
@@ -41,6 +42,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 

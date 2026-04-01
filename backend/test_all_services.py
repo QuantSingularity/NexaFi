@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import time
+from typing import Any, Dict, List
 
 import requests
 
@@ -157,7 +158,7 @@ def test_service(service):
                 print(f"  STDOUT: {stdout_data}")
             if stderr_data:
                 print(f"  STDERR: {stderr_data}")
-        except:
+        except Exception:
             pass
         return False, process
 
@@ -169,10 +170,10 @@ def cleanup():
         try:
             process.terminate()
             process.wait(timeout=5)
-        except:
+        except Exception:
             try:
                 process.kill()
-            except:
+            except Exception:
                 pass
 
 
@@ -188,7 +189,7 @@ def main():
                 process.terminate()
                 try:
                     process.wait(timeout=2)
-                except:
+                except Exception:
                     process.kill()
                 running_processes.remove(process)
 

@@ -5,6 +5,7 @@ High-performance, scalable transaction processing with enterprise-grade reliabil
 
 import hashlib
 import json
+import logging
 import multiprocessing as mp
 import time
 import uuid
@@ -35,6 +36,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 

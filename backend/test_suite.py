@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import time
@@ -5,9 +6,9 @@ from datetime import datetime
 from typing import Any
 
 import requests
-from nexafi_logging.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
+
 BASE_URL = "http://localhost:5000"
 SERVICES = {
     "api-gateway": 5000,

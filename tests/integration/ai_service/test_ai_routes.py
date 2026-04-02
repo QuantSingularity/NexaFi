@@ -3,8 +3,8 @@ from typing import Any
 
 import pytest
 
-from NexaFi.backend.ai_service.src.main import app
-from NexaFi.backend.ai_service.src.models.user import (
+from backend.ai_service.src.main import app
+from backend.ai_service.src.models.user import (
     AIModel,
     AIPrediction,
     ConversationMessage,

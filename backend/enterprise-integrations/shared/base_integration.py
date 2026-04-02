@@ -21,7 +21,6 @@ import requests
 import schedule
 from circuit_breaker import CircuitBreaker
 from cryptography.fernet import Fernet
-from nexafi_logging.logger import get_logger
 from prometheus_client import Counter, Gauge, Histogram
 from requests.adapters import HTTPAdapter
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine
@@ -29,7 +28,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from urllib3.util.retry import Retry
 
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
+
 INTEGRATION_REQUESTS = Counter(
     "integration_requests_total", "Total integration requests", ["system", "operation"]
 )

@@ -17,7 +17,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import geoip2.database
 import redis
 import user_agents
-from nexafi_logging.logger import get_logger
 from sqlalchemy import (
     Boolean,
     Column,
@@ -31,7 +30,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
 Base = declarative_base()
 
 

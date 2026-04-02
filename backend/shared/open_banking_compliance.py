@@ -6,6 +6,7 @@ Implements PSD2, FAPI 2.0, and Strong Customer Authentication (SCA) requirements
 import base64
 import hashlib
 import json
+import logging
 import os
 import re
 import secrets
@@ -18,9 +19,8 @@ import jwt
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
-from nexafi_logging.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
 
 
 class ConsentStatus(Enum):

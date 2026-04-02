@@ -23,7 +23,6 @@ import numpy as np
 import redis
 import requests
 import slack_sdk
-from nexafi_logging.logger import get_logger
 from prometheus_client import Counter, Histogram
 from scipy import stats
 from sklearn.ensemble import IsolationForest
@@ -42,7 +41,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from twilio.rest import Client as TwilioClient
 
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
 warnings.filterwarnings("ignore")
 Base = declarative_base()
 

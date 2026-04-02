@@ -3,6 +3,7 @@ Comprehensive Test Suite for Open Banking Compliance and Security
 """
 
 import json
+import logging
 import os
 import sys
 import time
@@ -13,8 +14,7 @@ from unittest.mock import Mock, patch
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "shared"))
 from typing import Any
 
-from nexafi_logging.logger import get_logger
-from open_banking_compliance import (
+from shared.open_banking_compliance import (
     AuthenticationMethod,
     ConsentStatus,
     FAPI2SecurityProfile,
@@ -24,7 +24,7 @@ from open_banking_compliance import (
     SCAStatus,
     TransactionRiskAnalysis,
 )
-from security import (
+from shared.security import (
     AdvancedEncryption,
     FraudDetectionEngine,
     MultiFactorAuthentication,
@@ -34,7 +34,7 @@ from security import (
     ThreatLevel,
 )
 
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
 
 
 class TestFAPI2SecurityProfile(unittest.TestCase):

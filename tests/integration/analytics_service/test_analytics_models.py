@@ -4,8 +4,8 @@ from typing import Any
 
 import pytest
 
-from NexaFi.backend.analytics_service.src.main import app
-from NexaFi.backend.analytics_service.src.models.user import (
+from backend.analytics_service.src.main import app
+from backend.analytics_service.src.models.user import (
     Dashboard,
     DataSource,
     Metric,

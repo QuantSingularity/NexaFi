@@ -17,7 +17,6 @@ import cx_Oracle
 import jwt
 import pandas as pd
 import requests
-from nexafi_logging.logger import get_logger
 from requests.auth import HTTPBasicAuth
 from sqlalchemy import create_engine
 
@@ -29,7 +28,7 @@ from ..shared.base_integration import (
     SyncResult,
 )
 
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
 
 
 @dataclass

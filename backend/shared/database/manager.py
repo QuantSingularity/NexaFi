@@ -3,15 +3,14 @@ Database utilities and connection management for NexaFi
 Implements connection pooling, transaction management, and database migrations
 """
 
+import logging
 import os
 import sqlite3
 import threading
 from contextlib import contextmanager
 from typing import Any, Dict, List, Tuple
 
-from nexafi_logging.logger import get_logger
-
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
 
 
 class DatabaseManager:

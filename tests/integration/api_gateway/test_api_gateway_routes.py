@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from NexaFi.backend.api_gateway.src.main import SERVICES, app
+from backend.api_gateway.src.main import SERVICES, app
 
 
 @pytest.fixture

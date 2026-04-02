@@ -5,6 +5,7 @@ Implements immutable audit trails for financial transactions and system events
 
 import hashlib
 import json
+import logging
 import queue
 import threading
 import time
@@ -14,9 +15,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
-from nexafi_logging.logger import get_logger
-
-logger = get_logger(__name__)
+logger = logging.get_logger(__name__)
 
 
 class AuditEventType(Enum):

@@ -1,34 +1,26 @@
-# Example Terraform variables file
-# Copy this file to terraform.tfvars and customize for your environment
-# DO NOT commit terraform.tfvars to version control
+# NexaFi Terraform Variables
+# Copy to terraform.tfvars and fill in your values
+# Do NOT commit terraform.tfvars to version control
 
-# Environment configuration
-environment = "prod"  # Options: prod, staging, dev
-
-# AWS Regions
+environment      = "prod"
 primary_region   = "us-west-2"
 secondary_region = "us-east-1"
 
-# VPC Configuration
 vpc_cidr_primary   = "10.0.0.0/16"
 vpc_cidr_secondary = "10.1.0.0/16"
 
-# Network Configuration
 enable_nat_gateway = true
 enable_vpn_gateway = false
 
-# EKS Configuration
-eks_cluster_version = "1.28"
+eks_cluster_version = "1.29"
 
-# Node Group Instance Types
-node_group_instance_types = ["m5.large", "m5.xlarge"]
+# Restrict to your organization's IP ranges in production
+eks_public_access_cidrs = ["YOUR_OFFICE_IP/32", "YOUR_VPN_CIDR/24"]
 
-# Financial Services Node Group (dedicated for PCI-DSS workloads)
+node_group_instance_types           = ["m5.large", "m5.xlarge"]
 financial_node_group_instance_types = ["c5.xlarge", "c5.2xlarge"]
 
-# Additional Tags
 tags = {
-  CostCenter = "FinTech"
-  Owner      = "DevOps Team"
-  Backup     = "Daily"
+  Owner      = "platform-team"
+  CostCenter = "engineering"
 }

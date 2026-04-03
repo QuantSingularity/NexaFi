@@ -1,6 +1,5 @@
 # Main infrastructure configuration - see versions.tf for terraform block
 
-# Provider configurations
 provider "aws" {
   region = var.primary_region
 
@@ -35,26 +34,20 @@ provider "aws" {
   }
 }
 
-# Kubernetes provider configuration - configure after EKS cluster is created
-# Uncomment and run terraform apply again after initial infrastructure creation
+# Kubernetes and Helm providers - uncomment after EKS cluster creation
 # provider "kubernetes" {
 #   host                   = module.eks_primary.cluster_endpoint
 #   cluster_ca_certificate = base64decode(module.eks_primary.cluster_certificate_authority_data)
-#
 #   exec {
 #     api_version = "client.authentication.k8s.io/v1beta1"
 #     command     = "aws"
 #     args        = ["eks", "get-token", "--cluster-name", module.eks_primary.cluster_name]
 #   }
 # }
-
-# Helm provider configuration - configure after EKS cluster is created
-# Uncomment and run terraform apply again after initial infrastructure creation
 # provider "helm" {
 #   kubernetes {
 #     host                   = module.eks_primary.cluster_endpoint
 #     cluster_ca_certificate = base64decode(module.eks_primary.cluster_certificate_authority_data)
-#
 #     exec {
 #       api_version = "client.authentication.k8s.io/v1beta1"
 #       command     = "aws"
@@ -63,7 +56,6 @@ provider "aws" {
 #   }
 # }
 
-# Local values for common configurations
 locals {
   name_prefix = "nexafi-${var.environment}"
 
@@ -75,7 +67,6 @@ locals {
     DataClassification = "Confidential"
   }
 
-  # Financial industry compliance requirements
   compliance_tags = {
     PCI_DSS_Scope    = "true"
     SOC2_Type2       = "true"
@@ -85,7 +76,6 @@ locals {
     FFIEC_Applicable = "true"
   }
 
-  # Security configuration
   security_config = {
     enable_encryption_at_rest     = true
     enable_encryption_in_transit  = true
@@ -96,7 +86,6 @@ locals {
     enable_data_loss_prevention   = true
   }
 
-  # Monitoring and alerting
   monitoring_config = {
     enable_cloudtrail          = true
     enable_config_rules        = true
@@ -107,9 +96,8 @@ locals {
     enable_cloudwatch_insights = true
   }
 
-  # Backup and disaster recovery
   backup_config = {
-    backup_retention_days     = 2555 # 7 years for financial compliance
+    backup_retention_days     = 2555
     cross_region_backup       = true
     point_in_time_recovery    = true
     automated_backup_testing  = true
@@ -117,20 +105,23 @@ locals {
   }
 }
 
-# Data sources
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# Random password for various services
 resource "random_password" "master_password" {
-  length  = 32
-  special = true
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
-# KMS keys for encryption
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+# KMS key for primary region
 resource "aws_kms_key" "nexafi_primary" {
   description             = "NexaFi primary encryption key"
   deletion_window_in_days = 30
@@ -159,6 +150,19 @@ resource "aws_kms_key" "nexafi_primary" {
           "kms:DescribeKey"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "Allow CloudTrail"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action = [
+          "kms:GenerateDataKey*",
+          "kms:Decrypt",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -182,32 +186,36 @@ resource "aws_cloudtrail" "nexafi_audit" {
   include_global_service_events = true
   is_multi_region_trail         = true
   enable_logging                = true
-
-  # Enhanced logging for financial compliance
-  enable_log_file_validation = true
-
-  # KMS encryption for audit logs
-  kms_key_id = aws_kms_key.nexafi_primary.arn
+  enable_log_file_validation    = true
+  kms_key_id                    = aws_kms_key.nexafi_primary.arn
 
   event_selector {
-    read_write_type                  = "All"
-    include_management_events        = true
-    exclude_management_event_sources = []
+    read_write_type           = "All"
+    include_management_events = true
 
     data_resource {
       type   = "AWS::S3::Object"
-      values = ["arn:aws:s3:::${aws_s3_bucket.audit_logs.bucket}/*"]
+      values = ["arn:aws:s3:::${aws_s3_bucket.audit_logs.bucket}/"]
     }
 
     data_resource {
-      type   = "AWS::KMS::Key"
-      values = ["*"]
+      type   = "AWS::Lambda::Function"
+      values = ["arn:aws:lambda"]
     }
   }
 
   insight_selector {
     insight_type = "ApiCallRateInsight"
   }
+
+  insight_selector {
+    insight_type = "ApiErrorRateInsight"
+  }
+
+  depends_on = [
+    aws_s3_bucket_policy.audit_logs,
+    aws_s3_bucket.audit_logs,
+  ]
 
   tags = merge(local.common_tags, local.compliance_tags, {
     Name = "${local.name_prefix}-audit-trail"
@@ -226,10 +234,6 @@ resource "aws_s3_bucket" "audit_logs" {
   })
 }
 
-resource "random_id" "bucket_suffix" {
-  byte_length = 4
-}
-
 resource "aws_s3_bucket_versioning" "audit_logs" {
   bucket = aws_s3_bucket.audit_logs.id
   versioning_configuration {
@@ -239,7 +243,6 @@ resource "aws_s3_bucket_versioning" "audit_logs" {
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "audit_logs" {
   bucket = aws_s3_bucket.audit_logs.id
-
   rule {
     apply_server_side_encryption_by_default {
       kms_master_key_id = aws_kms_key.nexafi_primary.arn
@@ -250,45 +253,84 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "audit_logs" {
 }
 
 resource "aws_s3_bucket_public_access_block" "audit_logs" {
-  bucket = aws_s3_bucket.audit_logs.id
-
+  bucket                  = aws_s3_bucket.audit_logs.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_lifecycle_configuration" "audit_logs" {
+resource "aws_s3_bucket_policy" "audit_logs" {
   bucket = aws_s3_bucket.audit_logs.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AWSCloudTrailAclCheck"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action   = "s3:GetBucketAcl"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.audit_logs.bucket}"
+      },
+      {
+        Sid    = "AWSCloudTrailWrite"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action   = "s3:PutObject"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.audit_logs.bucket}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      {
+        Sid    = "DenyInsecureTransport"
+        Effect = "Deny"
+        Principal = "*"
+        Action   = "s3:*"
+        Resource = [
+          "arn:aws:s3:::${aws_s3_bucket.audit_logs.bucket}",
+          "arn:aws:s3:::${aws_s3_bucket.audit_logs.bucket}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "audit_logs" {
+  bucket     = aws_s3_bucket.audit_logs.id
+  depends_on = [aws_s3_bucket_versioning.audit_logs]
 
   rule {
-    filter {}
     id     = "audit_log_lifecycle"
     status = "Enabled"
+    filter { prefix = "" }
 
-    # Transition to IA after 30 days
     transition {
       days          = 30
       storage_class = "STANDARD_IA"
     }
-
-    # Transition to Glacier after 90 days
     transition {
       days          = 90
       storage_class = "GLACIER"
     }
-
-    # Transition to Deep Archive after 365 days
     transition {
       days          = 365
       storage_class = "DEEP_ARCHIVE"
     }
-
-    # Retain for 7 years (financial compliance)
     expiration {
       days = 2555
     }
-
     noncurrent_version_expiration {
       noncurrent_days = 90
     }
@@ -323,12 +365,13 @@ resource "aws_guardduty_detector" "nexafi" {
   })
 }
 
-# Security Hub for centralized security findings
+# Security Hub
 resource "aws_securityhub_account" "nexafi" {
   enable_default_standards = true
+  depends_on               = [aws_guardduty_detector.nexafi]
 }
 
-# Config for compliance monitoring
+# AWS Config recorder
 resource "aws_config_configuration_recorder" "nexafi" {
   name     = "${local.name_prefix}-config-recorder"
   role_arn = aws_iam_role.config.arn
@@ -339,9 +382,17 @@ resource "aws_config_configuration_recorder" "nexafi" {
   }
 }
 
+# Config recorder status - actually starts the recorder
+resource "aws_config_configuration_recorder_status" "nexafi" {
+  name       = aws_config_configuration_recorder.nexafi.name
+  is_enabled = true
+  depends_on = [aws_config_delivery_channel.nexafi]
+}
+
 resource "aws_config_delivery_channel" "nexafi" {
   name           = "${local.name_prefix}-config-delivery"
   s3_bucket_name = aws_s3_bucket.config.bucket
+  depends_on     = [aws_config_configuration_recorder.nexafi]
 }
 
 resource "aws_s3_bucket" "config" {
@@ -352,6 +403,25 @@ resource "aws_s3_bucket" "config" {
     Name = "${local.name_prefix}-config"
     Type = "compliance"
   })
+}
+
+resource "aws_s3_bucket_public_access_block" "config" {
+  bucket                  = aws_s3_bucket.config.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "config" {
+  bucket = aws_s3_bucket.config.id
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.nexafi_primary.arn
+      sse_algorithm     = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
 }
 
 # IAM role for Config
@@ -379,8 +449,36 @@ resource "aws_iam_role" "config" {
 
 resource "aws_iam_role_policy_attachment" "config" {
   role       = aws_iam_role.config.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/ConfigRole"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWS_ConfigRole"
 }
 
+resource "aws_iam_role_policy" "config_s3" {
+  name = "${local.name_prefix}-config-s3-policy"
+  role = aws_iam_role.config.id
 
-
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["s3:PutObject"]
+        Resource = "arn:aws:s3:::${aws_s3_bucket.config.bucket}/AWSLogs/*"
+        Condition = {
+          StringLike = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetBucketAcl"]
+        Resource = "arn:aws:s3:::${aws_s3_bucket.config.bucket}"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey"]
+        Resource = aws_kms_key.nexafi_primary.arn
+      }
+    ]
+  })
+}

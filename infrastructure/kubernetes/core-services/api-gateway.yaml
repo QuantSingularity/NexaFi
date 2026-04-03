@@ -1,4 +1,12 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api-gateway-sa
+  namespace: nexafi
+  labels:
+    app: api-gateway
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,6 +15,7 @@ metadata:
   labels:
     app: api-gateway
     tier: gateway
+    app.kubernetes.io/part-of: nexafi
 spec:
   replicas: 3
   selector:
@@ -18,20 +27,45 @@ spec:
         app: api-gateway
         tier: gateway
     spec:
+      serviceAccountName: api-gateway-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: api-gateway
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: api-gateway
           image: nexafi/api-gateway:1.0.0
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
+              name: http
           env:
             - name: FLASK_ENV
               value: "production"
             - name: REDIS_HOST
               value: "redis-service.nexafi-infra.svc.cluster.local"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexafi-secrets
+                  key: redis-password
             - name: RABBITMQ_HOST
               value: "rabbitmq-service.nexafi-infra.svc.cluster.local"
             - name: ELASTICSEARCH_HOST
               value: "elasticsearch-service.nexafi-infra.svc.cluster.local"
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexafi-secrets
+                  key: elasticsearch-password
           resources:
             requests:
               memory: "256Mi"
@@ -45,12 +79,28 @@ spec:
               port: 5000
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 5000
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
 ---
 apiVersion: v1
 kind: Service
@@ -59,6 +109,10 @@ metadata:
   namespace: nexafi
   labels:
     app: api-gateway
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5000"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: api-gateway

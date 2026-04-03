@@ -1,4 +1,12 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ledger-service-sa
+  namespace: nexafi
+  labels:
+    app: ledger-service
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,6 +15,7 @@ metadata:
   labels:
     app: ledger-service
     tier: backend
+    app.kubernetes.io/part-of: nexafi
 spec:
   replicas: 2
   selector:
@@ -18,11 +27,28 @@ spec:
         app: ledger-service
         tier: backend
     spec:
+      serviceAccountName: ledger-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: ledger-service
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: ledger-service
           image: nexafi/ledger-service:1.0.0
+          imagePullPolicy: Always
           ports:
             - containerPort: 5002
+              name: http
           env:
             - name: FLASK_ENV
               value: "production"
@@ -33,6 +59,11 @@ spec:
                   key: ledger-db-url
             - name: REDIS_HOST
               value: "redis-service.nexafi-infra.svc.cluster.local"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexafi-secrets
+                  key: redis-password
             - name: RABBITMQ_HOST
               value: "rabbitmq-service.nexafi-infra.svc.cluster.local"
           resources:
@@ -48,15 +79,31 @@ spec:
               port: 5002
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 5002
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5002
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
           volumeMounts:
             - name: ledger-data
               mountPath: /app/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
       volumes:
         - name: ledger-data
           persistentVolumeClaim:
@@ -69,6 +116,10 @@ metadata:
   namespace: nexafi
   labels:
     app: ledger-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5002"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: ledger-service

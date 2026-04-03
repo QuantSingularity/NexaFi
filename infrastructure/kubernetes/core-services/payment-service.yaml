@@ -1,4 +1,12 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment-service-sa
+  namespace: nexafi
+  labels:
+    app: payment-service
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,6 +15,7 @@ metadata:
   labels:
     app: payment-service
     tier: backend
+    app.kubernetes.io/part-of: nexafi
 spec:
   replicas: 3
   selector:
@@ -18,11 +27,26 @@ spec:
         app: payment-service
         tier: backend
     spec:
+      serviceAccountName: payment-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: payment-service
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: payment-service
           image: nexafi/payment-service:1.0.0
+          imagePullPolicy: Always
           ports:
             - containerPort: 5003
+              name: http
           env:
             - name: FLASK_ENV
               value: "production"
@@ -43,6 +67,11 @@ spec:
                   key: paypal-secret
             - name: REDIS_HOST
               value: "redis-service.nexafi-infra.svc.cluster.local"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexafi-secrets
+                  key: redis-password
             - name: RABBITMQ_HOST
               value: "rabbitmq-service.nexafi-infra.svc.cluster.local"
           resources:
@@ -58,15 +87,31 @@ spec:
               port: 5003
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 5003
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5003
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
           volumeMounts:
             - name: payment-data
               mountPath: /app/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
       volumes:
         - name: payment-data
           persistentVolumeClaim:
@@ -79,6 +124,10 @@ metadata:
   namespace: nexafi
   labels:
     app: payment-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5003"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: payment-service

@@ -21,6 +21,11 @@ variable "secondary_region" {
   description = "Secondary AWS region for disaster recovery"
   type        = string
   default     = "us-east-1"
+
+  validation {
+    condition     = var.secondary_region != var.primary_region
+    error_message = "Secondary region must differ from primary region."
+  }
 }
 
 variable "vpc_cidr_primary" {
@@ -60,7 +65,23 @@ variable "enable_vpn_gateway" {
 variable "eks_cluster_version" {
   description = "Kubernetes version for EKS cluster"
   type        = string
-  default     = "1.28"
+  default     = "1.29"
+
+  validation {
+    condition     = can(regex("^1\\.(2[7-9]|[3-9][0-9])$", var.eks_cluster_version))
+    error_message = "EKS cluster version must be 1.27 or higher."
+  }
+}
+
+variable "eks_public_access_cidrs" {
+  description = "List of CIDRs that can access the EKS public endpoint. Restrict in production."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.eks_public_access_cidrs) > 0
+    error_message = "At least one CIDR must be specified for EKS public access."
+  }
 }
 
 variable "node_group_instance_types" {

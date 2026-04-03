@@ -1,5 +1,11 @@
 # Enhanced VPC configuration for NexaFi with financial industry security standards
 
+# Secondary region AZ data source - requires provider alias
+data "aws_availability_zones" "secondary" {
+  provider = aws.secondary
+  state    = "available"
+}
+
 # Primary VPC
 module "vpc_primary" {
   source  = "terraform-aws-modules/vpc/aws"
@@ -10,63 +16,58 @@ module "vpc_primary" {
 
   azs = slice(data.aws_availability_zones.available.names, 0, 3)
 
-  # Subnet configuration for financial services
   private_subnets = [
-    cidrsubnet(var.vpc_cidr_primary, 4, 1), # 10.0.16.0/20 - Financial services
-    cidrsubnet(var.vpc_cidr_primary, 4, 2), # 10.0.32.0/20 - Financial services
-    cidrsubnet(var.vpc_cidr_primary, 4, 3), # 10.0.48.0/20 - Financial services
+    cidrsubnet(var.vpc_cidr_primary, 4, 1),
+    cidrsubnet(var.vpc_cidr_primary, 4, 2),
+    cidrsubnet(var.vpc_cidr_primary, 4, 3),
   ]
 
   public_subnets = [
-    cidrsubnet(var.vpc_cidr_primary, 8, 1), # 10.0.1.0/24 - Load balancers
-    cidrsubnet(var.vpc_cidr_primary, 8, 2), # 10.0.2.0/24 - Load balancers
-    cidrsubnet(var.vpc_cidr_primary, 8, 3), # 10.0.3.0/24 - Load balancers
+    cidrsubnet(var.vpc_cidr_primary, 8, 1),
+    cidrsubnet(var.vpc_cidr_primary, 8, 2),
+    cidrsubnet(var.vpc_cidr_primary, 8, 3),
   ]
 
   database_subnets = [
-    cidrsubnet(var.vpc_cidr_primary, 6, 16), # 10.0.64.0/22 - Databases
-    cidrsubnet(var.vpc_cidr_primary, 6, 17), # 10.0.68.0/22 - Databases
-    cidrsubnet(var.vpc_cidr_primary, 6, 18), # 10.0.72.0/22 - Databases
+    cidrsubnet(var.vpc_cidr_primary, 6, 16),
+    cidrsubnet(var.vpc_cidr_primary, 6, 17),
+    cidrsubnet(var.vpc_cidr_primary, 6, 18),
   ]
 
-  # Additional subnets for security and compliance
   intra_subnets = [
-    cidrsubnet(var.vpc_cidr_primary, 6, 20), # 10.0.80.0/22 - Security services
-    cidrsubnet(var.vpc_cidr_primary, 6, 21), # 10.0.84.0/22 - Security services
-    cidrsubnet(var.vpc_cidr_primary, 6, 22), # 10.0.88.0/22 - Security services
+    cidrsubnet(var.vpc_cidr_primary, 6, 20),
+    cidrsubnet(var.vpc_cidr_primary, 6, 21),
+    cidrsubnet(var.vpc_cidr_primary, 6, 22),
   ]
 
-  # Enhanced networking features
   enable_nat_gateway   = var.enable_nat_gateway
+  single_nat_gateway   = false
+  one_nat_gateway_per_az = true
   enable_vpn_gateway   = var.enable_vpn_gateway
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  # VPC Flow Logs for security monitoring
   enable_flow_log                                 = true
   create_flow_log_cloudwatch_iam_role             = true
   create_flow_log_cloudwatch_log_group            = true
   flow_log_destination_type                       = "cloud-watch-logs"
-  flow_log_cloudwatch_log_group_retention_in_days = 2555 # 7 years for compliance
+  flow_log_cloudwatch_log_group_retention_in_days = 2555
   flow_log_cloudwatch_log_group_kms_key_id        = aws_kms_key.nexafi_primary.arn
+  flow_log_traffic_type                           = "ALL"
+  flow_log_log_format                             = "$${version} $${account-id} $${interface-id} $${srcaddr} $${dstaddr} $${srcport} $${dstport} $${protocol} $${packets} $${bytes} $${windowstart} $${windowend} $${action} $${flowlogstatus} $${vpc-id} $${subnet-id} $${instance-id} $${tcp-flags} $${type} $${pkt-srcaddr} $${pkt-dstaddr} $${region} $${az-id} $${sublocation-type} $${sublocation-id}"
 
-  # Enhanced VPC Flow Logs configuration
-  flow_log_traffic_type = "ALL"
-  flow_log_log_format   = "$${version} $${account-id} $${interface-id} $${srcaddr} $${dstaddr} $${srcport} $${dstport} $${protocol} $${packets} $${bytes} $${windowstart} $${windowend} $${action} $${flowlogstatus} $${vpc-id} $${subnet-id} $${instance-id} $${tcp-flags} $${type} $${pkt-srcaddr} $${pkt-dstaddr} $${region} $${az-id} $${sublocation-type} $${sublocation-id}"
-
-  # Network ACLs for additional security
   manage_default_network_acl = true
   default_network_acl_tags = {
     Name = "${local.name_prefix}-primary-default-nacl"
   }
 
-  # Security groups
-  manage_default_security_group = true
+  manage_default_security_group  = true
+  default_security_group_ingress = []
+  default_security_group_egress  = []
   default_security_group_tags = {
     Name = "${local.name_prefix}-primary-default-sg"
   }
 
-  # Subnet tags for EKS
   public_subnet_tags = {
     "kubernetes.io/role/elb"                             = "1"
     "kubernetes.io/cluster/${local.name_prefix}-primary" = "shared"
@@ -113,7 +114,8 @@ module "vpc_secondary" {
   name = "${local.name_prefix}-secondary-vpc"
   cidr = var.vpc_cidr_secondary
 
-  azs = slice(data.aws_availability_zones.available.names, 0, 3)
+  # Use secondary-region-specific AZ data source
+  azs = slice(data.aws_availability_zones.secondary.names, 0, 3)
 
   private_subnets = [
     cidrsubnet(var.vpc_cidr_secondary, 4, 1),
@@ -140,18 +142,21 @@ module "vpc_secondary" {
   ]
 
   enable_nat_gateway   = var.enable_nat_gateway
+  single_nat_gateway   = true
   enable_vpn_gateway   = var.enable_vpn_gateway
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  # VPC Flow Logs for secondary region
   enable_flow_log                                 = true
   create_flow_log_cloudwatch_iam_role             = true
   create_flow_log_cloudwatch_log_group            = true
   flow_log_destination_type                       = "cloud-watch-logs"
   flow_log_cloudwatch_log_group_retention_in_days = 2555
 
-  # Subnet tags for EKS
+  manage_default_security_group  = true
+  default_security_group_ingress = []
+  default_security_group_egress  = []
+
   public_subnet_tags = {
     "kubernetes.io/role/elb"                               = "1"
     "kubernetes.io/cluster/${local.name_prefix}-secondary" = "shared"
@@ -211,7 +216,6 @@ resource "aws_vpc_peering_connection_accepter" "secondary" {
   })
 }
 
-# Route tables for VPC peering
 resource "aws_route" "primary_to_secondary" {
   count = length(module.vpc_primary.private_route_table_ids)
 
@@ -234,7 +238,6 @@ resource "aws_network_acl" "financial_services" {
   vpc_id     = module.vpc_primary.vpc_id
   subnet_ids = module.vpc_primary.private_subnets
 
-  # Inbound rules
   ingress {
     protocol   = "tcp"
     rule_no    = 100
@@ -262,7 +265,6 @@ resource "aws_network_acl" "financial_services" {
     to_port    = 65535
   }
 
-  # Outbound rules
   egress {
     protocol   = "tcp"
     rule_no    = 100
@@ -306,12 +308,10 @@ resource "aws_network_acl" "financial_services" {
   })
 }
 
-# Database Network ACL
 resource "aws_network_acl" "database" {
   vpc_id     = module.vpc_primary.vpc_id
   subnet_ids = module.vpc_primary.database_subnets
 
-  # Only allow database traffic from application subnets
   ingress {
     protocol   = "tcp"
     rule_no    = 100
@@ -339,7 +339,6 @@ resource "aws_network_acl" "database" {
     to_port    = 5432
   }
 
-  # MySQL/MariaDB
   ingress {
     protocol   = "tcp"
     rule_no    = 130
@@ -349,7 +348,6 @@ resource "aws_network_acl" "database" {
     to_port    = 3306
   }
 
-  # Ephemeral ports for responses
   ingress {
     protocol   = "tcp"
     rule_no    = 200
@@ -359,7 +357,6 @@ resource "aws_network_acl" "database" {
     to_port    = 65535
   }
 
-  # Outbound rules
   egress {
     protocol   = "tcp"
     rule_no    = 100
@@ -376,12 +373,10 @@ resource "aws_network_acl" "database" {
   })
 }
 
-# Security Network ACL for security services
 resource "aws_network_acl" "security_services" {
   vpc_id     = module.vpc_primary.vpc_id
   subnet_ids = module.vpc_primary.intra_subnets
 
-  # Vault traffic
   ingress {
     protocol   = "tcp"
     rule_no    = 100
@@ -391,7 +386,6 @@ resource "aws_network_acl" "security_services" {
     to_port    = 8201
   }
 
-  # Auth service traffic
   ingress {
     protocol   = "tcp"
     rule_no    = 110
@@ -401,7 +395,6 @@ resource "aws_network_acl" "security_services" {
     to_port    = 8080
   }
 
-  # Ephemeral ports
   ingress {
     protocol   = "tcp"
     rule_no    = 200
@@ -411,7 +404,6 @@ resource "aws_network_acl" "security_services" {
     to_port    = 65535
   }
 
-  # Outbound rules
   egress {
     protocol   = "tcp"
     rule_no    = 100
@@ -521,7 +513,34 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   })
 }
 
-# Security group for VPC endpoints
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = module.vpc_primary.vpc_id
+  service_name        = "com.amazonaws.${var.primary_region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = module.vpc_primary.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-secretsmanager-endpoint"
+    Type = "vpc-endpoint"
+  })
+}
+
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id              = module.vpc_primary.vpc_id
+  service_name        = "com.amazonaws.${var.primary_region}.ssm"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = module.vpc_primary.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-ssm-endpoint"
+    Type = "vpc-endpoint"
+  })
+}
+
 resource "aws_security_group" "vpc_endpoints" {
   name_prefix = "${local.name_prefix}-vpc-endpoints-"
   vpc_id      = module.vpc_primary.vpc_id
@@ -536,11 +555,15 @@ resource "aws_security_group" "vpc_endpoints" {
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "All outbound traffic"
+    description = "HTTPS outbound"
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 
   tags = merge(local.common_tags, {

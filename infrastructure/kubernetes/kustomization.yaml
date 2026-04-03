@@ -3,18 +3,37 @@ kind: Kustomization
 
 resources:
   - namespaces.yaml
-  - security/
-  - infrastructure-components/
-  - core-services/
-  - monitoring/
-  - ingress/
-  - storage/
-  - backup-recovery/
-  - compliance/
+  - secrets.example.yaml
+  - storage/pv-pvc.yaml
+  - security/rbac.yaml
+  - security/network-policies.yaml
+  - security/pod-security-standards.yaml
+  - security/auth-service.yaml
+  - security/vault.yaml
+  - infrastructure-components/redis.yaml
+  - infrastructure-components/rabbitmq.yaml
+  - infrastructure-components/elasticsearch.yaml
+  - infrastructure-components/kibana.yaml
+  - core-services/api-gateway.yaml
+  - core-services/user-service.yaml
+  - core-services/ledger-service.yaml
+  - core-services/payment-service.yaml
+  - core-services/ai-service.yaml
+  - core-services/analytics-service.yaml
+  - core-services/credit-service.yaml
+  - core-services/document-service.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - monitoring/prometheus-config.yaml
+  - monitoring/prometheus.yaml
+  - monitoring/alertmanager.yaml
+  - monitoring/grafana.yaml
+  - ingress/nginx-ingress.yaml
+  - backup-recovery/backup-jobs.yaml
+  - backup-recovery/disaster-recovery.yaml
+  - compliance/audit-service.yaml
+  - compliance/compliance-monitor.yaml
 
-# Add common labels
 commonLabels:
   app.kubernetes.io/part-of: nexafi
   app.kubernetes.io/managed-by: kustomize
-# Add namespace to all resources
-# namespace: nexafi

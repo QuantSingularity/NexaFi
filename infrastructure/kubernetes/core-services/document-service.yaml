@@ -1,4 +1,15 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: document-service-sa
+  namespace: nexafi
+  labels:
+    app: document-service
+  annotations:
+    # IRSA annotation - replace ACCOUNT_ID and REGION with actual values
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/nexafi-prod-financial-services-role"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,6 +18,7 @@ metadata:
   labels:
     app: document-service
     tier: backend
+    app.kubernetes.io/part-of: nexafi
 spec:
   replicas: 2
   selector:
@@ -18,11 +30,28 @@ spec:
         app: document-service
         tier: backend
     spec:
+      serviceAccountName: document-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: document-service
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: document-service
           image: nexafi/document-service:1.0.0
+          imagePullPolicy: Always
           ports:
             - containerPort: 5007
+              name: http
           env:
             - name: FLASK_ENV
               value: "production"
@@ -31,23 +60,21 @@ spec:
                 secretKeyRef:
                   name: nexafi-secrets
                   key: document-db-url
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: nexafi-secrets
-                  key: aws-access-key
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: nexafi-secrets
-                  key: aws-secret-key
+            # Use IRSA instead of static credentials - AWS SDK auto-discovers via service account
             - name: S3_BUCKET_NAME
               valueFrom:
                 secretKeyRef:
                   name: nexafi-secrets
                   key: s3-bucket-name
+            - name: AWS_REGION
+              value: "us-west-2"
             - name: REDIS_HOST
               value: "redis-service.nexafi-infra.svc.cluster.local"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexafi-secrets
+                  key: redis-password
             - name: RABBITMQ_HOST
               value: "rabbitmq-service.nexafi-infra.svc.cluster.local"
           resources:
@@ -63,17 +90,33 @@ spec:
               port: 5007
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 5007
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5007
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
           volumeMounts:
             - name: document-storage
               mountPath: /app/documents
             - name: temp-storage
               mountPath: /app/temp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
       volumes:
         - name: document-storage
           persistentVolumeClaim:
@@ -88,6 +131,10 @@ metadata:
   namespace: nexafi
   labels:
     app: document-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5007"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: document-service

@@ -1,4 +1,27 @@
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: nexafi-infra
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    port 6379
+    maxmemory 400mb
+    maxmemory-policy allkeys-lru
+    save 900 1
+    save 300 10
+    save 60 10000
+    requirepass ${REDIS_PASSWORD}
+    loglevel notice
+    tcp-keepalive 300
+    timeout 0
+    protected-mode yes
+    activerehashing yes
+    hz 10
+    aof-use-rdb-preamble yes
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,6 +30,7 @@ metadata:
   labels:
     app: redis
     tier: cache
+    app.kubernetes.io/part-of: nexafi
 spec:
   replicas: 1
   selector:
@@ -18,44 +42,84 @@ spec:
         app: redis
         tier: cache
     spec:
+      serviceAccountName: default
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
       containers:
         - name: redis
           image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 6379
+              name: redis
           command:
-            - redis-server
-            - /etc/redis/redis.conf
+            - sh
+            - -c
+            - |
+              # Substitute password from env into config then launch
+              sed "s/\${REDIS_PASSWORD}/$REDIS_PASSWORD/" /tmp/redis-config/redis.conf > /etc/redis/redis.conf
+              exec redis-server /etc/redis/redis.conf
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexafi-secrets
+                  key: redis-password
           resources:
             requests:
               memory: "256Mi"
-              cpu: "250m"
+              cpu: "100m"
             limits:
               memory: "512Mi"
               cpu: "500m"
           livenessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG
             initialDelaySeconds: 30
             periodSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG
             initialDelaySeconds: 5
             periodSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
           volumeMounts:
-            - name: redis-config
+            - name: redis-config-template
+              mountPath: /tmp/redis-config
+            - name: redis-config-dir
               mountPath: /etc/redis
             - name: redis-data
               mountPath: /data
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
       volumes:
-        - name: redis-config
+        - name: redis-config-template
           configMap:
             name: redis-config
+        - name: redis-config-dir
+          emptyDir: {}
         - name: redis-data
           persistentVolumeClaim:
             claimName: redis-pvc
@@ -74,34 +138,5 @@ spec:
     - protocol: TCP
       port: 6379
       targetPort: 6379
+      name: redis
   type: ClusterIP
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-config
-  namespace: nexafi-infra
-data:
-  redis.conf: |
-    # Redis configuration for NexaFi
-    bind 0.0.0.0
-    port 6379
-
-    # Memory management
-    maxmemory 256mb
-    maxmemory-policy allkeys-lru
-
-    # Persistence
-    save 900 1
-    save 300 10
-    save 60 10000
-
-    # Security
-    requirepass nexafi_redis_password
-
-    # Logging
-    loglevel notice
-
-    # Performance
-    tcp-keepalive 300
-    timeout 0

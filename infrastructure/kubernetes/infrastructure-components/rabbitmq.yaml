@@ -1,13 +1,49 @@
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: nexafi-infra
+data:
+  rabbitmq.conf: |
+    # RabbitMQ configuration for NexaFi
+
+    # Memory and disk management
+    vm_memory_high_watermark.relative = 0.6
+    disk_free_limit.relative = 2.0
+
+    # Networking
+    listeners.tcp.default = 5672
+    management.tcp.port = 15672
+
+    # Security
+    loopback_users.guest = false
+
+    # Performance
+    channel_max = 2047
+    connection_max = 1000
+    heartbeat = 60
+
+    # Logging
+    log.console = true
+    log.console.level = info
+
+    # Message persistence
+    queue_index_embed_msgs_below = 4096
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_prometheus,rabbitmq_peer_discovery_k8s].
+---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: rabbitmq
   namespace: nexafi-infra
   labels:
     app: rabbitmq
     tier: messaging
+    app.kubernetes.io/part-of: nexafi
 spec:
+  serviceName: rabbitmq-headless
   replicas: 1
   selector:
     matchLabels:
@@ -18,14 +54,24 @@ spec:
         app: rabbitmq
         tier: messaging
     spec:
+      serviceAccountName: default
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      terminationGracePeriodSeconds: 60
       containers:
         - name: rabbitmq
-          image: rabbitmq:3-management-alpine
+          image: rabbitmq:3.12-management-alpine
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5672
               name: amqp
             - containerPort: 15672
               name: management
+            - containerPort: 15692
+              name: metrics
           env:
             - name: RABBITMQ_DEFAULT_USER
               value: "nexafi"
@@ -36,10 +82,33 @@ spec:
                   key: rabbitmq-password
             - name: RABBITMQ_DEFAULT_VHOST
               value: "nexafi"
+            - name: RABBITMQ_ERLANG_COOKIE
+              valueFrom:
+                secretKeyRef:
+                  name: nexafi-secrets
+                  key: rabbitmq-erlang-cookie
+            - name: K8S_SERVICE_NAME
+              value: "rabbitmq-headless"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+            - name: RABBITMQ_NODENAME
+              value: "rabbit@$(POD_NAME).rabbitmq-headless.$(POD_NAMESPACE).svc.cluster.local"
           resources:
             requests:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "200m"
             limits:
               memory: "1Gi"
               cpu: "1000m"
@@ -51,6 +120,8 @@ spec:
                 - ping
             initialDelaySeconds: 60
             periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             exec:
               command:
@@ -59,18 +130,37 @@ spec:
                 - check_port_connectivity
             initialDelaySeconds: 20
             periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3
+          startupProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - -q
+                - ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 15
           volumeMounts:
             - name: rabbitmq-data
               mountPath: /var/lib/rabbitmq
             - name: rabbitmq-config
-              mountPath: /etc/rabbitmq
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+            - name: rabbitmq-config
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
       volumes:
-        - name: rabbitmq-data
-          persistentVolumeClaim:
-            claimName: rabbitmq-pvc
         - name: rabbitmq-config
           configMap:
             name: rabbitmq-config
+        - name: rabbitmq-data
+          persistentVolumeClaim:
+            claimName: rabbitmq-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -91,39 +181,27 @@ spec:
       port: 15672
       targetPort: 15672
       name: management
+    - protocol: TCP
+      port: 15692
+      targetPort: 15692
+      name: metrics
   type: ClusterIP
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Service
 metadata:
-  name: rabbitmq-config
+  name: rabbitmq-headless
   namespace: nexafi-infra
-data:
-  rabbitmq.conf: |
-    # RabbitMQ configuration for NexaFi
-
-    # Clustering
-    cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
-    cluster_formation.k8s.host = kubernetes.default.svc.cluster.local
-    cluster_formation.k8s.address_type = hostname
-
-    # Memory and disk management
-    vm_memory_high_watermark.relative = 0.6
-    disk_free_limit.relative = 2.0
-
-    # Networking
-    listeners.tcp.default = 5672
-    management.tcp.port = 15672
-
-    # Security
-    default_user = nexafi
-    default_vhost = nexafi
-
-    # Performance
-    channel_max = 2047
-    connection_max = 1000
-    heartbeat = 60
-
-    # Logging
-    log.console = true
-    log.console.level = info
+  labels:
+    app: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  clusterIP: None
+  ports:
+    - protocol: TCP
+      port: 5672
+      name: amqp
+    - protocol: TCP
+      port: 25672
+      name: clustering

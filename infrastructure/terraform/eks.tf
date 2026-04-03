@@ -1,9 +1,53 @@
 # Enhanced EKS configuration for NexaFi with financial industry security standards
 
+# Secondary-region KMS key for encrypting secondary EKS secrets
+resource "aws_kms_key" "nexafi_secondary" {
+  provider                = aws.secondary
+  description             = "NexaFi secondary region encryption key"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow EKS Service"
+        Effect = "Allow"
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = merge(local.common_tags, {
+    Name   = "${local.name_prefix}-secondary-key"
+    Type   = "encryption"
+    Region = var.secondary_region
+  })
+}
+
+resource "aws_kms_alias" "nexafi_secondary" {
+  provider      = aws.secondary
+  name          = "alias/${local.name_prefix}-secondary"
+  target_key_id = aws_kms_key.nexafi_secondary.key_id
+}
+
 # Primary EKS Cluster
 module "eks_primary" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.0"
+  version = "~> 20.0"
 
   cluster_name    = "${local.name_prefix}-primary"
   cluster_version = var.eks_cluster_version
@@ -12,18 +56,15 @@ module "eks_primary" {
   subnet_ids               = module.vpc_primary.private_subnets
   control_plane_subnet_ids = module.vpc_primary.intra_subnets
 
-  # Enhanced security configuration
   cluster_endpoint_private_access      = true
   cluster_endpoint_public_access       = true
-  cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"] # Restrict in production
+  cluster_endpoint_public_access_cidrs = var.eks_public_access_cidrs
 
-  # Encryption configuration
   cluster_encryption_config = {
     provider_key_arn = aws_kms_key.nexafi_primary.arn
     resources        = ["secrets"]
   }
 
-  # Enhanced logging for compliance
   cluster_enabled_log_types = [
     "api",
     "audit",
@@ -32,10 +73,9 @@ module "eks_primary" {
     "scheduler"
   ]
 
-  cloudwatch_log_group_retention_in_days = 2555 # 7 years for financial compliance
+  cloudwatch_log_group_retention_in_days = 2555
   cloudwatch_log_group_kms_key_id        = aws_kms_key.nexafi_primary.arn
 
-  # Cluster security group
   cluster_security_group_additional_rules = {
     ingress_nodes_443 = {
       description                = "Node groups to cluster API"
@@ -45,8 +85,6 @@ module "eks_primary" {
       type                       = "ingress"
       source_node_security_group = true
     }
-
-    # Financial services specific ports
     ingress_financial_8080 = {
       description = "Financial services communication"
       protocol    = "tcp"
@@ -55,8 +93,6 @@ module "eks_primary" {
       type        = "ingress"
       cidr_blocks = [var.vpc_cidr_primary]
     }
-
-    # Vault communication
     ingress_vault = {
       description = "Vault communication"
       protocol    = "tcp"
@@ -67,9 +103,7 @@ module "eks_primary" {
     }
   }
 
-  # Node security group
   node_security_group_additional_rules = {
-    # Financial services inter-node communication
     ingress_self_all = {
       description = "Node to node all ports/protocols"
       protocol    = "-1"
@@ -78,8 +112,6 @@ module "eks_primary" {
       type        = "ingress"
       self        = true
     }
-
-    # Database access
     egress_database = {
       description = "Database access"
       protocol    = "tcp"
@@ -88,8 +120,6 @@ module "eks_primary" {
       type        = "egress"
       cidr_blocks = module.vpc_primary.database_subnets_cidr_blocks
     }
-
-    # Redis access
     egress_redis = {
       description = "Redis access"
       protocol    = "tcp"
@@ -98,8 +128,6 @@ module "eks_primary" {
       type        = "egress"
       cidr_blocks = [var.vpc_cidr_primary]
     }
-
-    # HTTPS outbound for external APIs
     egress_https = {
       description = "HTTPS outbound"
       protocol    = "tcp"
@@ -110,12 +138,9 @@ module "eks_primary" {
     }
   }
 
-  # EKS Managed Node Groups
   eks_managed_node_groups = {
-    # General purpose node group
     general = {
-      name = "general"
-
+      name           = "general"
       instance_types = var.node_group_instance_types
       capacity_type  = "ON_DEMAND"
 
@@ -123,14 +148,14 @@ module "eks_primary" {
       max_size     = 10
       desired_size = 3
 
-      # Enhanced security
-      enable_bootstrap_user_data = true
-      bootstrap_extra_args       = "--container-runtime containerd --kubelet-extra-args '--max-pods=110'"
+      # Use pre_bootstrap_user_data instead of bootstrap_extra_args for managed node groups
+      pre_bootstrap_user_data = <<-EOT
+        #!/bin/bash
+        /etc/eks/bootstrap.sh ${local.name_prefix}-primary \
+          --container-runtime containerd \
+          --kubelet-extra-args '--max-pods=110'
+      EOT
 
-      # Use custom launch template for enhanced security
-      use_custom_launch_template = true
-
-      # EBS encryption
       block_device_mappings = {
         xvda = {
           device_name = "/dev/xvda"
@@ -146,7 +171,6 @@ module "eks_primary" {
         }
       }
 
-      # Metadata service configuration
       metadata_options = {
         http_endpoint               = "enabled"
         http_tokens                 = "required"
@@ -154,7 +178,6 @@ module "eks_primary" {
         instance_metadata_tags      = "enabled"
       }
 
-      # Taints and labels
       taints = {}
       labels = {
         Environment = var.environment
@@ -168,10 +191,8 @@ module "eks_primary" {
       })
     }
 
-    # Financial services dedicated node group
     financial_services = {
-      name = "financial-services"
-
+      name           = "financial-services"
       instance_types = var.financial_node_group_instance_types
       capacity_type  = "ON_DEMAND"
 
@@ -179,13 +200,13 @@ module "eks_primary" {
       max_size     = 15
       desired_size = 5
 
-      # Enhanced security for financial workloads
-      enable_bootstrap_user_data = true
-      bootstrap_extra_args       = "--container-runtime containerd --kubelet-extra-args '--max-pods=110 --kube-reserved=cpu=250m,memory=1Gi,ephemeral-storage=1Gi --system-reserved=cpu=250m,memory=0.2Gi,ephemeral-storage=1Gi'"
+      pre_bootstrap_user_data = <<-EOT
+        #!/bin/bash
+        /etc/eks/bootstrap.sh ${local.name_prefix}-primary \
+          --container-runtime containerd \
+          --kubelet-extra-args '--max-pods=110 --kube-reserved=cpu=250m,memory=1Gi,ephemeral-storage=1Gi --system-reserved=cpu=250m,memory=0.2Gi,ephemeral-storage=1Gi'
+      EOT
 
-      use_custom_launch_template = true
-
-      # Larger encrypted storage for financial data
       block_device_mappings = {
         xvda = {
           device_name = "/dev/xvda"
@@ -208,7 +229,6 @@ module "eks_primary" {
         instance_metadata_tags      = "enabled"
       }
 
-      # Taints to ensure only financial services run on these nodes
       taints = {
         financial = {
           key    = "financial-services"
@@ -232,10 +252,8 @@ module "eks_primary" {
       })
     }
 
-    # Compliance and monitoring node group
     compliance_monitoring = {
-      name = "compliance-monitoring"
-
+      name           = "compliance-monitoring"
       instance_types = ["m5.large", "m5.xlarge"]
       capacity_type  = "ON_DEMAND"
 
@@ -243,10 +261,12 @@ module "eks_primary" {
       max_size     = 8
       desired_size = 3
 
-      enable_bootstrap_user_data = true
-      bootstrap_extra_args       = "--container-runtime containerd --kubelet-extra-args '--max-pods=110'"
-
-      use_custom_launch_template = true
+      pre_bootstrap_user_data = <<-EOT
+        #!/bin/bash
+        /etc/eks/bootstrap.sh ${local.name_prefix}-primary \
+          --container-runtime containerd \
+          --kubelet-extra-args '--max-pods=110'
+      EOT
 
       block_device_mappings = {
         xvda = {
@@ -293,42 +313,30 @@ module "eks_primary" {
     }
   }
 
-  # Fargate profiles for serverless workloads
   fargate_profiles = {
-    # Audit logs fargate profile
     audit_logs = {
       name = "audit-logs"
       selectors = [
         {
           namespace = "compliance"
-          labels = {
-            fargate = "audit-logs"
-          }
+          labels    = { fargate = "audit-logs" }
         }
       ]
-
       subnet_ids = module.vpc_primary.private_subnets
-
       tags = merge(local.common_tags, {
         Name = "${local.name_prefix}-audit-logs-fargate"
         Type = "fargate-profile"
       })
     }
-
-    # Security services fargate profile
     security_services = {
       name = "security-services"
       selectors = [
         {
           namespace = "security"
-          labels = {
-            fargate = "security-services"
-          }
+          labels    = { fargate = "security-services" }
         }
       ]
-
       subnet_ids = module.vpc_primary.intra_subnets
-
       tags = merge(local.common_tags, {
         Name = "${local.name_prefix}-security-services-fargate"
         Type = "fargate-profile"
@@ -336,32 +344,20 @@ module "eks_primary" {
     }
   }
 
-  # IRSA (IAM Roles for Service Accounts)
   enable_irsa = true
 
-  # Cluster addons
   cluster_addons = {
     coredns = {
       most_recent = true
       configuration_values = jsonencode({
         computeType = "Fargate"
         resources = {
-          limits = {
-            cpu    = "0.25"
-            memory = "256M"
-          }
-          requests = {
-            cpu    = "0.25"
-            memory = "256M"
-          }
+          limits   = { cpu = "0.25", memory = "256M" }
+          requests = { cpu = "0.25", memory = "256M" }
         }
       })
     }
-
-    kube-proxy = {
-      most_recent = true
-    }
-
+    kube-proxy = { most_recent = true }
     vpc-cni = {
       most_recent = true
       configuration_values = jsonencode({
@@ -372,12 +368,10 @@ module "eks_primary" {
         }
       })
     }
-
     aws-ebs-csi-driver = {
       most_recent              = true
       service_account_role_arn = module.ebs_csi_irsa_role.iam_role_arn
     }
-
     aws-efs-csi-driver = {
       most_recent              = true
       service_account_role_arn = module.efs_csi_irsa_role.iam_role_arn
@@ -394,11 +388,9 @@ module "eks_primary" {
 # Secondary EKS Cluster for disaster recovery
 module "eks_secondary" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.0"
+  version = "~> 20.0"
 
-  providers = {
-    aws = aws.secondary
-  }
+  providers = { aws = aws.secondary }
 
   cluster_name    = "${local.name_prefix}-secondary"
   cluster_version = var.eks_cluster_version
@@ -409,37 +401,27 @@ module "eks_secondary" {
 
   cluster_endpoint_private_access      = true
   cluster_endpoint_public_access       = true
-  cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
+  cluster_endpoint_public_access_cidrs = var.eks_public_access_cidrs
 
-  # Same encryption and logging configuration as primary
+  # Use secondary-region KMS key
   cluster_encryption_config = {
-    provider_key_arn = aws_kms_key.nexafi_primary.arn
+    provider_key_arn = aws_kms_key.nexafi_secondary.arn
     resources        = ["secrets"]
   }
 
-  cluster_enabled_log_types = [
-    "api",
-    "audit",
-    "authenticator",
-    "controllerManager",
-    "scheduler"
-  ]
-
+  cluster_enabled_log_types              = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
   cloudwatch_log_group_retention_in_days = 2555
+  cloudwatch_log_group_kms_key_id        = aws_kms_key.nexafi_secondary.arn
 
-  # Minimal node group for disaster recovery standby
   eks_managed_node_groups = {
     dr_standby = {
-      name = "dr-standby"
-
+      name           = "dr-standby"
       instance_types = ["t3.medium"]
-      capacity_type  = "SPOT"
+      capacity_type  = "ON_DEMAND"
 
-      min_size     = 1
+      min_size     = 2
       max_size     = 10
-      desired_size = 1
-
-      use_custom_launch_template = true
+      desired_size = 2
 
       block_device_mappings = {
         xvda = {
@@ -448,6 +430,7 @@ module "eks_secondary" {
             volume_size           = 50
             volume_type           = "gp3"
             encrypted             = true
+            kms_key_id            = aws_kms_key.nexafi_secondary.arn
             delete_on_termination = true
           }
         }
@@ -476,18 +459,10 @@ module "eks_secondary" {
   enable_irsa = true
 
   cluster_addons = {
-    coredns = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent = true
-    }
-    aws-ebs-csi-driver = {
-      most_recent = true
-    }
+    coredns            = { most_recent = true }
+    kube-proxy         = { most_recent = true }
+    vpc-cni            = { most_recent = true }
+    aws-ebs-csi-driver = { most_recent = true }
   }
 
   tags = merge(local.common_tags, {
@@ -498,7 +473,7 @@ module "eks_secondary" {
   })
 }
 
-# IRSA roles for CSI drivers
+# IRSA roles
 module "ebs_csi_irsa_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
@@ -512,11 +487,7 @@ module "ebs_csi_irsa_role" {
       namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
     }
   }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-ebs-csi-irsa"
-    Type = "iam-role"
-  })
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-ebs-csi-irsa" })
 }
 
 module "efs_csi_irsa_role" {
@@ -532,14 +503,9 @@ module "efs_csi_irsa_role" {
       namespace_service_accounts = ["kube-system:efs-csi-controller-sa"]
     }
   }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-efs-csi-irsa"
-    Type = "iam-role"
-  })
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-efs-csi-irsa" })
 }
 
-# Load Balancer Controller IRSA
 module "load_balancer_controller_irsa_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
@@ -553,14 +519,9 @@ module "load_balancer_controller_irsa_role" {
       namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
     }
   }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-load-balancer-controller-irsa"
-    Type = "iam-role"
-  })
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-load-balancer-controller-irsa" })
 }
 
-# External DNS IRSA
 module "external_dns_irsa_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
@@ -575,14 +536,9 @@ module "external_dns_irsa_role" {
       namespace_service_accounts = ["kube-system:external-dns"]
     }
   }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-external-dns-irsa"
-    Type = "iam-role"
-  })
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-external-dns-irsa" })
 }
 
-# Cluster Autoscaler IRSA
 module "cluster_autoscaler_irsa_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
@@ -597,11 +553,7 @@ module "cluster_autoscaler_irsa_role" {
       namespace_service_accounts = ["kube-system:cluster-autoscaler"]
     }
   }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-cluster-autoscaler-irsa"
-    Type = "iam-role"
-  })
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-cluster-autoscaler-irsa" })
 }
 
 # EFS for shared storage
@@ -610,17 +562,11 @@ resource "aws_efs_file_system" "shared_storage" {
   performance_mode                = "generalPurpose"
   throughput_mode                 = "provisioned"
   provisioned_throughput_in_mibps = 100
+  encrypted                       = true
+  kms_key_id                      = aws_kms_key.nexafi_primary.arn
 
-  encrypted  = true
-  kms_key_id = aws_kms_key.nexafi_primary.arn
-
-  lifecycle_policy {
-    transition_to_ia = "AFTER_30_DAYS"
-  }
-
-  lifecycle_policy {
-    transition_to_primary_storage_class = "AFTER_1_ACCESS"
-  }
+  lifecycle_policy { transition_to_ia = "AFTER_30_DAYS" }
+  lifecycle_policy { transition_to_primary_storage_class = "AFTER_1_ACCESS" }
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-shared-storage"
@@ -628,16 +574,13 @@ resource "aws_efs_file_system" "shared_storage" {
   })
 }
 
-# EFS mount targets
 resource "aws_efs_mount_target" "shared_storage" {
-  count = length(module.vpc_primary.private_subnets)
-
+  count           = length(module.vpc_primary.private_subnets)
   file_system_id  = aws_efs_file_system.shared_storage.id
   subnet_id       = module.vpc_primary.private_subnets[count.index]
   security_groups = [aws_security_group.efs.id]
 }
 
-# Security group for EFS
 resource "aws_security_group" "efs" {
   name_prefix = "${local.name_prefix}-efs-"
   vpc_id      = module.vpc_primary.vpc_id
@@ -658,6 +601,8 @@ resource "aws_security_group" "efs" {
     cidr_blocks = ["0.0.0.0/0"]
     description = "All outbound traffic"
   }
+
+  lifecycle { create_before_destroy = true }
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-efs-sg"

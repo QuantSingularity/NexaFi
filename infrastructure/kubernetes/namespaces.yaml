@@ -3,8 +3,70 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: nexafi
+  labels:
+    name: nexafi
+    environment: production
+    app.kubernetes.io/part-of: nexafi
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: nexafi-infra
+  labels:
+    name: nexafi-infra
+    environment: production
+    app.kubernetes.io/part-of: nexafi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    environment: production
+    app.kubernetes.io/part-of: nexafi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: security
+  labels:
+    name: security
+    environment: production
+    app.kubernetes.io/part-of: nexafi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: compliance
+  labels:
+    name: compliance
+    environment: production
+    app.kubernetes.io/part-of: nexafi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backup-recovery
+  labels:
+    name: backup-recovery
+    environment: production
+    app.kubernetes.io/part-of: nexafi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: financial-services
+  labels:
+    name: financial-services
+    environment: production
+    app.kubernetes.io/part-of: nexafi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: api-gateway
+  labels:
+    name: api-gateway
+    environment: production
+    app.kubernetes.io/part-of: nexafi

@@ -1,0 +1,122 @@
+---
+# PodDisruptionBudgets - ensure high availability during node drains and rolling updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: nexafi
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-pdb
+  namespace: nexafi
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: nexafi
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: payment-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ledger-service-pdb
+  namespace: nexafi
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ledger-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-service-pdb
+  namespace: nexafi
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ai-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: analytics-service-pdb
+  namespace: nexafi
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: analytics-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: credit-service-pdb
+  namespace: nexafi
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: credit-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: document-service-pdb
+  namespace: nexafi
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: document-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: nexafi-infra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: redis
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rabbitmq-pdb
+  namespace: nexafi-infra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: elasticsearch-pdb
+  namespace: nexafi-infra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: elasticsearch

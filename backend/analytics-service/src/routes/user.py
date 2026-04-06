@@ -4,8 +4,7 @@ from functools import wraps
 from typing import Any
 
 from flask import Blueprint, jsonify, request
-
-from .models.user import (
+from models.user import (
     Dashboard,
     DataSource,
     Metric,

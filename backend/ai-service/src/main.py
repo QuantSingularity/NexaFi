@@ -19,7 +19,7 @@ db_manager, migration_manager = initialize_database(db_path)
 BaseModel.set_db_manager(db_manager)
 from typing import Any
 
-from .migrations import AI_MIGRATIONS
+from migrations import AI_MIGRATIONS
 
 for version, migration in AI_MIGRATIONS.items():
     migration_manager.apply_migration(

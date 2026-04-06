@@ -30,7 +30,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 

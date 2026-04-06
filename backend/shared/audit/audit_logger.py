@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class AuditEventType(Enum):
@@ -161,9 +161,12 @@ class AuditLogger:
         """Write audit event to file"""
         import os
 
-        os.makedirs("/backend/logs/audit", exist_ok=True)
+        log_dir = os.environ.get(
+            "AUDIT_LOG_DIR", os.path.join(os.path.expanduser("~"), "logs", "audit")
+        )
+        os.makedirs(log_dir, exist_ok=True)
         date_str = datetime.now().strftime("%Y-%m-%d")
-        log_file = f"/backend/logs/audit/audit_{date_str}.jsonl"
+        log_file = os.path.join(log_dir, f"audit_{date_str}.jsonl")
         with open(log_file, "a") as f:
             f.write(json.dumps(event_data) + "\n")
 

@@ -20,7 +20,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ConsentStatus(Enum):
@@ -278,7 +278,10 @@ class PSD2ConsentManager:
         result = self.db_manager.execute_query(
             update_sql, (new_status.value, datetime.utcnow(), consent_id)
         )
-        return result.rowcount > 0
+        try:
+            return result.rowcount > 0
+        except (TypeError, AttributeError):
+            return result is not None
 
     def validate_consent(self, consent_id: str, tpp_id: str) -> Tuple[bool, str]:
         """Validate consent for TPP access"""

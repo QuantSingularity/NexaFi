@@ -7,7 +7,7 @@ from flask import Flask, send_from_directory
 from routes.user import credit_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
-app.config["SECRET_KEY"] = "asdf#FGSgvasgf$5$WGT"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "asdf#FGSgvasgf$5$WGT")
 app.register_blueprint(credit_bp, url_prefix="/api/v1/credit")
 db_path = os.path.join(os.path.dirname(__file__), "database", "app.db")
 os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -15,7 +15,7 @@ db_manager, migration_manager = initialize_database(db_path)
 BaseModel.set_db_manager(db_manager)
 from typing import Any
 
-from .migrations import CREDIT_MIGRATIONS
+from migrations import CREDIT_MIGRATIONS
 
 for version, migration in CREDIT_MIGRATIONS.items():
     migration_manager.apply_migration(

@@ -10,7 +10,7 @@ import threading
 from contextlib import contextmanager
 from typing import Any, Dict, List, Tuple
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
@@ -69,11 +69,29 @@ class DatabaseManager:
                 conn.rollback()
                 raise
 
-    def execute_query(self, query: str, params: Tuple = ()) -> List[sqlite3.Row]:
-        """Execute SELECT query"""
+    def execute_query(self, query: str, params: Tuple = ()) -> Any:
+        """Execute query (SELECT or DML). Returns cursor for DML, rows list for SELECT."""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
-            return cursor.fetchall()
+            q = query.strip().upper()
+            if q.startswith("SELECT") or q.startswith("WITH"):
+                return cursor.fetchall()
+            conn.commit()
+            return cursor
+
+    def fetch_all(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
+        """Execute SELECT query and return all rows as dicts."""
+        with self.get_connection() as conn:
+            cursor = conn.execute(query, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    def fetch_one(self, query: str, params: Tuple = ()) -> Any:
+        """Execute SELECT query and return first row as dict or None."""
+        with self.get_connection() as conn:
+            cursor = conn.execute(query, params)
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
     def execute_update(self, query: str, params: Tuple = ()) -> int:
         """Execute INSERT/UPDATE/DELETE query"""

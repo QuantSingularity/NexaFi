@@ -17,7 +17,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class SecurityLevel(Enum):
@@ -206,6 +206,92 @@ class FraudDetectionEngine:
         self.db_manager.execute_query(
             insert_sql, (user_id, alert_type, risk_score, json.dumps(details))
         )
+
+    def create_fraud_alert(
+        self, user_id: str, alert_type: str, risk_score: float, details: Dict[str, Any]
+    ) -> Any:
+        """Public method to create a fraud alert, returns the new row ID."""
+        insert_sql = """
+        INSERT INTO fraud_alerts (user_id, alert_type, risk_score, details)
+        VALUES (?, ?, ?, ?)
+        """
+        result = self.db_manager.execute_query(
+            insert_sql, (user_id, alert_type, risk_score, json.dumps(details))
+        )
+        return result.lastrowid if result else None
+
+    def analyze_login_behavior(
+        self,
+        user_id: str,
+        ip_address: str,
+        user_agent: str,
+        device_fingerprint: str,
+    ) -> Tuple[float, list]:
+        """Analyze login behavior for fraud risk. Returns (risk_score, risk_factors)."""
+        risk_score = 0.0
+        risk_factors: list = []
+
+        try:
+            known_devices = self.db_manager.fetch_all(
+                "SELECT device_fingerprint FROM transaction_patterns WHERE user_id = ? AND pattern_type = 'device'",
+                (user_id,),
+            )
+            known_fps = {row["device_fingerprint"] for row in (known_devices or [])}
+        except (TypeError, AttributeError):
+            known_fps = set()
+
+        if not known_fps or device_fingerprint not in known_fps:
+            risk_score += 30.0
+            risk_factors.append("new_device")
+
+        try:
+            known_ips = self.db_manager.fetch_all(
+                "SELECT pattern_data FROM transaction_patterns WHERE user_id = ? AND pattern_type = 'ip'",
+                (user_id,),
+            )
+            known_ip_set = {row["pattern_data"] for row in (known_ips or [])}
+        except (TypeError, AttributeError):
+            known_ip_set = set()
+
+        if not known_ip_set or ip_address not in known_ip_set:
+            risk_score += 20.0
+            risk_factors.append("new_ip")
+
+        return min(risk_score, 100.0), risk_factors
+
+    def analyze_transaction_behavior(
+        self,
+        user_id: str,
+        amount: float,
+        currency: str,
+        merchant_category: str,
+        ip_address: str,
+    ) -> Tuple[float, list]:
+        """Analyze transaction behavior for fraud risk. Returns (risk_score, risk_factors)."""
+        risk_score = 0.0
+        risk_factors: list = []
+
+        if amount >= self.risk_thresholds["amount"]:
+            risk_score += 40.0
+            risk_factors.append("high_amount")
+
+        high_risk_categories = ["gambling", "cryptocurrency", "money_transfer"]
+        if merchant_category in high_risk_categories:
+            risk_score += 30.0
+            risk_factors.append("high_risk_merchant")
+
+        try:
+            recent_txns = self.db_manager.fetch_all(
+                "SELECT pattern_data FROM transaction_patterns WHERE user_id = ? AND pattern_type = 'transaction'",
+                (user_id,),
+            )
+            if recent_txns and len(recent_txns) > self.risk_thresholds["velocity"]:
+                risk_score += 30.0
+                risk_factors.append("high_velocity")
+        except (TypeError, AttributeError):
+            pass
+
+        return min(risk_score, 100.0), risk_factors
 
 
 class SecurityManager:
@@ -476,3 +562,254 @@ class SecurityManager:
         """Verify MFA token"""
         totp = pyotp.TOTP(secret)
         return totp.verify(token)
+
+
+class AdvancedEncryption(RobustEncryption):
+    """Advanced encryption utilities with field-level encryption and configurable expiry."""
+
+    def decrypt_sensitive_data(
+        self, encrypted_data: str, max_age_seconds: Optional[int] = None
+    ) -> str:
+        """Decrypt sensitive data and verify timestamp with optional max age."""
+        try:
+            decoded = base64.urlsafe_b64decode(encrypted_data.encode())
+            decrypted = self.fernet.decrypt(decoded).decode()
+            timestamp_str, data = decrypted.split(":", 1)
+
+            timestamp = int(timestamp_str)
+            age = int(time.time()) - timestamp
+
+            if max_age_seconds is not None and age >= max_age_seconds:
+                raise ValueError("Encrypted data has exceeded maximum age")
+
+            if age > 86400:
+                logger.warning("Decrypted data has expired")
+
+            return data
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"Decryption failed: {str(e)}")
+            raise ValueError("Invalid or expired encrypted data")
+
+    def encrypt_field_level(
+        self, data: Dict[str, Any], sensitive_fields: list
+    ) -> Dict[str, Any]:
+        """Encrypt specific fields in a dictionary."""
+        result = dict(data)
+        for field in sensitive_fields:
+            if field in result:
+                result[field] = self.encrypt_sensitive_data(str(result[field]))
+        return result
+
+    def decrypt_field_level(
+        self, data: Dict[str, Any], sensitive_fields: list
+    ) -> Dict[str, Any]:
+        """Decrypt specific fields in a dictionary."""
+        result = dict(data)
+        for field in sensitive_fields:
+            if field in result:
+                result[field] = self.decrypt_sensitive_data(result[field])
+        return result
+
+
+class MultiFactorAuthentication:
+    """Multi-Factor Authentication management."""
+
+    def __init__(self, db_manager: Any) -> None:
+        self.db_manager = db_manager
+        self._initialize_mfa_tables()
+
+    def _initialize_mfa_tables(self) -> None:
+        """Initialize MFA tables."""
+        statements = [
+            """
+            CREATE TABLE IF NOT EXISTS user_mfa (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT UNIQUE NOT NULL,
+                totp_secret TEXT,
+                backup_codes TEXT,
+                recovery_codes_used TEXT DEFAULT '[]',
+                last_totp_used INTEGER,
+                mfa_enabled BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_user_mfa_user_id ON user_mfa(user_id)",
+        ]
+        for stmt in statements:
+            self.db_manager.execute_query(stmt)
+
+    def setup_totp(self, user_id: str, user_email: str) -> Tuple[str, str, list]:
+        """Set up TOTP for a user. Returns (secret, provisioning_uri, backup_codes)."""
+        import urllib.parse
+
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        provisioning_uri = urllib.parse.unquote(
+            totp.provisioning_uri(name=user_email, issuer_name="NexaFi")
+        )
+
+        backup_codes = [
+            secrets.token_hex(4).upper() + secrets.token_hex(4).upper()
+            for _ in range(10)
+        ]
+
+        insert_sql = """
+        INSERT INTO user_mfa (user_id, totp_secret, backup_codes, mfa_enabled)
+        VALUES (?, ?, ?, 1)
+        ON CONFLICT(user_id) DO UPDATE SET
+            totp_secret = excluded.totp_secret,
+            backup_codes = excluded.backup_codes,
+            mfa_enabled = 1,
+            updated_at = CURRENT_TIMESTAMP
+        """
+        self.db_manager.execute_query(
+            insert_sql, (user_id, secret, json.dumps(backup_codes))
+        )
+        return secret, provisioning_uri, backup_codes
+
+    def verify_totp(self, user_id: str, token: str) -> bool:
+        """Verify a TOTP token for a user."""
+        result = self.db_manager.fetch_one(
+            "SELECT totp_secret, last_totp_used FROM user_mfa WHERE user_id = ?",
+            (user_id,),
+        )
+        if not result or not result["totp_secret"]:
+            return False
+
+        totp = pyotp.TOTP(result["totp_secret"])
+        if not totp.verify(token):
+            return False
+
+        current_timestamp = int(time.time())
+        last_used = result.get("last_totp_used", 0) or 0
+        if last_used and (current_timestamp - last_used) < 30:
+            return False
+
+        self.db_manager.execute_query(
+            "UPDATE user_mfa SET last_totp_used = ? WHERE user_id = ?",
+            (current_timestamp, user_id),
+        )
+        return True
+
+    def verify_backup_code(self, user_id: str, backup_code: str) -> bool:
+        """Verify a backup code for a user."""
+        result = self.db_manager.fetch_one(
+            "SELECT backup_codes, recovery_codes_used FROM user_mfa WHERE user_id = ?",
+            (user_id,),
+        )
+        if not result:
+            return False
+
+        backup_codes = json.loads(result["backup_codes"] or "[]")
+        used_codes = json.loads(result["recovery_codes_used"] or "[]")
+
+        if backup_code not in backup_codes or backup_code in used_codes:
+            return False
+
+        used_codes.append(backup_code)
+        self.db_manager.execute_query(
+            "UPDATE user_mfa SET recovery_codes_used = ? WHERE user_id = ?",
+            (json.dumps(used_codes), user_id),
+        )
+        return True
+
+
+class SecurityMonitor:
+    """Real-time security monitoring and threat detection."""
+
+    def __init__(self, db_manager: Any) -> None:
+        self.db_manager = db_manager
+        self.security_events: list = []
+        self._initialize_monitoring_tables()
+
+    def _initialize_monitoring_tables(self) -> None:
+        """Initialize monitoring tables."""
+        statements = [
+            """
+            CREATE TABLE IF NOT EXISTS security_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL,
+                user_id TEXT,
+                ip_address TEXT NOT NULL,
+                user_agent TEXT,
+                session_id TEXT,
+                threat_level TEXT NOT NULL,
+                details TEXT NOT NULL,
+                location TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS threat_indicators (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                indicator_type TEXT NOT NULL,
+                indicator_value TEXT NOT NULL,
+                threat_level TEXT NOT NULL,
+                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                occurrence_count INTEGER DEFAULT 1,
+                status TEXT DEFAULT 'active'
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_sec_events_user ON security_events(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_sec_events_ip ON security_events(ip_address)",
+            "CREATE INDEX IF NOT EXISTS idx_threat_ind_value ON threat_indicators(indicator_value)",
+        ]
+        for stmt in statements:
+            self.db_manager.execute_query(stmt)
+
+    def log_security_event(self, event: "SecurityEvent") -> None:
+        """Log a security event."""
+        insert_sql = """
+        INSERT INTO security_events
+        (event_type, user_id, ip_address, user_agent, session_id, threat_level, details, location)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        self.db_manager.execute_query(
+            insert_sql,
+            (
+                event.event_type.value,
+                event.user_id,
+                event.ip_address,
+                event.user_agent,
+                event.session_id,
+                event.threat_level.value,
+                json.dumps(event.details),
+                event.location,
+            ),
+        )
+        self.security_events.append(event)
+
+        if event.threat_level in [ThreatLevel.HIGH, ThreatLevel.CRITICAL]:
+            logger.warning(f"High threat security event: {event.event_type.value}")
+
+    def get_threat_summary(self, hours: int = 24) -> Dict[str, Any]:
+        """Get a threat summary for the past N hours."""
+        events_sql = """
+        SELECT event_type, threat_level, COUNT(*) as count
+        FROM security_events
+        WHERE created_at >= datetime('now', ?)
+        GROUP BY event_type, threat_level
+        """
+        events = self.db_manager.fetch_all(events_sql, (f"-{hours} hours",))
+
+        indicators_sql = """
+        SELECT indicator_type, indicator_value, threat_level, occurrence_count
+        FROM threat_indicators
+        WHERE status = 'active'
+        ORDER BY occurrence_count DESC
+        LIMIT 10
+        """
+        indicators = self.db_manager.fetch_all(indicators_sql)
+
+        total_events = sum(row.get("count", 0) for row in (events or []))
+
+        return {
+            "time_period_hours": hours,
+            "total_events": total_events,
+            "events_by_type": events or [],
+            "top_threat_indicators": indicators or [],
+        }

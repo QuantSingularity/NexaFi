@@ -54,6 +54,8 @@ class CircuitBreaker:
 
     def _should_attempt_reset(self) -> bool:
         """Check if enough time has passed to attempt reset"""
+        if self.last_failure_time is None:
+            return True
         return time.time() - self.last_failure_time >= self.recovery_timeout
 
     def _on_success(self) -> Any:

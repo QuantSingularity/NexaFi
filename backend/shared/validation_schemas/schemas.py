@@ -190,7 +190,7 @@ class PaymentMethodSchema(SanitizationMixin, Schema):
             ["credit_card", "debit_card", "bank_account", "digital_wallet"]
         ),
     )
-    is_default = fields.Bool(required=False, default=False)
+    is_default = fields.Bool(required=False, load_default=False)
 
 
 class CreditCardSchema(PaymentMethodSchema):

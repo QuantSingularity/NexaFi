@@ -34,7 +34,7 @@ from shared.security import (
     ThreatLevel,
 )
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class TestFAPI2SecurityProfile(unittest.TestCase):

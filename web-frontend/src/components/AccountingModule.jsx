@@ -13,8 +13,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,8 +54,6 @@ import { useApp } from "../contexts/AppContext";
 import apiClient from "../lib/api";
 
 const AccountingModule = () => {
-  const _navigate = useNavigate();
-  const _location = useLocation();
   const { addNotification } = useApp();
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -65,11 +62,7 @@ const AccountingModule = () => {
   const [reports, setReports] = useState({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAccountingData();
-  }, [loadAccountingData]);
-
-  const loadAccountingData = async () => {
+  const loadAccountingData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -96,7 +89,11 @@ const AccountingModule = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addNotification]);
+
+  useEffect(() => {
+    loadAccountingData();
+  }, [loadAccountingData]);
 
   const AccountsOverview = () => {
     const accountsByType = accounts.reduce((acc, account) => {

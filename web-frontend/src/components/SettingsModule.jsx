@@ -32,6 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApp, useAuth } from "../contexts/AppContext";
+import apiClient from "../lib/api";
 
 const SettingsModule = () => {
   const { user, updateUser } = useAuth();
@@ -71,8 +72,7 @@ const SettingsModule = () => {
   const handleProfileSave = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await apiClient.updateUserProfile(profileData);
       updateUser(profileData);
       addNotification({
         type: "success",
@@ -100,10 +100,21 @@ const SettingsModule = () => {
       return;
     }
 
+    if (securityData.new_password.length < 8) {
+      addNotification({
+        type: "error",
+        title: "Error",
+        message: "Password must be at least 8 characters",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await apiClient.updateUserProfile({
+        current_password: securityData.current_password,
+        new_password: securityData.new_password,
+      });
       addNotification({
         type: "success",
         title: "Success",

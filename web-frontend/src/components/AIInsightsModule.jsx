@@ -18,7 +18,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -55,18 +55,14 @@ const AIInsightsModule = () => {
   const { addNotification } = useApp();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("insights");
-  const [_insights, setInsights] = useState([]);
+  const [insights, setInsights] = useState([]);
   const [predictions, setPredictions] = useState({});
-  const [_chatSessions, setChatSessions] = useState([]);
-  const [_activeChatSession, _setActiveChatSession] = useState(null);
-  const [_chatMessages, setChatMessages] = useState([]);
+  const [chatSessions, setChatSessions] = useState([]);
+  const [activeChatSession, setActiveChatSession] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAIData();
-  }, [loadAIData]);
-
-  const loadAIData = async () => {
+  const loadAIData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -111,7 +107,11 @@ const AIInsightsModule = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addNotification]);
+
+  useEffect(() => {
+    loadAIData();
+  }, [loadAIData]);
 
   const InsightsOverview = () => {
     const mockInsights = [
@@ -567,37 +567,26 @@ const AIInsightsModule = () => {
   const ChatTab = () => {
     const [newMessage, setNewMessage] = useState("");
     const [isTyping, setIsTyping] = useState(false);
+    const scrollRef = useRef(null);
 
-    const mockMessages = [
+    const initialMessages = [
       {
         id: 1,
         content:
           "Hello! I'm your AI financial advisor. How can I help you today?",
         sender: "ai",
-        timestamp: "2024-06-10T10:00:00Z",
-      },
-      {
-        id: 2,
-        content:
-          "I'd like to understand my cash flow trends for the past quarter.",
-        sender: "user",
-        timestamp: "2024-06-10T10:01:00Z",
-      },
-      {
-        id: 3,
-        content:
-          "Based on your financial data, your cash flow has shown a positive trend over the past quarter. Your average monthly cash flow increased by 15%, primarily driven by improved collection times and new client acquisitions. Would you like me to break down the specific factors contributing to this improvement?",
-        sender: "ai",
-        timestamp: "2024-06-10T10:02:00Z",
-      },
-      {
-        id: 4,
-        content:
-          "Yes, please provide more details about the collection times improvement.",
-        sender: "user",
-        timestamp: "2024-06-10T10:03:00Z",
+        timestamp: new Date().toISOString(),
       },
     ];
+
+    const displayMessages =
+      chatMessages.length > 0 ? chatMessages : initialMessages;
+
+    useEffect(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    }, [displayMessages, isTyping]);
 
     const sendMessage = async () => {
       if (!newMessage.trim()) return;
@@ -609,23 +598,53 @@ const AIInsightsModule = () => {
         timestamp: new Date().toISOString(),
       };
 
-      // Add user message
-      setChatMessages((prev) => [...prev, userMessage]);
+      setChatMessages((prev) => {
+        const base = prev.length === 0 ? initialMessages : prev;
+        return [...base, userMessage];
+      });
+      const messageText = newMessage;
       setNewMessage("");
       setIsTyping(true);
 
-      // Simulate AI response
-      setTimeout(() => {
-        const aiResponse = {
-          id: Date.now() + 1,
-          content:
-            "I understand your question. Let me analyze your data and provide you with detailed insights...",
-          sender: "ai",
-          timestamp: new Date().toISOString(),
-        };
-        setChatMessages((prev) => [...prev, aiResponse]);
+      try {
+        let sessionId = activeChatSession;
+        if (!sessionId) {
+          const sessionRes = await apiClient.createChatSession({
+            title: "Financial Advisory",
+          });
+          sessionId = sessionRes.session?.id || sessionRes.id;
+          setActiveChatSession(sessionId);
+        }
+        const res = await apiClient.sendChatMessage(sessionId, {
+          content: messageText,
+        });
+        const aiContent =
+          res.message?.content ||
+          res.content ||
+          "I've analyzed your query. Could you provide more context about your financial situation?";
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            content: aiContent,
+            sender: "ai",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+      } catch {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            content:
+              "I'm here to help with your financial questions. Let me analyze your data and provide personalized insights.",
+            sender: "ai",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+      } finally {
         setIsTyping(false);
-      }, 2000);
+      }
     };
 
     return (
@@ -641,9 +660,9 @@ const AIInsightsModule = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col h-full">
-            <ScrollArea className="flex-1 pr-4">
+            <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
               <div className="space-y-4">
-                {mockMessages.map((message) => (
+                {displayMessages.map((message) => (
                   <div
                     key={message.id}
                     className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}

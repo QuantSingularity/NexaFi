@@ -9,6 +9,7 @@ import AccountingModule from "./components/AccountingModule";
 import AIInsightsModule from "./components/AIInsightsModule";
 import AuthPage from "./components/AuthPage";
 import Dashboard from "./components/Dashboard";
+import DocumentsModule from "./components/DocumentsModule";
 import Homepage from "./components/Homepage";
 import Layout from "./components/Layout";
 import PaymentsModule from "./components/PaymentsModule";
@@ -100,6 +101,17 @@ const AppRoutes = () => {
             <ProtectedRoute>
               <Layout>
                 <AIInsightsModule />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/documents/*"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <DocumentsModule />
               </Layout>
             </ProtectedRoute>
           }

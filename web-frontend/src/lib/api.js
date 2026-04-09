@@ -6,7 +6,7 @@ const API_TIMEOUT = import.meta.env.VITE_API_TIMEOUT || 30000;
 class ApiClient {
   constructor() {
     this.baseURL = API_BASE_URL;
-    this.timeout = API_TIMEOUT;
+    this.timeout = parseInt(API_TIMEOUT, 10);
     this.token = localStorage.getItem("access_token");
   }
 
@@ -42,7 +42,6 @@ class ApiClient {
       config.body = JSON.stringify(config.body);
     }
 
-    // Add timeout support
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     config.signal = controller.signal;
@@ -90,7 +89,6 @@ class ApiClient {
       body: credentials,
     });
 
-    // Store token if present in response
     if (response.access_token) {
       this.setToken(response.access_token);
     }
@@ -109,8 +107,26 @@ class ApiClient {
   }
 
   async refreshToken() {
-    return this.request("/auth/refresh", {
+    const response = await this.request("/auth/refresh", {
       method: "POST",
+    });
+    if (response.access_token) {
+      this.setToken(response.access_token);
+    }
+    return response;
+  }
+
+  async setupMFA(data) {
+    return this.request("/auth/mfa/setup", {
+      method: "POST",
+      body: data,
+    });
+  }
+
+  async verifyMFA(data) {
+    return this.request("/auth/mfa/verify", {
+      method: "POST",
+      body: data,
     });
   }
 
@@ -123,6 +139,29 @@ class ApiClient {
     return this.request("/users/profile", {
       method: "PUT",
       body: profileData,
+    });
+  }
+
+  // Notification endpoints
+  async getNotifications(userId) {
+    return this.request(`/notifications/user/${userId}`);
+  }
+
+  async getNotificationPreferences(userId) {
+    return this.request(`/notifications/preferences/${userId}`);
+  }
+
+  async updateNotificationPreferences(userId, preferences) {
+    return this.request(`/notifications/preferences/${userId}`, {
+      method: "PUT",
+      body: preferences,
+    });
+  }
+
+  async updateNotificationStatus(notificationId, status) {
+    return this.request(`/notifications/${notificationId}/status`, {
+      method: "PUT",
+      body: { status },
     });
   }
 
@@ -186,6 +225,12 @@ class ApiClient {
     });
   }
 
+  async deletePaymentMethod(methodId) {
+    return this.request(`/payment-methods/${methodId}`, {
+      method: "DELETE",
+    });
+  }
+
   async getTransactions(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     return this.request(`/transactions${queryString ? `?${queryString}` : ""}`);
@@ -204,6 +249,30 @@ class ApiClient {
 
   async getWallet(currency) {
     return this.request(`/wallets/${currency}`);
+  }
+
+  async getRecurringPayments(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(
+      `/recurring-payments${queryString ? `?${queryString}` : ""}`,
+    );
+  }
+
+  async createRecurringPayment(data) {
+    return this.request("/recurring-payments", {
+      method: "POST",
+      body: data,
+    });
+  }
+
+  async cancelRecurringPayment(paymentId) {
+    return this.request(`/recurring-payments/${paymentId}/cancel`, {
+      method: "POST",
+    });
+  }
+
+  async getExchangeRates(baseCurrency = "USD") {
+    return this.request(`/exchange-rates?base=${baseCurrency}`);
   }
 
   async getPaymentAnalytics(startDate, endDate) {
@@ -225,6 +294,11 @@ class ApiClient {
       method: "POST",
       body: data,
     });
+  }
+
+  async getPredictions(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/predictions${queryString ? `?${queryString}` : ""}`);
   }
 
   async getInsights(params = {}) {
@@ -264,6 +338,110 @@ class ApiClient {
     return this.request(`/chat/sessions/${sessionId}/messages`, {
       method: "POST",
       body: messageData,
+    });
+  }
+
+  async getAIModels() {
+    return this.request("/models");
+  }
+
+  // Document endpoints
+  async getDocuments(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/documents${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async uploadDocument(formData) {
+    const url = `${this.baseURL}/documents`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}` },
+        body: formData,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      return response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") throw new Error("Request timeout");
+      throw error;
+    }
+  }
+
+  async getDocument(documentId) {
+    return this.request(`/documents/${documentId}`);
+  }
+
+  async deleteDocument(documentId) {
+    return this.request(`/documents/${documentId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async shareDocument(documentId, shareData) {
+    return this.request(`/documents/${documentId}/share`, {
+      method: "POST",
+      body: shareData,
+    });
+  }
+
+  async getDocumentTemplates() {
+    return this.request("/templates");
+  }
+
+  // Analytics endpoints
+  async getDashboards() {
+    return this.request("/dashboards");
+  }
+
+  async createDashboard(data) {
+    return this.request("/dashboards", {
+      method: "POST",
+      body: data,
+    });
+  }
+
+  async getAnalyticsReports(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/reports${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async createAnalyticsReport(data) {
+    return this.request("/reports", {
+      method: "POST",
+      body: data,
+    });
+  }
+
+  async executeReport(reportId) {
+    return this.request(`/reports/${reportId}/execute`, {
+      method: "POST",
+    });
+  }
+
+  // Compliance endpoints
+  async getComplianceDashboard() {
+    return this.request("/compliance/dashboard");
+  }
+
+  async performKYCVerification(data) {
+    return this.request("/kyc/verify", {
+      method: "POST",
+      body: data,
+    });
+  }
+
+  async performAMLCheck(data) {
+    return this.request("/aml/check", {
+      method: "POST",
+      body: data,
     });
   }
 

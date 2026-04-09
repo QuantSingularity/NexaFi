@@ -14,7 +14,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -65,17 +65,13 @@ import apiClient from "../lib/api";
 const PaymentsModule = () => {
   const { addNotification } = useApp();
   const [activeTab, setActiveTab] = useState("overview");
-  const [_paymentMethods, setPaymentMethods] = useState([]);
-  const [_transactions, setTransactions] = useState([]);
-  const [_wallets, setWallets] = useState([]);
-  const [_analytics, setAnalytics] = useState({});
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [wallets, setWallets] = useState([]);
+  const [analytics, setAnalytics] = useState({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadPaymentData();
-  }, [loadPaymentData]);
-
-  const loadPaymentData = async () => {
+  const loadPaymentData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -113,7 +109,11 @@ const PaymentsModule = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addNotification]);
+
+  useEffect(() => {
+    loadPaymentData();
+  }, [loadPaymentData]);
 
   const PaymentOverview = () => {
     const mockAnalyticsData = [
@@ -580,9 +580,136 @@ const PaymentsModule = () => {
         </TabsContent>
 
         <TabsContent value="wallets">
-          <PaymentOverview />
+          <WalletsTab wallets={wallets} onRefresh={loadPaymentData} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+};
+
+// Wallets Tab Component
+const WalletsTab = ({ wallets, onRefresh }) => {
+  const CURRENCY_CONFIG = {
+    USD: {
+      symbol: "$",
+      bg: "bg-blue-100",
+      icon: "text-blue-600",
+      label: "US Dollar",
+    },
+    EUR: {
+      symbol: "€",
+      bg: "bg-green-100",
+      icon: "text-green-600",
+      label: "Euro",
+    },
+    GBP: {
+      symbol: "£",
+      bg: "bg-purple-100",
+      icon: "text-purple-600",
+      label: "British Pound",
+    },
+  };
+
+  const mockWallets =
+    wallets.length > 0
+      ? wallets
+      : [
+          {
+            currency: "USD",
+            balance: 25430.5,
+            available_balance: 25430.5,
+            status: "active",
+          },
+          {
+            currency: "EUR",
+            balance: 12850.25,
+            available_balance: 12000.0,
+            status: "active",
+          },
+          {
+            currency: "GBP",
+            balance: 8920.75,
+            available_balance: 8920.75,
+            status: "active",
+          },
+        ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Wallets</h2>
+        <Button variant="outline" onClick={onRefresh}>
+          Refresh Balances
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {mockWallets.map((wallet) => {
+          const config = CURRENCY_CONFIG[wallet.currency] || {
+            symbol: wallet.currency,
+            bg: "bg-gray-100",
+            icon: "text-gray-600",
+            label: wallet.currency,
+          };
+          return (
+            <Card
+              key={wallet.currency}
+              className="hover:shadow-lg transition-shadow"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className={`w-10 h-10 ${config.bg} rounded-full flex items-center justify-center`}
+                    >
+                      <DollarSign className={`w-5 h-5 ${config.icon}`} />
+                    </div>
+                    <div>
+                      <p className="font-medium">{wallet.currency} Wallet</p>
+                      <p className="text-sm text-gray-500">{config.label}</p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant={
+                      wallet.status === "active" ? "default" : "secondary"
+                    }
+                  >
+                    {wallet.status || "active"}
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Total Balance</span>
+                    <span className="font-bold">
+                      {config.symbol}
+                      {Number(wallet.balance).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Available</span>
+                    <span className="font-medium text-green-600">
+                      {config.symbol}
+                      {Number(
+                        wallet.available_balance ?? wallet.balance,
+                      ).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex space-x-2 mt-4">
+                  <Button variant="outline" size="sm" className="flex-1">
+                    Deposit
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1">
+                    Withdraw
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 };

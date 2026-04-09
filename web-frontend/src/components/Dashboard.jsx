@@ -13,7 +13,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -56,11 +56,7 @@ const Dashboard = () => {
     loading: true,
   });
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       // Simulate loading dashboard data
       const mockData = {
@@ -160,7 +156,11 @@ const Dashboard = () => {
       });
       setDashboardData((prev) => ({ ...prev, loading: false }));
     }
-  };
+  }, [addNotification]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const MetricCard = ({ title, value, change, icon: Icon, trend }) => (
     <Card className="hover:shadow-lg transition-shadow">

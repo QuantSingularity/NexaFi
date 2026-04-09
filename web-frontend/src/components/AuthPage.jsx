@@ -18,7 +18,9 @@ import "../App.css";
 
 const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
+  const [localError, setLocalError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -37,10 +39,12 @@ const AuthPage = () => {
       [name]: value,
     }));
     if (error) clearError();
+    if (localError) setLocalError("");
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLocalError("");
     try {
       await login({
         email: formData.email,
@@ -53,8 +57,15 @@ const AuthPage = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setLocalError("");
 
     if (formData.password !== formData.confirmPassword) {
+      setLocalError("Passwords do not match");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setLocalError("Password must be at least 8 characters");
       return;
     }
 
@@ -70,6 +81,8 @@ const AuthPage = () => {
       console.error("Registration failed:", err);
     }
   };
+
+  const displayError = error || localError;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -114,10 +127,10 @@ const AuthPage = () => {
                 <TabsTrigger value="register">Sign Up</TabsTrigger>
               </TabsList>
 
-              {error && (
+              {displayError && (
                 <Alert className="mb-4 border-red-200 bg-red-50">
                   <AlertDescription className="text-red-700">
-                    {error}
+                    {displayError}
                   </AlertDescription>
                 </Alert>
               )}
@@ -190,11 +203,11 @@ const AuthPage = () => {
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="first_name">First Name</Label>
+                      <Label htmlFor="register_first_name">First Name</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
-                          id="first_name"
+                          id="register_first_name"
                           name="first_name"
                           placeholder="First name"
                           value={formData.first_name}
@@ -206,9 +219,9 @@ const AuthPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="last_name">Last Name</Label>
+                      <Label htmlFor="register_last_name">Last Name</Label>
                       <Input
-                        id="last_name"
+                        id="register_last_name"
                         name="last_name"
                         placeholder="Last name"
                         value={formData.last_name}
@@ -219,11 +232,13 @@ const AuthPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="business_name">Business Name</Label>
+                    <Label htmlFor="register_business_name">
+                      Business Name
+                    </Label>
                     <div className="relative">
                       <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="business_name"
+                        id="register_business_name"
                         name="business_name"
                         placeholder="Your business name"
                         value={formData.business_name}
@@ -235,11 +250,11 @@ const AuthPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="register_email">Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="email"
+                        id="register_email"
                         name="email"
                         type="email"
                         placeholder="Enter your email"
@@ -252,14 +267,14 @@ const AuthPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="register_password">Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="password"
+                        id="register_password"
                         name="password"
                         type={showPassword ? "text" : "password"}
-                        placeholder="Create a password"
+                        placeholder="Create a password (min 8 chars)"
                         value={formData.password}
                         onChange={handleInputChange}
                         className="pl-10 pr-10"
@@ -280,16 +295,35 @@ const AuthPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      placeholder="Confirm your password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <Label htmlFor="register_confirmPassword">
+                      Confirm Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="register_confirmPassword"
+                        name="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm your password"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        className="pl-10 pr-10"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   <Button

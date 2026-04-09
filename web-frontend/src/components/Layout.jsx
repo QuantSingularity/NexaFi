@@ -6,6 +6,7 @@ import {
   Building,
   ChevronDown,
   CreditCard,
+  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -17,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,14 +34,31 @@ import { Input } from "@/components/ui/input";
 import { useApp, useAuth } from "../contexts/AppContext";
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const [activeItem, setActiveItem] = useState("dashboard");
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "accounting", label: "Accounting", icon: BookOpen },
-    { id: "payments", label: "Payments", icon: CreditCard },
-    { id: "ai-insights", label: "AI Insights", icon: Brain },
-    { id: "settings", label: "Settings", icon: Settings },
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      path: "/dashboard",
+    },
+    {
+      id: "accounting",
+      label: "Accounting",
+      icon: BookOpen,
+      path: "/accounting",
+    },
+    { id: "payments", label: "Payments", icon: CreditCard, path: "/payments" },
+    {
+      id: "ai-insights",
+      label: "AI Insights",
+      icon: Brain,
+      path: "/ai-insights",
+    },
+    { id: "documents", label: "Documents", icon: FileText, path: "/documents" },
+    { id: "settings", label: "Settings", icon: Settings, path: "/settings" },
   ];
 
   return (
@@ -81,14 +100,20 @@ const Sidebar = ({ isOpen, onClose }) => {
         <nav className="p-4 space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeItem === item.id;
+            const isActive =
+              item.path === "/dashboard"
+                ? location.pathname === "/dashboard"
+                : location.pathname.startsWith(item.path);
 
             return (
               <motion.button
                 key={item.id}
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveItem(item.id)}
+                onClick={() => {
+                  navigate(item.path);
+                  onClose();
+                }}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
                   isActive
                     ? "bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200"
@@ -110,11 +135,8 @@ const Sidebar = ({ isOpen, onClose }) => {
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
-  const { theme, setTheme } = useApp();
-  const [notifications] = useState([
-    { id: 1, title: "Cash flow alert", type: "warning" },
-    { id: 2, title: "Payment received", type: "success" },
-  ]);
+  const { theme, setTheme, notifications } = useApp();
+  const navigate = useNavigate();
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -167,15 +189,23 @@ const Header = ({ onMenuClick }) => {
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {notifications.map((notification) => (
-                <DropdownMenuItem
-                  key={notification.id}
-                  className="flex flex-col items-start p-4"
-                >
-                  <div className="font-medium">{notification.title}</div>
-                  <div className="text-sm text-gray-500">Just now</div>
-                </DropdownMenuItem>
-              ))}
+              {notifications.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500 text-center">
+                  No new notifications
+                </div>
+              ) : (
+                notifications.map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    className="flex flex-col items-start p-4"
+                  >
+                    <div className="font-medium">{notification.title}</div>
+                    <div className="text-sm text-gray-500">
+                      {notification.message}
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -204,11 +234,11 @@ const Header = ({ onMenuClick }) => {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/settings")}>
                 <User className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/settings")}>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>

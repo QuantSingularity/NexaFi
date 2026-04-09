@@ -196,7 +196,7 @@ const appReducer = (state, action) => {
 const initialAppState = {
   loading: false,
   error: null,
-  theme: "light",
+  theme: localStorage.getItem("nexafi_theme") || "light",
   sidebarOpen: true,
   notifications: [],
 };
@@ -218,6 +218,7 @@ export const AppProvider = ({ children }) => {
 
   const setTheme = (theme) => {
     dispatch({ type: "SET_THEME", payload: theme });
+    localStorage.setItem("nexafi_theme", theme);
     document.documentElement.classList.toggle("dark", theme === "dark");
   };
 

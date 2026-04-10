@@ -15,25 +15,13 @@ const wrapper = ({ children }) => (
 );
 
 const mockDashboardData = {
-  balance: 50000,
-  income: 25000,
-  expenses: 15000,
-  transactions: [
-    {
-      id: 1,
-      description: "Salary",
-      amount: 5000,
-      type: "income",
-      date: "2025-01-15",
-    },
-    {
-      id: 2,
-      description: "Rent",
-      amount: -1500,
-      type: "expense",
-      date: "2025-01-10",
-    },
-  ],
+  totalBalance: 50000,
+  monthlyIncome: 25000,
+  monthlyExpenses: 15000,
+  cashFlow: 10000,
+  accounts: 3,
+  transactions: 10,
+  pendingPayments: 2,
 };
 
 describe("MobileDashboard", () => {
@@ -46,8 +34,7 @@ describe("MobileDashboard", () => {
 
   it("renders dashboard with loading state initially", () => {
     render(<MobileDashboard />, { wrapper });
-
-    expect(screen.getByRole("status")).toBeInTheDocument(); // Loading spinner
+    expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
   it("displays financial summary after loading", async () => {
@@ -83,10 +70,14 @@ describe("MobileDashboard", () => {
       expect(screen.getByText(/Total Balance/i)).toBeInTheDocument();
     });
 
-    const refreshButton = screen.getByRole("button", { name: /refresh/i });
+    const refreshButton = screen.getByRole("button", {
+      name: /refresh dashboard/i,
+    });
     await user.click(refreshButton);
 
-    expect(mobileApiClient.getDashboardData).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(mobileApiClient.getDashboardData).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("handles API errors gracefully", async () => {
@@ -101,5 +92,27 @@ describe("MobileDashboard", () => {
         screen.getByText(/failed to load dashboard data/i),
       ).toBeInTheDocument();
     });
+  });
+
+  it("shows income and expense stats", async () => {
+    render(<MobileDashboard />, { wrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Income/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/\$25,000/)).toBeInTheDocument();
+    expect(screen.getByText(/Expenses/i)).toBeInTheDocument();
+  });
+
+  it("shows quick actions", async () => {
+    render(<MobileDashboard />, { wrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Quick Actions/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Add Transaction/i)).toBeInTheDocument();
+    expect(screen.getByText(/Make Payment/i)).toBeInTheDocument();
   });
 });

@@ -18,7 +18,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useApp, useAuth } from "../contexts/MobileContext";
-import "../App.css";
 
 const MobileLayout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -42,7 +41,7 @@ const MobileLayout = ({ children }) => {
     if (currentItem) {
       setPageTitle(currentItem.label);
     }
-  }, [location.pathname, navigationItems.find]);
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = async () => {
     await logout();
@@ -226,13 +225,13 @@ const MobileLayout = ({ children }) => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
-        <div className="h-full overflow-y-auto">{children}</div>
+        <div className="h-full overflow-y-auto pb-24">{children}</div>
       </main>
 
-      {/* Mobile Bottom Navigation (Alternative) */}
-      <div className="md:hidden bg-white border-t border-gray-200 px-4 py-2">
-        <div className="flex justify-around">
-          {navigationItems.slice(0, 4).map((item) => {
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 pb-safe z-30 shadow-[0_-1px_24px_0_rgba(0,0,0,0.06)]">
+        <div className="flex justify-around px-2 pt-2 pb-1">
+          {navigationItems.slice(0, 5).map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
 
@@ -240,13 +239,24 @@ const MobileLayout = ({ children }) => {
               <motion.button
                 key={item.path}
                 onClick={() => handleNavigation(item.path)}
-                className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg ${
-                  isActive ? "text-blue-600" : "text-gray-500"
+                className={`relative flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-colors min-w-[3.5rem] ${
+                  isActive
+                    ? "text-blue-600"
+                    : "text-gray-400 hover:text-gray-600"
                 }`}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.88 }}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{item.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-pill"
+                    className="absolute inset-0 bg-blue-50 rounded-2xl"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  />
+                )}
+                <Icon className="w-5 h-5 relative z-10" />
+                <span className="text-[10px] font-semibold relative z-10 leading-none">
+                  {item.label}
+                </span>
               </motion.button>
             );
           })}

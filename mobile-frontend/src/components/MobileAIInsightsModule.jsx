@@ -14,7 +14,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,52 +44,11 @@ const MobileAIInsightsModule = () => {
   const [refreshingInsights, setRefreshingInsights] = useState(false);
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [scrollToBottom]);
-
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-
-      const [insightsData, sessionsData] = await Promise.all([
-        mobileApiClient.getInsights().catch(() => ({ insights: [] })),
-        mobileApiClient.getChatSessions().catch(() => ({ sessions: [] })),
-      ]);
-
-      setInsights(insightsData.insights || insightsData || []);
-
-      if (sessionsData.sessions && sessionsData.sessions.length > 0) {
-        const session = sessionsData.sessions[0];
-        setActiveSession(session);
-        if (session.messages) {
-          setChatMessages(session.messages);
-        }
-      } else {
-        await createNewSession();
-      }
-
-      loadPredictions();
-    } catch (error) {
-      console.error("Failed to load AI data:", error);
-      addNotification({
-        type: "error",
-        message: "Failed to load AI insights",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createNewSession = async () => {
+  const createNewSession = useCallback(async () => {
     try {
       const welcomeMessage = {
         role: "assistant",
@@ -101,20 +60,16 @@ const MobileAIInsightsModule = () => {
     } catch (error) {
       console.error("Failed to create session:", error);
     }
-  };
+  }, []);
 
-  const loadPredictions = async () => {
+  const loadPredictions = useCallback(async () => {
     try {
       const cashFlowPrediction = await mobileApiClient
-        .generatePrediction("cash-flow", {
-          period: "30d",
-        })
+        .generatePrediction("cash-flow", { period: "30d" })
         .catch(() => null);
 
       const revenuePrediction = await mobileApiClient
-        .generatePrediction("revenue", {
-          period: "90d",
-        })
+        .generatePrediction("revenue", { period: "90d" })
         .catch(() => null);
 
       const predictionsData = [];
@@ -145,7 +100,48 @@ const MobileAIInsightsModule = () => {
     } catch (error) {
       console.error("Failed to load predictions:", error);
     }
-  };
+  }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const [insightsData, sessionsData] = await Promise.all([
+        mobileApiClient.getInsights().catch(() => ({ insights: [] })),
+        mobileApiClient.getChatSessions().catch(() => ({ sessions: [] })),
+      ]);
+
+      setInsights(insightsData.insights || insightsData || []);
+
+      if (sessionsData.sessions && sessionsData.sessions.length > 0) {
+        const session = sessionsData.sessions[0];
+        setActiveSession(session);
+        if (session.messages) {
+          setChatMessages(session.messages);
+        }
+      } else {
+        await createNewSession();
+      }
+
+      loadPredictions();
+    } catch (error) {
+      console.error("Failed to load AI data:", error);
+      addNotification({
+        type: "error",
+        message: "Failed to load AI insights",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [addNotification, createNewSession, loadPredictions]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages, scrollToBottom]);
 
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || sendingMessage || !isOnline) {
@@ -548,7 +544,7 @@ const MobileAIInsightsModule = () => {
                     placeholder="Ask me about your finances..."
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         handleSendMessage();

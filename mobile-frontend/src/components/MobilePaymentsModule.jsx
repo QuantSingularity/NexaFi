@@ -11,7 +11,7 @@ import {
   Search,
   Send,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,7 +71,7 @@ const MobilePaymentsModule = () => {
     loadData();
   }, [loadData]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -97,7 +97,7 @@ const MobilePaymentsModule = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addNotification]);
 
   const handleSendPayment = async () => {
     if (!newPayment.recipient || !newPayment.amount || !newPayment.wallet_id) {
@@ -254,6 +254,7 @@ const MobilePaymentsModule = () => {
               size="sm"
               onClick={() => setBalanceVisible(!balanceVisible)}
               className="text-white hover:bg-white/20"
+              aria-label="Toggle balance visibility"
             >
               {balanceVisible ? (
                 <Eye className="h-5 w-5" />

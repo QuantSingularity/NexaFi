@@ -14,7 +14,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,12 +27,12 @@ import {
 } from "@/components/ui/card";
 import { useApp, useAuth } from "../contexts/MobileContext";
 import mobileApiClient from "../lib/mobileApi";
-import "../App.css";
 
 const MobileDashboard = () => {
   const { user } = useAuth();
   const { addNotification, isOnline } = useApp();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     totalBalance: 125430.5,
@@ -146,19 +146,29 @@ const MobileDashboard = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
 
       if (isOnline) {
-        // Try to fetch fresh data
         const data = await mobileApiClient.getDashboardData();
-        setDashboardData(data);
+        setDashboardData((prev) => ({
+          ...prev,
+          ...data,
+          totalBalance: data.totalBalance ?? data.balance ?? prev.totalBalance,
+        }));
       } else {
-        // Use cached data when offline
         const cachedData = mobileApiClient.getCachedData("dashboard");
         if (cachedData) {
-          setDashboardData(cachedData);
+          setDashboardData((prev) => ({
+            ...prev,
+            ...cachedData,
+            totalBalance:
+              cachedData.totalBalance ??
+              cachedData.balance ??
+              prev.totalBalance,
+          }));
           addNotification({
             type: "info",
             title: "Offline Mode",
@@ -166,8 +176,9 @@ const MobileDashboard = () => {
           });
         }
       }
-    } catch (error) {
-      console.error("Failed to load dashboard data:", error);
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+      setError("Failed to load dashboard data");
       addNotification({
         type: "error",
         title: "Error",
@@ -176,7 +187,7 @@ const MobileDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isOnline, addNotification]);
 
   const handleQuickAction = (action) => {
     addNotification({
@@ -195,16 +206,31 @@ const MobileDashboard = () => {
 
   if (loading) {
     return (
-      <div className="p-4">
+      <div className="p-4" role="status" aria-label="Loading dashboard">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/2"></div>
           <div className="grid grid-cols-2 gap-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+              <div key={i} className="h-24 bg-gray-200 rounded-xl"></div>
             ))}
           </div>
-          <div className="h-48 bg-gray-200 rounded"></div>
+          <div className="h-48 bg-gray-200 rounded-xl"></div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+          <AlertCircle className="w-8 h-8 text-red-500" />
+        </div>
+        <p className="text-gray-600 text-center">{error}</p>
+        <Button onClick={loadDashboardData} variant="outline" size="sm">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Try Again
+        </Button>
       </div>
     );
   }
@@ -247,6 +273,7 @@ const MobileDashboard = () => {
                     size="sm"
                     onClick={() => setBalanceVisible(!balanceVisible)}
                     className="text-white hover:bg-white/20 p-1"
+                    aria-label="Toggle balance visibility"
                   >
                     {balanceVisible ? (
                       <EyeOff className="w-4 h-4" />
@@ -261,6 +288,7 @@ const MobileDashboard = () => {
                 size="sm"
                 onClick={loadDashboardData}
                 className="text-white hover:bg-white/20"
+                aria-label="Refresh dashboard"
               >
                 <RefreshCw className="w-4 h-4" />
               </Button>

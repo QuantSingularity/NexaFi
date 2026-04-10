@@ -7,6 +7,7 @@ describe("MobileApiClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mobileApiClient.token = null;
   });
 
   afterEach(() => {
@@ -35,7 +36,6 @@ describe("MobileApiClient", () => {
     });
 
     it("includes auth token in subsequent requests", async () => {
-      localStorage.getItem.mockReturnValue("test-token");
       mobileApiClient.token = "test-token";
 
       fetch.mockResolvedValueOnce({
@@ -69,14 +69,23 @@ describe("MobileApiClient", () => {
   });
 
   describe("Error Handling", () => {
-    it("handles 401 unauthorized errors", async () => {
+    it("handles 401 unauthorized errors by throwing", async () => {
+      // Mock window.location
+      const originalLocation = window.location;
+      delete window.location;
+      window.location = { href: "" };
+
       fetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
       });
 
-      await expect(mobileApiClient.getProfile()).rejects.toThrow();
+      await expect(mobileApiClient.getProfile()).rejects.toThrow(
+        "Unauthorized",
+      );
       expect(localStorage.removeItem).toHaveBeenCalledWith("token");
+
+      window.location = originalLocation;
     });
 
     it("handles network errors", async () => {
@@ -127,7 +136,6 @@ describe("MobileApiClient", () => {
     });
 
     it("clears all cached data", () => {
-      localStorage.getItem.mockReturnValue(null);
       Object.keys = vi.fn(() => [
         "cache_key1",
         "cache_key2",
@@ -185,6 +193,43 @@ describe("MobileApiClient", () => {
           body: JSON.stringify(accountData),
         }),
       );
+    });
+
+    it("fetches profile data", async () => {
+      await mobileApiClient.getProfile();
+
+      expect(fetch).toHaveBeenCalledWith(
+        "http://localhost:5000/users/profile",
+        expect.any(Object),
+      );
+    });
+
+    it("refreshes auth token", async () => {
+      await mobileApiClient.refreshToken();
+
+      expect(fetch).toHaveBeenCalledWith(
+        "http://localhost:5000/auth/refresh",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+  });
+
+  describe("Connectivity", () => {
+    it("returns true when health check succeeds", async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "ok" }),
+      });
+
+      const result = await mobileApiClient.checkConnectivity();
+      expect(result).toBe(true);
+    });
+
+    it("returns false when health check fails", async () => {
+      fetch.mockRejectedValueOnce(new Error("Network error"));
+
+      const result = await mobileApiClient.checkConnectivity();
+      expect(result).toBe(false);
     });
   });
 });

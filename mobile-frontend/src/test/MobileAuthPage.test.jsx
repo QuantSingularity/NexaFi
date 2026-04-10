@@ -40,18 +40,38 @@ describe("MobileAuthPage", () => {
     expect(screen.getByPlaceholderText(/Last name/i)).toBeInTheDocument();
   });
 
-  it("shows password when clicking eye icon", async () => {
+  it("shows password when clicking eye icon on login form", async () => {
     const user = userEvent.setup();
     render(<MobileAuthPage />, { wrapper });
 
     const passwordInput = screen.getByPlaceholderText(/Enter your password/i);
     expect(passwordInput).toHaveAttribute("type", "password");
 
-    const eyeButton = screen.getAllByRole("button")[0]; // First button should be eye icon
+    const eyeButton = screen.getByLabelText(/Show password/i);
     await user.click(eyeButton);
 
     await waitFor(() => {
       expect(passwordInput).toHaveAttribute("type", "text");
+    });
+  });
+
+  it("hides password when clicking eye icon again", async () => {
+    const user = userEvent.setup();
+    render(<MobileAuthPage />, { wrapper });
+
+    const eyeButton = screen.getByLabelText(/Show password/i);
+    await user.click(eyeButton);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Hide password/i)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByLabelText(/Hide password/i));
+
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText(/Enter your password/i),
+      ).toHaveAttribute("type", "password");
     });
   });
 
@@ -73,11 +93,9 @@ describe("MobileAuthPage", () => {
     const user = userEvent.setup();
     render(<MobileAuthPage />, { wrapper });
 
-    // Switch to sign up
     const signUpTab = screen.getByRole("tab", { name: /sign up/i });
     await user.click(signUpTab);
 
-    // Fill in fields with non-matching passwords
     await user.type(screen.getByPlaceholderText(/First name/i), "John");
     await user.type(screen.getByPlaceholderText(/Last name/i), "Doe");
     await user.type(
@@ -101,5 +119,29 @@ describe("MobileAuthPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();
     });
+  });
+
+  it("shows Back button that navigates to home", () => {
+    render(<MobileAuthPage />, { wrapper });
+    expect(screen.getByRole("button", { name: /back/i })).toBeInTheDocument();
+  });
+
+  it("clears error when switching tabs", async () => {
+    const user = userEvent.setup();
+    render(<MobileAuthPage />, { wrapper });
+
+    await user.click(screen.getByRole("button", { name: /sign in/i }));
+    await waitFor(() => {
+      expect(
+        screen.getByText(/please fill in all fields/i),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("tab", { name: /sign up/i }));
+    await user.click(screen.getByRole("tab", { name: /sign in/i }));
+
+    expect(
+      screen.queryByText(/please fill in all fields/i),
+    ).not.toBeInTheDocument();
   });
 });

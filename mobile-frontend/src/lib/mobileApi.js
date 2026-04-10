@@ -30,25 +30,34 @@ class MobileApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const config = {
       headers: this.getHeaders(),
+      signal: controller.signal,
       ...options,
     };
 
     try {
       const response = await fetch(url, config);
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         if (response.status === 401) {
           this.setToken(null);
           window.location.href = "/auth";
-          return;
+          throw new Error("Unauthorized");
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       return await response.json();
     } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        throw new Error("Request timed out");
+      }
       console.error("API request failed:", error);
       throw error;
     }

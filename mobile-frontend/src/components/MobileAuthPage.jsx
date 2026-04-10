@@ -27,10 +27,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "../contexts/MobileContext";
-import "../App.css";
 
 const MobileAuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,6 +56,12 @@ const MobileAuthPage = () => {
     e.preventDefault();
     setLoading(true);
     setError("");
+
+    if (!loginData.email || !loginData.password) {
+      setError("Please fill in all fields");
+      setLoading(false);
+      return;
+    }
 
     try {
       const result = await login(loginData);
@@ -170,7 +176,10 @@ const MobileAuthPage = () => {
             <CardContent>
               <Tabs
                 value={activeTab}
-                onValueChange={setActiveTab}
+                onValueChange={(v) => {
+                  setActiveTab(v);
+                  setError("");
+                }}
                 className="w-full"
               >
                 <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -191,6 +200,9 @@ const MobileAuthPage = () => {
                 )}
 
                 <TabsContent value="login">
+                  <p className="text-sm text-gray-500 mb-4 text-center">
+                    Sign in to your account
+                  </p>
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
                       <Label
@@ -245,6 +257,9 @@ const MobileAuthPage = () => {
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          aria-label={
+                            showPassword ? "Hide password" : "Show password"
+                          }
                         >
                           {showPassword ? (
                             <EyeOff className="h-4 w-4" />
@@ -279,6 +294,9 @@ const MobileAuthPage = () => {
                 </TabsContent>
 
                 <TabsContent value="register">
+                  <p className="text-sm text-gray-500 mb-4 text-center">
+                    Create your account
+                  </p>
                   <form onSubmit={handleRegister} className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
@@ -389,7 +407,7 @@ const MobileAuthPage = () => {
                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                         <Input
                           id="register-password"
-                          type={showPassword ? "text" : "password"}
+                          type={showRegisterPassword ? "text" : "password"}
                           placeholder="Create a password"
                           value={registerData.password}
                           onChange={(e) =>
@@ -403,10 +421,17 @@ const MobileAuthPage = () => {
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
+                          onClick={() =>
+                            setShowRegisterPassword(!showRegisterPassword)
+                          }
                           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          aria-label={
+                            showRegisterPassword
+                              ? "Hide password"
+                              : "Show password"
+                          }
                         >
-                          {showPassword ? (
+                          {showRegisterPassword ? (
                             <EyeOff className="h-4 w-4" />
                           ) : (
                             <Eye className="h-4 w-4" />

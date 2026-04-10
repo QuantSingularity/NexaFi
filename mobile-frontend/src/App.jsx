@@ -106,6 +106,17 @@ const AppRoutes = () => {
         }
       />
 
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <MobileLayout>
+              <MobileSettingsModule />
+            </MobileLayout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

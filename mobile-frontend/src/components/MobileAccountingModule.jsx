@@ -44,12 +44,10 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "../contexts/MobileContext";
-import "../App.css";
 
 const MobileAccountingModule = () => {
   const { addNotification, isOnline } = useApp();
   const [activeTab, setActiveTab] = useState("overview");
-  const [_loading, _setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState("current-month");
 

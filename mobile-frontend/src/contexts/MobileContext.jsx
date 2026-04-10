@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import mobileApiClient from "../lib/mobileApi";
 
 // Authentication Context
@@ -11,17 +17,19 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      mobileApiClient.setToken(token);
-      loadUserProfile();
-    } else {
-      setLoading(false);
+  const logout = useCallback(async () => {
+    try {
+      await mobileApiClient.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+      mobileApiClient.clearCache();
     }
-  }, [loadUserProfile]);
+  }, []);
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     try {
       const profile = await mobileApiClient.getProfile();
       setUser(profile);
@@ -32,7 +40,17 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [logout]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      mobileApiClient.setToken(token);
+      loadUserProfile();
+    } else {
+      setLoading(false);
+    }
+  }, [loadUserProfile]);
 
   const login = async (credentials) => {
     try {
@@ -63,18 +81,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Registration failed:", error);
       return { success: false, error: error.message };
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await mobileApiClient.logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      setUser(null);
-      setIsAuthenticated(false);
-      mobileApiClient.clearCache();
     }
   };
 
@@ -116,16 +122,16 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setTheme(savedTheme);
+    document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
   const addNotification = (notification) => {

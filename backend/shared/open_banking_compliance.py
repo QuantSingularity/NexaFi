@@ -11,7 +11,7 @@ import os
 import re
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -21,6 +21,18 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_utc_datetime(value: str) -> datetime:
+    """Parse an ISO 8601 datetime string and ensure it is timezone-aware (UTC).
+
+    Handles both naive strings (from legacy DB rows / test mocks) and
+    already-aware strings (e.g. those ending in '+00:00' or 'Z').
+    """
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 class ConsentStatus(Enum):
@@ -138,7 +150,7 @@ class FAPI2SecurityProfile:
         self, payload: Dict[str, Any], audience: str, issuer: str
     ) -> str:
         """Create FAPI 2.0 compliant signed JWT"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         jwt_payload = {
             "iss": issuer,
             "aud": audience,
@@ -173,7 +185,7 @@ class FAPI2SecurityProfile:
         self, http_method: str, http_uri: str, access_token: Optional[str] = None
     ) -> str:
         """Create DPoP (Demonstrating Proof of Possession) proof JWT"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         payload = {
             "jti": secrets.token_urlsafe(32),
             "htm": http_method.upper(),
@@ -215,7 +227,7 @@ class PSD2ConsentManager:
         """Create new PSD2 consent"""
         consent_id = f"consent_{secrets.token_urlsafe(16)}"
         if not valid_until:
-            valid_until = datetime.utcnow() + timedelta(days=90)
+            valid_until = datetime.now(timezone.utc) + timedelta(days=90)
         consent = ConsentData(
             consent_id=consent_id,
             status=ConsentStatus.RECEIVED,
@@ -226,8 +238,8 @@ class PSD2ConsentManager:
                 "combinedServiceIndicator", False
             ),
             access=access_data,
-            creation_date_time=datetime.utcnow(),
-            status_change_date_time=datetime.utcnow(),
+            creation_date_time=datetime.now(timezone.utc),
+            status_change_date_time=datetime.now(timezone.utc),
             psu_id=psu_id,
             tpp_id=tpp_id,
         )
@@ -259,13 +271,13 @@ class PSD2ConsentManager:
         return ConsentData(
             consent_id=result["consent_id"],
             status=ConsentStatus(result["status"]),
-            valid_until=datetime.fromisoformat(result["valid_until"]),
+            valid_until=_parse_utc_datetime(result["valid_until"]),
             frequency_per_day=result["frequency_per_day"],
             recurring_indicator=result["recurring_indicator"],
             combined_service_indicator=result["combined_service_indicator"],
             access=json.loads(result["access_data"]),
-            creation_date_time=datetime.fromisoformat(result["creation_date_time"]),
-            status_change_date_time=datetime.fromisoformat(
+            creation_date_time=_parse_utc_datetime(result["creation_date_time"]),
+            status_change_date_time=_parse_utc_datetime(
                 result["status_change_date_time"]
             ),
             psu_id=result["psu_id"],
@@ -276,7 +288,7 @@ class PSD2ConsentManager:
         """Update consent status"""
         update_sql = "\n        UPDATE psd2_consents\n        SET status = ?, status_change_date_time = ?\n        WHERE consent_id = ?\n        "
         result = self.db_manager.execute_query(
-            update_sql, (new_status.value, datetime.utcnow(), consent_id)
+            update_sql, (new_status.value, datetime.now(timezone.utc), consent_id)
         )
         try:
             return result.rowcount > 0
@@ -292,7 +304,7 @@ class PSD2ConsentManager:
             return (False, "TPP not authorized for this consent")
         if consent.status != ConsentStatus.VALID:
             return (False, f"Consent status is {consent.status.value}")
-        if datetime.utcnow() > consent.valid_until:
+        if datetime.now(timezone.utc) > consent.valid_until:
             self.update_consent_status(consent_id, ConsentStatus.EXPIRED)
             return (False, "Consent has expired")
         return (True, "Consent is valid")
@@ -319,7 +331,7 @@ class SCAManager:
     ) -> SCAData:
         """Initiate Strong Customer Authentication"""
         authentication_id = f"sca_{secrets.token_urlsafe(16)}"
-        expires_at = datetime.utcnow() + timedelta(minutes=5)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
         challenge_data = self._generate_challenge(sca_method)
         sca_data = SCAData(
             authentication_id=authentication_id,
@@ -370,7 +382,7 @@ class SCAManager:
         result = self.db_manager.fetch_one(query_sql, (authentication_id,))
         if not result:
             return (False, SCAStatus.FAILED)
-        if datetime.utcnow() > datetime.fromisoformat(result["expires_at"]):
+        if datetime.now(timezone.utc) > _parse_utc_datetime(result["expires_at"]):
             self._update_sca_status(authentication_id, SCAStatus.FAILED)
             return (False, SCAStatus.FAILED)
         if result["attempts"] >= result["max_attempts"]:
@@ -386,7 +398,9 @@ class SCAManager:
     def _update_sca_status(self, authentication_id: str, status: SCAStatus) -> Any:
         """Update SCA status"""
         update_sql = "\n        UPDATE sca_authentications\n        SET status = ?, completed_at = ?\n        WHERE authentication_id = ?\n        "
-        completed_at = datetime.utcnow() if status == SCAStatus.FINALISED else None
+        completed_at = (
+            datetime.now(timezone.utc) if status == SCAStatus.FINALISED else None
+        )
         self.db_manager.execute_query(
             update_sql, (status.value, completed_at, authentication_id)
         )
@@ -409,8 +423,8 @@ class OpenBankingAPIValidator:
                 "organization_id": "PSDGB-FCA-123456",
                 "organization_name": "Example TPP Ltd",
                 "roles": ["PSP_PI", "PSP_AI"],
-                "valid_from": datetime.utcnow(),
-                "valid_until": datetime.utcnow() + timedelta(days=365),
+                "valid_from": datetime.now(timezone.utc),
+                "valid_until": datetime.now(timezone.utc) + timedelta(days=365),
             },
         )
 
@@ -492,7 +506,7 @@ class TransactionRiskAnalysis:
             risk_score += 15
             risk_factors.append("cross_border_transaction")
         transaction_time = datetime.fromisoformat(
-            transaction_data.get("timestamp", datetime.utcnow().isoformat())
+            transaction_data.get("timestamp", datetime.now(timezone.utc).isoformat())
         )
         if transaction_time.hour < 6 or transaction_time.hour > 22:
             risk_score += 10

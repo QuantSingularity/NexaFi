@@ -8,7 +8,7 @@ import os
 import sys
 import time
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "shared"))
@@ -127,14 +127,16 @@ class TestPSD2ConsentManager(unittest.TestCase):
             "consent_id": consent_id,
             "tpp_id": tpp_id,
             "status": ConsentStatus.VALID.value,
-            "valid_until": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+            "valid_until": (
+                datetime.now(timezone.utc) + timedelta(days=30)
+            ).isoformat(),
             "psu_id": "user123",
             "frequency_per_day": 4,
             "recurring_indicator": False,
             "combined_service_indicator": False,
             "access_data": json.dumps({"accounts": ["account1"]}),
-            "creation_date_time": datetime.utcnow().isoformat(),
-            "status_change_date_time": datetime.utcnow().isoformat(),
+            "creation_date_time": datetime.now(timezone.utc).isoformat(),
+            "status_change_date_time": datetime.now(timezone.utc).isoformat(),
         }
         is_valid, message = self.consent_manager.validate_consent(consent_id, tpp_id)
         self.assertTrue(is_valid)
@@ -148,14 +150,14 @@ class TestPSD2ConsentManager(unittest.TestCase):
             "consent_id": consent_id,
             "tpp_id": tpp_id,
             "status": ConsentStatus.VALID.value,
-            "valid_until": (datetime.utcnow() - timedelta(days=1)).isoformat(),
+            "valid_until": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
             "psu_id": "user123",
             "frequency_per_day": 4,
             "recurring_indicator": False,
             "combined_service_indicator": False,
             "access_data": json.dumps({"accounts": ["account1"]}),
-            "creation_date_time": datetime.utcnow().isoformat(),
-            "status_change_date_time": datetime.utcnow().isoformat(),
+            "creation_date_time": datetime.now(timezone.utc).isoformat(),
+            "status_change_date_time": datetime.now(timezone.utc).isoformat(),
         }
         is_valid, message = self.consent_manager.validate_consent(consent_id, tpp_id)
         self.assertFalse(is_valid)
@@ -192,7 +194,9 @@ class TestSCAManager(unittest.TestCase):
         self.mock_db.fetch_one.return_value = {
             "authentication_id": authentication_id,
             "challenge_data": challenge_response,
-            "expires_at": (datetime.utcnow() + timedelta(minutes=5)).isoformat(),
+            "expires_at": (
+                datetime.now(timezone.utc) + timedelta(minutes=5)
+            ).isoformat(),
             "attempts": 0,
             "max_attempts": 3,
         }
@@ -209,7 +213,9 @@ class TestSCAManager(unittest.TestCase):
         self.mock_db.fetch_one.return_value = {
             "authentication_id": authentication_id,
             "challenge_data": challenge_response,
-            "expires_at": (datetime.utcnow() - timedelta(minutes=1)).isoformat(),
+            "expires_at": (
+                datetime.now(timezone.utc) - timedelta(minutes=1)
+            ).isoformat(),
             "attempts": 0,
             "max_attempts": 3,
         }
@@ -393,7 +399,7 @@ class TestTransactionRiskAnalysis(unittest.TestCase):
             "currency": "EUR",
             "merchant_category": "grocery",
             "country": "DE",
-            "timestamp": datetime.utcnow().replace(hour=14).isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(hour=14).isoformat(),
         }
         user_data = {"risk_score": 10, "country": "DE"}
         risk_score, risk_factors = TransactionRiskAnalysis.calculate_risk_score(
@@ -409,7 +415,7 @@ class TestTransactionRiskAnalysis(unittest.TestCase):
             "currency": "EUR",
             "merchant_category": "gambling",
             "country": "US",
-            "timestamp": datetime.utcnow().replace(hour=2).isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(hour=2).isoformat(),
         }
         user_data = {"risk_score": 80, "country": "DE"}
         risk_score, risk_factors = TransactionRiskAnalysis.calculate_risk_score(
@@ -456,7 +462,9 @@ class TestOpenBankingAPIValidator(unittest.TestCase):
     def test_validate_fapi_headers_success(self) -> Any:
         """Test successful FAPI header validation"""
         headers = {
-            "x-fapi-auth-date": datetime.utcnow().isoformat() + "Z",
+            "x-fapi-auth-date": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
             "x-fapi-customer-ip-address": "192.168.1.100",
             "x-fapi-interaction-id": "interaction-123",
         }
@@ -466,7 +474,11 @@ class TestOpenBankingAPIValidator(unittest.TestCase):
 
     def test_validate_fapi_headers_missing_required(self) -> Any:
         """Test FAPI header validation with missing required headers"""
-        headers = {"x-fapi-auth-date": datetime.utcnow().isoformat() + "Z"}
+        headers = {
+            "x-fapi-auth-date": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+        }
         is_valid, errors = OpenBankingAPIValidator.validate_fapi_headers(headers)
         self.assertFalse(is_valid)
         self.assertGreater(len(errors), 0)
@@ -476,7 +488,9 @@ class TestOpenBankingAPIValidator(unittest.TestCase):
     def test_validate_fapi_headers_invalid_ip(self) -> Any:
         """Test FAPI header validation with invalid IP address"""
         headers = {
-            "x-fapi-auth-date": datetime.utcnow().isoformat() + "Z",
+            "x-fapi-auth-date": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
             "x-fapi-customer-ip-address": "invalid-ip-address",
             "x-fapi-interaction-id": "interaction-123",
         }
@@ -514,7 +528,7 @@ class TestSecurityMonitor(unittest.TestCase):
             user_id="user123",
             ip_address="192.168.1.100",
             user_agent="Test Browser",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             details={"test": "data"},
             threat_level=ThreatLevel.MODERATE,
         )

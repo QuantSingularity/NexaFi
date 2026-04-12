@@ -14,13 +14,11 @@ vi.mock("../lib/api", () => ({
   default: {
     getAccounts: vi.fn().mockResolvedValue({ accounts: [] }),
     getJournalEntries: vi.fn().mockResolvedValue({ journal_entries: [] }),
-    getTrialBalance: vi
-      .fn()
-      .mockResolvedValue({
-        total_debits: 0,
-        total_credits: 0,
-        is_balanced: true,
-      }),
+    getTrialBalance: vi.fn().mockResolvedValue({
+      total_debits: 0,
+      total_credits: 0,
+      is_balanced: true,
+    }),
     getDocuments: vi.fn().mockResolvedValue({ documents: [] }),
     getDocumentTemplates: vi.fn().mockResolvedValue({ templates: [] }),
     getInsights: vi.fn().mockResolvedValue({ insights: [] }),

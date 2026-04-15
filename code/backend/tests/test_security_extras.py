@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock
 
 sys.path.insert(
@@ -225,7 +225,7 @@ class TestSecurityMonitorExtras(unittest.TestCase):
                 user_id=f"user{i}",
                 ip_address="10.0.0.1",
                 user_agent="test",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 details={},
                 threat_level=ThreatLevel.LOW,
             )

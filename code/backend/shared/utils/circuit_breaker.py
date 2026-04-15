@@ -8,7 +8,18 @@ from enum import Enum
 from functools import wraps
 from typing import Any, Callable, Optional
 
-from ..config.infrastructure import InfrastructureConfig
+# Support both package-relative import (when used inside the backend package)
+# and direct/standalone import (e.g. when the shared/ directory is on sys.path).
+try:
+    from ..config.infrastructure import InfrastructureConfig
+except ImportError:
+    try:
+        from config.infrastructure import InfrastructureConfig
+    except ImportError:
+        # Fallback: define minimal defaults so the module is always importable
+        class InfrastructureConfig:  # type: ignore[no-redef]
+            CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5
+            CIRCUIT_BREAKER_RECOVERY_TIMEOUT = 60
 
 
 class CircuitState(Enum):

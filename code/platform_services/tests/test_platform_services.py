@@ -9,7 +9,9 @@ import unittest
 
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PLATFORM_DIR = os.path.dirname(_TESTS_DIR)
-_BACKEND_SHARED = os.path.join(_PLATFORM_DIR, "..", "backend", "shared")
+_BACKEND_SHARED = os.path.normpath(
+    os.path.join(_PLATFORM_DIR, "..", "backend", "shared")
+)
 sys.path.insert(0, _PLATFORM_DIR)
 sys.path.insert(0, _BACKEND_SHARED)
 
@@ -89,9 +91,7 @@ class TestSharedPathResolution(unittest.TestCase):
     """Tests that the shared backend library is reachable from platform_services."""
 
     def test_backend_shared_reachable(self):
-        shared_path = os.path.normpath(
-            os.path.join(_PLATFORM_DIR, "..", "backend", "shared")
-        )
+        shared_path = _BACKEND_SHARED
         self.assertTrue(
             os.path.exists(shared_path), f"backend/shared not found: {shared_path}"
         )

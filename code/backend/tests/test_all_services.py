@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-from typing import Dict, List
-
 Comprehensive service testing script
-Tests each service's ability to start and respond to health checks
+Tests each service's ability to start and respond to health checks.
+
+These tests are designed to be run when the services are actually running.
+They are skipped automatically when services are not available.
 """
 
 import os
@@ -12,6 +13,7 @@ import sys
 import time
 from typing import Any, Dict, List
 
+import pytest
 import requests
 
 # Add shared to path
@@ -20,7 +22,7 @@ sys.path.insert(
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "shared"),
 )  # backend/shared
 
-services = [
+SERVICES = [
     {
         "name": "user-service",
         "port": 5001,
@@ -75,11 +77,15 @@ services = [
 running_processes: List[Any] = []
 
 
-def start_service(service):
-    """Start a service and return the process"""
+# ---------------------------------------------------------------------------
+# Internal helpers (prefixed with _ so pytest does NOT collect them as tests)
+# ---------------------------------------------------------------------------
+
+
+def _start_service(service: Dict[str, Any]) -> Any:
+    """Start a service and return the process."""
     base_dir = os.path.dirname(__file__)
     service_path = os.path.join(base_dir, service["path"])
-    os.path.join(service_path, service["main"])
 
     env = os.environ.copy()
     env["PYTHONPATH"] = (
@@ -104,8 +110,8 @@ def start_service(service):
         return None
 
 
-def check_health(service, timeout=10):
-    """Check if service responds to health check"""
+def _check_health(service: Dict[str, Any], timeout: int = 10):
+    """Check if service responds to health check."""
     url = f"http://localhost:{service['port']}{service['health']}"
     start_time = time.time()
 
@@ -121,13 +127,24 @@ def check_health(service, timeout=10):
     return False, None
 
 
-def test_service(service):
-    """Test a single service"""
+def _is_port_open(port: int) -> bool:
+    """Return True if something is already listening on *port*."""
+    try:
+        r = requests.get(f"http://localhost:{port}", timeout=1)
+        return True
+    except requests.exceptions.ConnectionError:
+        return False
+    except Exception:
+        return True
+
+
+def _run_service(service: Dict[str, Any]):
+    """Start, health-check, and return (success, process) for one service."""
     print(f"\n{'='*60}")
     print(f"Testing {service['name']}")
     print(f"{'='*60}")
 
-    process = start_service(service)
+    process = _start_service(service)
     if not process:
         return False, None
 
@@ -145,7 +162,7 @@ def test_service(service):
         return False, process
 
     # Check health
-    healthy, response = check_health(service)
+    healthy, response = _check_health(service)
 
     if healthy:
         print(f"✓ {service['name']} is healthy")
@@ -153,7 +170,6 @@ def test_service(service):
         return True, process
     else:
         print(f"✗ {service['name']} failed health check")
-        # Get some output
         try:
             stdout_data = process.stdout.read(500) if process.stdout else ""
             stderr_data = process.stderr.read(500) if process.stderr else ""
@@ -166,8 +182,8 @@ def test_service(service):
         return False, process
 
 
-def cleanup():
-    """Stop all running processes"""
+def _cleanup():
+    """Stop all running processes."""
     print("\nCleaning up processes...")
     for process in running_processes:
         try:
@@ -180,23 +196,81 @@ def cleanup():
                 pass
 
 
+# ---------------------------------------------------------------------------
+# Pytest parametrized test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("service", SERVICES, ids=[s["name"] for s in SERVICES])
+def test_service_health(service: Dict[str, Any]):
+    """
+    Test that each NexaFi service starts and passes its health check.
+
+    Skipped automatically when the required port is already occupied (i.e.
+    the service is not managed by this test run) or when the service binary
+    cannot be launched.
+    """
+    # Skip if the service is already running externally on this port —
+    # we do not want to fight over ports in CI.
+    if _is_port_open(service["port"]):
+        pytest.skip(
+            f"Port {service['port']} already in use; "
+            f"assuming {service['name']} is managed externally."
+        )
+
+    process = _start_service(service)
+    if process is None:
+        pytest.skip(f"Could not launch {service['name']} (binary/path missing)")
+
+    running_processes.append(process)
+    try:
+        # Give the service a moment to start
+        time.sleep(3)
+
+        if process.poll() is not None:
+            stdout, stderr = process.communicate()
+            pytest.fail(
+                f"{service['name']} crashed during startup.\n"
+                f"STDOUT: {stdout[:500]}\nSTDERR: {stderr[:500]}"
+            )
+
+        healthy, response = _check_health(service)
+        assert healthy, (
+            f"{service['name']} did not pass health check at "
+            f"http://localhost:{service['port']}{service['health']}"
+        )
+        assert response is not None, f"{service['name']} returned empty health response"
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except Exception:
+            process.kill()
+        if process in running_processes:
+            running_processes.remove(process)
+
+
+# ---------------------------------------------------------------------------
+# Standalone runner (python test_all_services.py)
+# ---------------------------------------------------------------------------
+
+
 def main():
     results: Dict[str, Any] = {}
     try:
-        for service in services:
-            success, process = test_service(service)
+        for service in SERVICES:
+            success, process = _run_service(service)
             results[service["name"]] = success
 
-            # Stop the process after testing
             if process:
                 process.terminate()
                 try:
                     process.wait(timeout=2)
                 except Exception:
                     process.kill()
-                running_processes.remove(process)
+                if process in running_processes:
+                    running_processes.remove(process)
 
-        # Summary
         print(f"\n{'='*60}")
         print("SUMMARY")
         print(f"{'='*60}")
@@ -209,14 +283,13 @@ def main():
         failed = sum(1 for s in results.values() if not s)
 
         print(f"\nResults: {passed} passed, {failed} failed out of {len(results)}")
-
         return failed == 0
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user")
         return False
     finally:
-        cleanup()
+        _cleanup()
 
 
 if __name__ == "__main__":

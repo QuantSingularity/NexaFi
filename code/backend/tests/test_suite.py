@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -30,7 +30,7 @@ class Colors:
     BOLD = "\x1b[1m"
 
 
-class TestRunner:
+class _TestRunner:
 
     def __init__(self) -> None:
         self.passed = 0
@@ -333,7 +333,7 @@ class TestRunner:
                 "template_data": {
                     "user_name": "Test User",
                     "alert_type": "Login from new device",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "ip_address": "192.168.1.1",
                     "details": "Test login alert",
                 },
@@ -442,7 +442,7 @@ class TestRunner:
         """Run all tests"""
         self.log(f"\n{Colors.BOLD}=== NexaFi Backend Test Suite ==={Colors.ENDC}")
         self.log(f"Testing against: {BASE_URL}")
-        self.log(f"Timestamp: {datetime.utcnow().isoformat()}")
+        self.log(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
         self.log("\nWaiting for services to be ready...")
         time.sleep(3)
         self.test_health_checks()
@@ -474,6 +474,6 @@ class TestRunner:
 
 
 if __name__ == "__main__":
-    runner = TestRunner()
+    runner = _TestRunner()
     success = runner.run_all_tests()
     sys.exit(0 if success else 1)

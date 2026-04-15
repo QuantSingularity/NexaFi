@@ -1,6 +1,6 @@
-# NexaFi — Code Directory
+# NexaFi - Code Directory
 
-Restructured source code for the NexaFi fintech platform, organized into three top-level directories.
+Source code for the NexaFi fintech platform, organized into three top-level directories.
 
 ## Directory Structure
 

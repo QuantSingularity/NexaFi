@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ============================================================
+  # Job 1 -- Code Quality Checks
+  # ============================================================
   code_quality:
     name: Code Quality Checks
     runs-on: ubuntu-latest
@@ -46,7 +49,7 @@ jobs:
       - name: Install Global Formatters
         run: npm install -g prettier prettier-plugin-solidity
 
-      - name: Run Global Prettier Check
+      - name: Run Global Quality Check
         shell: bash
         run: |
           set -euo pipefail
@@ -58,6 +61,9 @@ jobs:
       - name: Quality checks complete
         run: echo "All formatting and quality checks passed."
 
+  # ============================================================
+  # Job 2 -- Backend Tests
+  # ============================================================
   backend_tests:
     name: Backend Tests
     runs-on: ubuntu-latest
@@ -103,3 +109,40 @@ jobs:
           name: backend-coverage-report
           path: ${{ env.BACKEND_DIR }}/coverage.xml
           retention-days: 30
+
+  # ============================================================
+  # Job 3 -- Web Build
+  # ============================================================
+  web_build:
+    name: Web Build
+    runs-on: ubuntu-latest
+    needs: code_quality
+
+    defaults:
+      run:
+        working-directory: web-frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: web-frontend/dist/
+          retention-days: 7

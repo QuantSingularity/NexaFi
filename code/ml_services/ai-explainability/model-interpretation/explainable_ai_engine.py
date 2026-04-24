@@ -40,7 +40,8 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,7 @@ class ModelExplanation(Base):
     visualizations = Column(Text)
     confidence_score = Column(Float)
     compliance_status = Column(Text)
-    extra_metadata = Column("metadata", Text)
+    metadata = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1033,7 +1034,7 @@ class ExplainableAIEngine:
                 compliance_status=json.dumps(
                     {k.value: v for k, v in result.compliance_status.items()}
                 ),
-                extra_metadata=json.dumps(result.metadata),
+                metadata=json.dumps(result.metadata),
             )
             self.db_session.add(explanation_record)
             self.db_session.commit()
@@ -1062,7 +1063,7 @@ class ExplainableAIEngine:
                         ComplianceStandard(k): v
                         for k, v in json.loads(record.compliance_status).items()
                     },
-                    extra_metadata=json.loads(record.extra_metadata or "{}"),
+                    metadata=json.loads(record.metadata),
                 )
             return None
         except Exception as e:

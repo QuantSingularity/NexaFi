@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any
 
 from flask import Blueprint, jsonify, request
 from models.user import (
@@ -16,7 +15,7 @@ from models.user import (
 credit_bp = Blueprint("credit", __name__)
 
 
-def require_user_id(f: Any) -> Any:
+def require_user_id(f: object) -> object:
     """Decorator to extract user_id from request headers"""
 
     @wraps(f)
@@ -30,7 +29,7 @@ def require_user_id(f: Any) -> Any:
     return decorated_function
 
 
-def get_default_credit_model() -> Any:
+def get_default_credit_model() -> object:
     """Fetches the default credit scoring model or creates a placeholder."""
     model = CreditScoreModel.find_one("is_default = ?", (1,))
     if not model:
@@ -49,13 +48,13 @@ def get_default_credit_model() -> Any:
 
 
 def log_application_history(
-    application_id: Any,
-    action: Any,
-    old_status: Any = None,
-    new_status: Any = None,
-    notes: Any = None,
-    changed_by: Any = None,
-) -> Any:
+    application_id: object,
+    action: object,
+    old_status: object = None,
+    new_status: object = None,
+    notes: object = None,
+    changed_by: object = None,
+) -> object:
     """Logs an action in the loan application history."""
     history = LoanApplicationHistory(
         id=str(uuid.uuid4()),
@@ -72,7 +71,7 @@ def log_application_history(
 
 @credit_bp.route("/scores", methods=["POST"])
 @require_user_id
-def calculate_credit_score() -> Any:
+def calculate_credit_score() -> object:
     """Calculates and stores a new credit score for the user."""
     try:
         data = request.get_json()
@@ -119,7 +118,7 @@ def calculate_credit_score() -> Any:
 
 @credit_bp.route("/scores/current", methods=["GET"])
 @require_user_id
-def get_current_credit_score() -> Any:
+def get_current_credit_score() -> object:
     """Gets the current, non-expired credit score for the user."""
     score = CreditScore.find_one("user_id = ? AND is_current = ?", (request.user_id, 1))
     if not score:
@@ -133,7 +132,7 @@ def get_current_credit_score() -> Any:
 
 @credit_bp.route("/applications", methods=["POST"])
 @require_user_id
-def create_loan_application() -> Any:
+def create_loan_application() -> object:
     """Creates a new loan application."""
     try:
         data = request.get_json()
@@ -177,7 +176,7 @@ def create_loan_application() -> Any:
 
 @credit_bp.route("/applications", methods=["GET"])
 @require_user_id
-def get_loan_applications() -> Any:
+def get_loan_applications() -> object:
     """Gets all loan applications for the user."""
     applications = LoanApplication.find_all("user_id = ?", (request.user_id,))
     applications.sort(key=lambda x: x.created_at, reverse=True)
@@ -186,7 +185,7 @@ def get_loan_applications() -> Any:
 
 @credit_bp.route("/applications/<application_id>", methods=["GET"])
 @require_user_id
-def get_loan_application(application_id: Any) -> Any:
+def get_loan_application(application_id: object) -> object:
     """Gets a specific loan application."""
     application = LoanApplication.find_one(
         "id = ? AND user_id = ?", (application_id, request.user_id)
@@ -198,7 +197,7 @@ def get_loan_application(application_id: Any) -> Any:
 
 @credit_bp.route("/applications/<application_id>/status", methods=["PUT"])
 @require_user_id
-def update_loan_application_status(application_id: Any) -> Any:
+def update_loan_application_status(application_id: object) -> object:
     """Updates the status of a loan application (e.g., approve/reject)."""
     try:
         application = LoanApplication.find_one(
@@ -242,7 +241,7 @@ def update_loan_application_status(application_id: Any) -> Any:
 
 @credit_bp.route("/applications/<application_id>/history", methods=["GET"])
 @require_user_id
-def get_application_history(application_id: Any) -> Any:
+def get_application_history(application_id: object) -> object:
     """Gets the history of a loan application."""
     application = LoanApplication.find_one(
         "id = ? AND user_id = ?", (application_id, request.user_id)
@@ -256,7 +255,7 @@ def get_application_history(application_id: Any) -> Any:
 
 @credit_bp.route("/loans", methods=["GET"])
 @require_user_id
-def get_loans() -> Any:
+def get_loans() -> object:
     """Gets all active loans for the user."""
     loans = Loan.find_all("user_id = ? AND status = ?", (request.user_id, "active"))
     loans.sort(key=lambda x: x.created_at, reverse=True)
@@ -265,7 +264,7 @@ def get_loans() -> Any:
 
 @credit_bp.route("/loans/<loan_id>", methods=["GET"])
 @require_user_id
-def get_loan(loan_id: Any) -> Any:
+def get_loan(loan_id: object) -> object:
     """Gets a specific loan."""
     loan = Loan.find_one("id = ? AND user_id = ?", (loan_id, request.user_id))
     if not loan:
@@ -275,7 +274,7 @@ def get_loan(loan_id: Any) -> Any:
 
 @credit_bp.route("/risk-assessments", methods=["POST"])
 @require_user_id
-def create_risk_assessment() -> Any:
+def create_risk_assessment() -> object:
     """Creates a new risk assessment."""
     try:
         data = request.get_json()
@@ -314,7 +313,7 @@ def create_risk_assessment() -> Any:
 
 @credit_bp.route("/risk-assessments", methods=["GET"])
 @require_user_id
-def get_risk_assessments() -> Any:
+def get_risk_assessments() -> object:
     """Gets all risk assessments for the user."""
     assessments = RiskAssessment.find_all("user_id = ?", (request.user_id,))
     assessments.sort(key=lambda x: x.created_at, reverse=True)
@@ -323,7 +322,7 @@ def get_risk_assessments() -> Any:
 
 @credit_bp.route("/risk-assessments/<assessment_id>", methods=["GET"])
 @require_user_id
-def get_risk_assessment(assessment_id: Any) -> Any:
+def get_risk_assessment(assessment_id: object) -> object:
     """Gets a specific risk assessment."""
     assessment = RiskAssessment.find_one(
         "id = ? AND user_id = ?", (assessment_id, request.user_id)

@@ -10,21 +10,21 @@ class BaseModel:
             setattr(self, key, value)
 
     @classmethod
-    def find_by_id(cls: Any, id_value: Any) -> Any:
+    def find_by_id(cls, id_value: object) -> object:
         pass
 
     @classmethod
-    def find_all(cls: Any, where_clause: str = "", params: tuple = ()) -> Any:
+    def find_all(cls, where_clause: str = "", params: tuple = ()) -> object:
         pass
 
     @classmethod
-    def find_one(cls: Any, where_clause: str, params: tuple = ()) -> Any:
+    def find_one(cls, where_clause: str, params: tuple = ()) -> object:
         pass
 
-    def save(self) -> Any:
+    def save(self) -> object:
         pass
 
-    def delete(self) -> Any:
+    def delete(self) -> object:
         pass
 
     def to_dict(self) -> Dict[str, Any]:
@@ -34,7 +34,7 @@ class BaseModel:
 class PaymentMethod(BaseModel):
     table_name: Optional[str] = "payment_methods"
 
-    def to_dict(self, include_sensitive: Any = False) -> Any:
+    def to_dict(self, include_sensitive: bool = False) -> object:
         data = super().to_dict()
         if data.get("details"):
             if data.get("type") == "card":
@@ -63,7 +63,7 @@ class PaymentMethod(BaseModel):
 class Transaction(BaseModel):
     table_name: Optional[str] = "transactions"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["amount"] = str(data.get("amount", 0))
         data["fees"] = str(data.get("fees", 0))
@@ -74,7 +74,7 @@ class Transaction(BaseModel):
 class Wallet(BaseModel):
     table_name: Optional[str] = "wallets"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["balance"] = str(data.get("balance", 0))
         data["available_balance"] = str(data.get("available_balance", 0))
@@ -86,7 +86,7 @@ class Wallet(BaseModel):
 class WalletBalanceHistory(BaseModel):
     table_name: Optional[str] = "wallet_balance_history"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["amount"] = str(data.get("amount", 0))
         data["balance_before"] = str(data.get("balance_before", 0))
@@ -97,7 +97,7 @@ class WalletBalanceHistory(BaseModel):
 class PaymentProcessor(BaseModel):
     table_name: Optional[str] = "payment_processors"
 
-    def to_dict(self, include_sensitive: Any = False) -> Any:
+    def to_dict(self, include_sensitive: bool = False) -> object:
         data = super().to_dict()
         if not include_sensitive:
             data.pop("api_config", None)
@@ -107,7 +107,7 @@ class PaymentProcessor(BaseModel):
 class RecurringPayment(BaseModel):
     table_name: Optional[str] = "recurring_payments"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["amount"] = str(data.get("amount", 0))
         return data
@@ -116,7 +116,7 @@ class RecurringPayment(BaseModel):
 class ExchangeRate(BaseModel):
     table_name: Optional[str] = "exchange_rates"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["rate"] = str(data.get("rate", 0))
         return data

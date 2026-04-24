@@ -31,8 +31,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import QueuePool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -112,7 +111,7 @@ class TransactionLog(Base):
     priority = Column(Integer, nullable=False)
     processing_node = Column(String(100))
     retry_count = Column(Integer, default=0)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime)
@@ -158,7 +157,7 @@ class MessageQueue:
         self.logger = structlog.get_logger(__name__)
         self._initialize_queue()
 
-    def _initialize_queue(self) -> Any:
+    def _initialize_queue(self) -> object:
         """Initialize message queue based on type"""
         if self.queue_type == "redis":
             self.redis_client = redis.from_url(
@@ -180,7 +179,7 @@ class MessageQueue:
 
     def publish(
         self, queue_name: str, message: Dict[str, Any], priority: int = 0
-    ) -> Any:
+    ) -> object:
         """Publish message to queue"""
         try:
             if self.queue_type == "redis":
@@ -260,7 +259,7 @@ class LoadBalancer:
 
     def register_node(
         self, node_id: str, capacity: int, capabilities: List[str]
-    ) -> Any:
+    ) -> object:
         """Register processing node"""
         node_info = {
             "node_id": node_id,
@@ -274,7 +273,7 @@ class LoadBalancer:
         self.redis_client.hset("processing_nodes", node_id, json.dumps(node_info))
         self.logger.info(f"Registered processing node: {node_id}")
 
-    def update_node_load(self, node_id: str, current_load: int) -> Any:
+    def update_node_load(self, node_id: str, current_load: int) -> object:
         """Update node load information"""
         if node_id in self.nodes:
             self.nodes[node_id]["current_load"] = current_load
@@ -363,7 +362,7 @@ class TransactionProcessor:
     """Individual transaction processor"""
 
     def __init__(
-        self, node_id: str, db_session: Any, redis_client: redis.Redis
+        self, node_id: str, db_session: object, redis_client: redis.Redis
     ) -> None:
         self.node_id = node_id
         self.db_session = db_session
@@ -587,7 +586,7 @@ class TransactionProcessor:
             "clearing_time": "immediate",
         }
 
-    def _update_account_balance(self, account_id: str, amount: float) -> Any:
+    def _update_account_balance(self, account_id: str, amount: float) -> object:
         """Update account balance"""
         cache_key = f"account_balance:{account_id}"
         self.redis_client.incrbyfloat(cache_key, amount)
@@ -604,7 +603,7 @@ class TransactionProcessor:
         status: TransactionStatus,
         processing_time: Optional[float] = None,
         error_message: Optional[str] = None,
-    ) -> Any:
+    ) -> object:
         """Update transaction status in database"""
         try:
             tx_log = (
@@ -674,7 +673,7 @@ class DistributedTransactionManager:
             "transaction_throughput", "Transaction throughput per second"
         )
 
-    def start_processing(self, num_workers: Optional[int] = None) -> Any:
+    def start_processing(self, num_workers: Optional[int] = None) -> object:
         """Start distributed transaction processing"""
         if self.is_running:
             return
@@ -699,7 +698,7 @@ class DistributedTransactionManager:
                 except Exception as e:
                     self.logger.error(f"Processor failed: {str(e)}")
 
-    def _run_processor(self, node_id: str) -> Any:
+    def _run_processor(self, node_id: str) -> object:
         """Run individual transaction processor"""
         try:
             processor = TransactionProcessor(
@@ -750,7 +749,7 @@ class DistributedTransactionManager:
         data = f"{transaction.transaction_id}{transaction.user_id}{transaction.amount}{transaction.currency}{transaction.source_account}{transaction.destination_account}"
         return hashlib.sha256(data.encode()).hexdigest()
 
-    def _store_transaction(self, transaction: Transaction) -> Any:
+    def _store_transaction(self, transaction: Transaction) -> object:
         """Store transaction in database"""
         try:
             tx_log = TransactionLog(
@@ -763,7 +762,7 @@ class DistributedTransactionManager:
                 destination_account=transaction.destination_account,
                 status=transaction.status.value,
                 priority=transaction.priority.value,
-                metadata=json.dumps(transaction.metadata),
+                extra_metadata=json.dumps(transaction.metadata),
                 checksum=transaction.checksum,
             )
             self.db_session.add(tx_log)
@@ -859,7 +858,7 @@ class DistributedTransactionManager:
             self.logger.error(f"Metrics calculation failed: {str(e)}")
             return {"error": str(e)}
 
-    def stop_processing(self) -> Any:
+    def stop_processing(self) -> object:
         """Stop transaction processing"""
         self.is_running = False
         self.logger.info("Stopping transaction processing")

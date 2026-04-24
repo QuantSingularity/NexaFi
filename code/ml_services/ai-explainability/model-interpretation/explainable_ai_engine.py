@@ -40,8 +40,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +129,7 @@ class ModelExplanation(Base):
     visualizations = Column(Text)
     confidence_score = Column(Float)
     compliance_status = Column(Text)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -159,7 +158,7 @@ class SHAPExplainer:
     """SHAP-based model explanations"""
 
     def __init__(
-        self, model: Any, model_type: ModelType, feature_names: List[str]
+        self, model: object, model_type: ModelType, feature_names: List[str]
     ) -> None:
         self.model = model
         self.model_type = model_type
@@ -168,7 +167,7 @@ class SHAPExplainer:
         self.explainer = None
         self._initialize_explainer()
 
-    def _initialize_explainer(self) -> Any:
+    def _initialize_explainer(self) -> object:
         """Initialize SHAP explainer based on model type"""
         try:
             if self.model_type in [
@@ -336,7 +335,7 @@ class LIMEExplainer:
 
     def __init__(
         self,
-        model: Any,
+        model: object,
         model_type: ModelType,
         feature_names: List[str],
         training_data: np.ndarray,
@@ -351,7 +350,7 @@ class LIMEExplainer:
         self.explainer = None
         self._initialize_explainer()
 
-    def _initialize_explainer(self) -> Any:
+    def _initialize_explainer(self) -> object:
         """Initialize LIME explainer"""
         try:
             self.explainer = lime.lime_tabular.LimeTabularExplainer(
@@ -435,7 +434,7 @@ class LIMEExplainer:
 class PermutationImportanceExplainer:
     """Permutation importance-based explanations"""
 
-    def __init__(self, model: Any, feature_names: List[str]) -> None:
+    def __init__(self, model: object, feature_names: List[str]) -> None:
         self.model = model
         self.feature_names = feature_names
         self.logger = structlog.get_logger(__name__)
@@ -501,7 +500,7 @@ class PermutationImportanceExplainer:
 class PartialDependenceExplainer:
     """Partial dependence plot explanations"""
 
-    def __init__(self, model: Any, feature_names: List[str]) -> None:
+    def __init__(self, model: object, feature_names: List[str]) -> None:
         self.model = model
         self.feature_names = feature_names
         self.logger = structlog.get_logger(__name__)
@@ -744,7 +743,7 @@ class ExplainableAIEngine:
     def register_model(
         self,
         model_id: str,
-        model: Any,
+        model: object,
         model_type: ModelType,
         feature_names: List[str],
         target_names: Optional[List[str]] = None,
@@ -861,7 +860,7 @@ class ExplainableAIEngine:
 
     def _generate_shap_explanations(
         self,
-        model: Any,
+        model: object,
         model_type: ModelType,
         feature_names: List[str],
         request: ExplanationRequest,
@@ -880,7 +879,7 @@ class ExplainableAIEngine:
 
     def _generate_lime_explanations(
         self,
-        model: Any,
+        model: object,
         model_type: ModelType,
         feature_names: List[str],
         training_data: np.ndarray,
@@ -902,7 +901,7 @@ class ExplainableAIEngine:
 
     def _generate_feature_importance_explanations(
         self,
-        model: Any,
+        model: object,
         feature_names: List[str],
         request: ExplanationRequest,
         explanation_id: str,
@@ -940,7 +939,7 @@ class ExplainableAIEngine:
 
     def _generate_partial_dependence_explanations(
         self,
-        model: Any,
+        model: object,
         feature_names: List[str],
         request: ExplanationRequest,
         explanation_id: str,
@@ -961,7 +960,7 @@ class ExplainableAIEngine:
 
     def _generate_comprehensive_explanations(
         self,
-        model: Any,
+        model: object,
         model_type: ModelType,
         feature_names: List[str],
         training_data: np.ndarray,
@@ -1021,7 +1020,7 @@ class ExplainableAIEngine:
         except Exception:
             return 0.5
 
-    def _store_explanation(self, result: ExplanationResult) -> Any:
+    def _store_explanation(self, result: ExplanationResult) -> object:
         """Store explanation result in database"""
         try:
             explanation_record = ModelExplanation(
@@ -1034,7 +1033,7 @@ class ExplainableAIEngine:
                 compliance_status=json.dumps(
                     {k.value: v for k, v in result.compliance_status.items()}
                 ),
-                metadata=json.dumps(result.metadata),
+                extra_metadata=json.dumps(result.metadata),
             )
             self.db_session.add(explanation_record)
             self.db_session.commit()
@@ -1063,7 +1062,7 @@ class ExplainableAIEngine:
                         ComplianceStandard(k): v
                         for k, v in json.loads(record.compliance_status).items()
                     },
-                    metadata=json.loads(record.metadata),
+                    extra_metadata=json.loads(record.extra_metadata or "{}"),
                 )
             return None
         except Exception as e:

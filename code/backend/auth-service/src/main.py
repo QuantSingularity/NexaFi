@@ -5,7 +5,7 @@ import os
 import secrets
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Optional
 from urllib.parse import urlencode
 
 import bcrypt
@@ -300,7 +300,7 @@ def authenticate_user_credentials(username: str, password: str) -> Optional[obje
 
 
 @app.route("/api/v1/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify(
         {
@@ -322,7 +322,7 @@ def health_check() -> Any:
 @app.route("/api/v1/auth/login", methods=["POST"])
 @validate_json_request(LoginSchema)
 @audit_action(AuditEventType.USER_LOGIN, "login_attempt", severity=AuditSeverity.MEDIUM)
-def login() -> Any:
+def login() -> object:
     """Login with fraud detection"""
     data = request.validated_data  # type: ignore[attr-defined]
 
@@ -443,7 +443,7 @@ def login() -> Any:
 @require_auth
 @validate_json_request(MFASetupSchema)
 @audit_action(AuditEventType.USER_UPDATE, "mfa_setup", severity=AuditSeverity.HIGH)
-def setup_mfa() -> Any:
+def setup_mfa() -> object:
     """Setup Multi-Factor Authentication"""
     data = request.validated_data  # type: ignore[attr-defined]
     user_id = g.current_user["user_id"]
@@ -496,7 +496,7 @@ def setup_mfa() -> Any:
 @audit_action(
     AuditEventType.USER_LOGIN, "mfa_verification", severity=AuditSeverity.HIGH
 )
-def verify_mfa() -> Any:
+def verify_mfa() -> object:
     """Verify Multi-Factor Authentication"""
     data = request.validated_data  # type: ignore[attr-defined]
     user_id = g.current_user["user_id"]
@@ -556,7 +556,7 @@ def verify_mfa() -> Any:
 
 
 @app.route("/oauth2/authorize", methods=["GET", "POST"])
-def oauth2_authorize() -> Any:
+def oauth2_authorize() -> object:
     """OAuth 2.1 Authorization Endpoint with FAPI 2.0 compliance"""
     if request.method == "GET":
         data = {
@@ -650,7 +650,7 @@ def oauth2_authorize() -> Any:
 
 @app.route("/oauth2/token", methods=["POST"])
 @validate_json_request(OAuth2TokenSchema)
-def oauth2_token() -> Any:
+def oauth2_token() -> object:
     """OAuth 2.1 Token Endpoint with FAPI 2.0 compliance"""
     data = request.validated_data  # type: ignore[attr-defined]
     client_secret = data.get("client_secret")
@@ -841,7 +841,7 @@ def oauth2_token() -> Any:
 
 
 @app.route("/oauth2/userinfo", methods=["GET"])
-def oauth2_userinfo() -> Any:
+def oauth2_userinfo() -> object:
     """OAuth 2.1 UserInfo Endpoint"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -899,7 +899,7 @@ def oauth2_userinfo() -> Any:
 @app.route("/api/v1/auth/logout", methods=["POST"])
 @require_auth
 @audit_action(AuditEventType.USER_LOGOUT, "logout", severity=AuditSeverity.LOW)
-def logout() -> Any:
+def logout() -> object:
     """Secure logout"""
     user_id = g.current_user["user_id"]
     session_id = g.current_user.get("session_id", "")

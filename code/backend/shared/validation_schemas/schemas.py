@@ -22,7 +22,7 @@ class FinancialValidators:
         return value
 
     @staticmethod
-    def validate_amount(value: Any) -> Decimal:
+    def validate_amount(value: object) -> Decimal:
         """Validate monetary amount"""
         try:
             amount = Decimal(str(value))
@@ -97,7 +97,7 @@ class SanitizationMixin:
     """Mixin for input sanitization"""
 
     @pre_load
-    def sanitize_strings(self, data: Any, **kwargs) -> Any:
+    def sanitize_strings(self, data: object, **kwargs) -> object:
         """Sanitize string inputs"""
         if isinstance(data, dict):
             sanitized: Dict[str, Any] = {}
@@ -153,7 +153,7 @@ class TransactionSchema(SanitizationMixin, Schema):
     reference_number = fields.Str(required=False, validate=validate.Length(max=50))
 
     @post_load
-    def convert_amount(self, data: Any, **kwargs) -> Any:
+    def convert_amount(self, data: object, **kwargs) -> object:
         data["amount"] = Decimal(str(data["amount"]))
         return data
 
@@ -175,7 +175,7 @@ class JournalEntryLineSchema(SanitizationMixin, Schema):
     description = fields.Str(required=False, validate=validate.Length(max=500))
 
     @post_load
-    def convert_amounts(self, data: Any, **kwargs) -> Any:
+    def convert_amounts(self, data: object, **kwargs) -> object:
         if "debit_amount" in data and data["debit_amount"] is not None:
             data["debit_amount"] = Decimal(str(data["debit_amount"]))
         if "credit_amount" in data and data["credit_amount"] is not None:
@@ -233,7 +233,7 @@ class PredictionRequestSchema(SanitizationMixin, Schema):
     )
 
 
-def validate_request_data(schema_class: Any, data: Dict[str, Any]) -> Dict[str, Any]:
+def validate_request_data(schema_class: type, data: Dict[str, Any]) -> Dict[str, Any]:
     """Validate request data using specified schema"""
     schema = schema_class()
     try:
@@ -242,7 +242,7 @@ def validate_request_data(schema_class: Any, data: Dict[str, Any]) -> Dict[str, 
         raise ValidationError(f"Validation failed: {e.messages}")
 
 
-def validate_json_request(schema_class: Any) -> Any:
+def validate_json_request(schema_class: object) -> object:
     """Decorator for validating JSON request data"""
 
     def decorator(f):

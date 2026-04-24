@@ -261,7 +261,7 @@ class SAPRFCConnector:
             self.logger.error(f"RFC connection failed: {str(e)}")
             return False
 
-    def disconnect(self) -> Any:
+    def disconnect(self) -> object:
         """Disconnect from SAP system"""
         if self.connection:
             self.connection.close()
@@ -510,7 +510,7 @@ class SAPBusinessPartnerSync:
             "source_system": "SAP",
         }
 
-    def _process_business_partner(self, bp: Dict[str, Any]) -> Any:
+    def _process_business_partner(self, bp: Dict[str, Any]) -> object:
         """Process business partner (implement based on your system)"""
         self.logger.info(f"Processing business partner: {bp['external_id']}")
 
@@ -613,7 +613,7 @@ class SAPFinancialSync:
             "source_system": "SAP",
         }
 
-    def _process_gl_entry(self, entry: Dict[str, Any]) -> Any:
+    def _process_gl_entry(self, entry: Dict[str, Any]) -> object:
         """Process GL entry (implement based on your system)"""
         self.logger.info(f"Processing GL entry: {entry['document_number']}")
 
@@ -625,8 +625,8 @@ class SAPIntegration(BaseIntegration):
         self,
         config: IntegrationConfig,
         sap_config: SAPConfig,
-        db_session: Any = None,
-        redis_client: Any = None,
+        db_session: object = None,
+        redis_client: object = None,
     ) -> None:
         super().__init__(config, db_session, redis_client)
         self.sap_config = sap_config
@@ -701,7 +701,7 @@ class SAPIntegration(BaseIntegration):
         """Get authentication headers"""
         return self.authenticator.get_auth_headers()
 
-    def _process_webhook_data(self, payload: Dict[str, Any]) -> Any:
+    def _process_webhook_data(self, payload: Dict[str, Any]) -> object:
         """Process SAP webhook data"""
         try:
             event_type = payload.get("eventType")
@@ -716,21 +716,21 @@ class SAPIntegration(BaseIntegration):
         except Exception as e:
             self.logger.error(f"SAP webhook processing failed: {str(e)}")
 
-    def _handle_bp_created(self, payload: Dict[str, Any]) -> Any:
+    def _handle_bp_created(self, payload: Dict[str, Any]) -> object:
         """Handle business partner created event"""
         bp_id = payload.get("businessPartner")
         self.logger.info(f"Business partner created: {bp_id}")
         if self.bp_sync:
             self.bp_sync.sync_business_partners({"BusinessPartner": bp_id})
 
-    def _handle_bp_updated(self, payload: Dict[str, Any]) -> Any:
+    def _handle_bp_updated(self, payload: Dict[str, Any]) -> object:
         """Handle business partner updated event"""
         bp_id = payload.get("businessPartner")
         self.logger.info(f"Business partner updated: {bp_id}")
         if self.bp_sync:
             self.bp_sync.sync_business_partners({"BusinessPartner": bp_id})
 
-    def _handle_document_posted(self, payload: Dict[str, Any]) -> Any:
+    def _handle_document_posted(self, payload: Dict[str, Any]) -> object:
         """Handle document posted event"""
         doc_number = payload.get("documentNumber")
         company_code = payload.get("companyCode")

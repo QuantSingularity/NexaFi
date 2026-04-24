@@ -82,7 +82,7 @@ running_processes: List[Any] = []
 # ---------------------------------------------------------------------------
 
 
-def _start_service(service: Dict[str, Any]) -> Any:
+def _start_service(service: Dict[str, Any]) -> object:
     """Start a service and return the process."""
     base_dir = os.path.dirname(__file__)
     service_path = os.path.join(base_dir, service["path"])

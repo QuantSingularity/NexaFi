@@ -87,7 +87,7 @@ class EnterpriseIntegrationManager:
             ["system", "entity"],
         )
 
-    def _load_config(self, config_file: str) -> Any:
+    def _load_config(self, config_file: str) -> object:
         """Load configuration from file"""
         try:
             with open(config_file, "r") as f:
@@ -96,7 +96,7 @@ class EnterpriseIntegrationManager:
         except Exception as e:
             self.logger.error(f"Failed to load configuration: {str(e)}")
 
-    def _register_integrations(self) -> Any:
+    def _register_integrations(self) -> object:
         """Register available integrations"""
         if SAPIntegration:
             self.registry["sap"] = IntegrationRegistry(
@@ -233,7 +233,7 @@ class EnterpriseIntegrationManager:
 
     def schedule_sync(
         self, system_name: str, entity_type: str, interval_minutes: int, **kwargs
-    ) -> Any:
+    ) -> object:
         """Schedule periodic sync for an integration"""
 
         def sync_job():
@@ -252,7 +252,7 @@ class EnterpriseIntegrationManager:
             f"Scheduled sync for {system_name}.{entity_type} every {interval_minutes} minutes"
         )
 
-    def start_scheduler(self) -> Any:
+    def start_scheduler(self) -> object:
         """Start the integration scheduler"""
         if self.is_running:
             return
@@ -267,7 +267,7 @@ class EnterpriseIntegrationManager:
         self.scheduler_thread.start()
         self.logger.info("Integration scheduler started")
 
-    def stop_scheduler(self) -> Any:
+    def stop_scheduler(self) -> object:
         """Stop the integration scheduler"""
         self.is_running = False
         if self.scheduler_thread:
@@ -315,7 +315,7 @@ class EnterpriseIntegrationManager:
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-    def _setup_routes(self) -> Any:
+    def _setup_routes(self) -> object:
         """Setup Flask routes for API and webhooks"""
 
         @self.app.route("/health", methods=["GET"])
@@ -427,12 +427,12 @@ class EnterpriseIntegrationManager:
 
     def run_api_server(
         self, host: str = "0.0.0.0", port: int = 5000, debug: bool = False
-    ) -> Any:
+    ) -> object:
         """Run the Flask API server"""
         self.logger.info(f"Starting API server on {host}:{port}")
         self.app.run(host=host, port=port, debug=debug)
 
-    def load_integrations_from_config(self) -> Any:
+    def load_integrations_from_config(self) -> object:
         """Load integrations from configuration file"""
         if not self.config.get("integrations"):
             return
@@ -473,7 +473,7 @@ class EnterpriseIntegrationManager:
             )
         return config
 
-    def backup_integration_data(self, backup_path: str) -> Any:
+    def backup_integration_data(self, backup_path: str) -> object:
         """Backup integration data and configuration"""
         try:
             backup_data = {
@@ -487,7 +487,7 @@ class EnterpriseIntegrationManager:
         except Exception as e:
             self.logger.error(f"Backup failed: {str(e)}")
 
-    def restore_integration_data(self, backup_path: str) -> Any:
+    def restore_integration_data(self, backup_path: str) -> object:
         """Restore integration data from backup"""
         try:
             with open(backup_path, "r") as f:

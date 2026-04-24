@@ -3,7 +3,6 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any
 
 import requests
 
@@ -39,21 +38,21 @@ class _TestRunner:
         self.user_id = None
         self.test_data = {}
 
-    def log(self, message: Any, color: Any = Colors.BLUE) -> Any:
+    def log(self, message: object, color: object = Colors.BLUE) -> object:
         logger.info(f"{color}{message}{Colors.ENDC}")
 
-    def success(self, message: Any) -> Any:
+    def success(self, message: object) -> object:
         self.passed += 1
         logger.info(f"{Colors.GREEN}✓ {message}{Colors.ENDC}")
 
-    def error(self, message: Any) -> Any:
+    def error(self, message: object) -> object:
         self.failed += 1
         logger.info(f"{Colors.RED}✗ {message}{Colors.ENDC}")
 
-    def warning(self, message: Any) -> Any:
+    def warning(self, message: object) -> object:
         logger.info(f"{Colors.YELLOW}⚠ {message}{Colors.ENDC}")
 
-    def test_health_checks(self) -> Any:
+    def test_health_checks(self) -> None:
         """Test health endpoints for all services"""
         self.log("\n=== Testing Health Checks ===", Colors.BOLD)
         for service_name, port in SERVICES.items():
@@ -73,7 +72,7 @@ class _TestRunner:
             except requests.exceptions.RequestException as e:
                 self.error(f"{service_name} health check failed - {str(e)}")
 
-    def test_api_gateway(self) -> Any:
+    def test_api_gateway(self) -> None:
         """Test API Gateway functionality"""
         self.log("\n=== Testing API Gateway ===", Colors.BOLD)
         try:
@@ -97,7 +96,7 @@ class _TestRunner:
         except requests.exceptions.RequestException as e:
             self.error(f"API Gateway test failed - {str(e)}")
 
-    def test_user_service(self) -> Any:
+    def test_user_service(self) -> None:
         self.log("\n=== Testing User Service ===", Colors.BOLD)
         try:
             registration_data = {
@@ -156,7 +155,7 @@ class _TestRunner:
         except requests.exceptions.RequestException as e:
             self.error(f"User service test failed - {str(e)}")
 
-    def test_ledger_service(self) -> Any:
+    def test_ledger_service(self) -> None:
         self.log("\n=== Testing Ledger Service ===", Colors.BOLD)
         if not self.access_token:
             self.error("No access token available for ledger tests")
@@ -234,7 +233,7 @@ class _TestRunner:
         except requests.exceptions.RequestException as e:
             self.error(f"Ledger service test failed - {str(e)}")
 
-    def test_compliance_service(self) -> Any:
+    def test_compliance_service(self) -> None:
         """Test Compliance Service (AML, KYC, Sanctions)"""
         self.log("\n=== Testing Compliance Service ===", Colors.BOLD)
         if not self.access_token or not self.user_id:
@@ -306,7 +305,7 @@ class _TestRunner:
         except requests.exceptions.RequestException as e:
             self.error(f"Compliance service test failed - {str(e)}")
 
-    def test_notification_service(self) -> Any:
+    def test_notification_service(self) -> None:
         """Test Notification Service"""
         self.log("\n=== Testing Notification Service ===", Colors.BOLD)
         if not self.access_token or not self.user_id:
@@ -360,7 +359,7 @@ class _TestRunner:
         except requests.exceptions.RequestException as e:
             self.error(f"Notification service test failed - {str(e)}")
 
-    def test_rate_limiting(self) -> Any:
+    def test_rate_limiting(self) -> None:
         """Test rate limiting functionality"""
         self.log("\n=== Testing Rate Limiting ===", Colors.BOLD)
         try:
@@ -383,7 +382,7 @@ class _TestRunner:
         except requests.exceptions.RequestException as e:
             self.error(f"Rate limiting test failed - {str(e)}")
 
-    def test_security_features(self) -> Any:
+    def test_security_features(self) -> None:
         """Test security features"""
         self.log("\n=== Testing Security Features ===", Colors.BOLD)
         try:
@@ -412,7 +411,7 @@ class _TestRunner:
         except requests.exceptions.RequestException as e:
             self.error(f"Security test failed - {str(e)}")
 
-    def test_audit_logging(self) -> Any:
+    def test_audit_logging(self) -> None:
         """Test audit logging functionality"""
         self.log("\n=== Testing Audit Logging ===", Colors.BOLD)
         audit_log_dir = "/backend/logs/audit"
@@ -438,7 +437,7 @@ class _TestRunner:
         else:
             self.warning("Log directory not found")
 
-    def run_all_tests(self) -> Any:
+    def run_all_tests(self) -> object:
         """Run all tests"""
         self.log(f"\n{Colors.BOLD}=== NexaFi Backend Test Suite ==={Colors.ENDC}")
         self.log(f"Testing against: {BASE_URL}")

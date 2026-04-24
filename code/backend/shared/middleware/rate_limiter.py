@@ -5,7 +5,7 @@ Implements industry-standard rate limiting for financial services
 
 import time
 from functools import wraps
-from typing import Any, Dict
+from typing import Dict
 
 import redis
 from flask import g, jsonify, request
@@ -13,7 +13,7 @@ from flask import g, jsonify, request
 
 class RateLimiter:
 
-    def __init__(self, redis_client: Any = None) -> None:
+    def __init__(self, redis_client: object = None) -> None:
         self.redis_client = redis_client or redis.Redis(
             host="localhost", port=6379, db=0, decode_responses=True
         )
@@ -102,7 +102,7 @@ def get_endpoint_rate_limit(path: str) -> Dict:
     return RATE_LIMITS["default"]
 
 
-def rate_limit(f: Any) -> Any:
+def rate_limit(f: object) -> object:
     """Rate limiting decorator"""
 
     @wraps(f)
@@ -133,7 +133,7 @@ def rate_limit(f: Any) -> Any:
     return decorated_function
 
 
-def add_rate_limit_headers(response: Any) -> Any:
+def add_rate_limit_headers(response: object) -> object:
     """Add rate limit headers to response"""
     if hasattr(g, "rate_limit_info"):
         info = g.rate_limit_info

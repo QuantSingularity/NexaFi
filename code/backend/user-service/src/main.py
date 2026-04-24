@@ -131,13 +131,13 @@ def validate_password_strength(password: str) -> Tuple[bool, str]:
 
 
 @app.errorhandler(400)
-def handle_400(error: Any) -> Tuple[Any, int]:
+def handle_400(error: Exception) -> Tuple[Any, int]:
     """Return a custom 400 Bad Request JSON response."""
     return (jsonify({"error": "Bad request", "message": str(error)}), 400)
 
 
 @app.errorhandler(401)
-def handle_401(error: Any) -> Tuple[Any, int]:
+def handle_401(error: Exception) -> Tuple[Any, int]:
     """Return a custom 401 Unauthorized JSON response."""
     return (
         jsonify(
@@ -151,7 +151,7 @@ def handle_401(error: Any) -> Tuple[Any, int]:
 
 
 @app.errorhandler(403)
-def handle_403(error: Any) -> Tuple[Any, int]:
+def handle_403(error: Exception) -> Tuple[Any, int]:
     """Return a custom 403 Forbidden JSON response."""
     return (
         jsonify(
@@ -165,13 +165,13 @@ def handle_403(error: Any) -> Tuple[Any, int]:
 
 
 @app.errorhandler(404)
-def handle_404(error: Any) -> Tuple[Any, int]:
+def handle_404(error: Exception) -> Tuple[Any, int]:
     """Return a custom 404 Not Found JSON response."""
     return (jsonify({"error": "Not found", "message": str(error)}), 404)
 
 
 @app.errorhandler(500)
-def handle_500(error: Any) -> Tuple[Any, int]:
+def handle_500(error: Exception) -> Tuple[Any, int]:
     """Return a custom 500 Internal Server Error JSON response."""
     logger.error(f"Internal Server Error: {error}", exc_info=True)
     return (
@@ -191,7 +191,7 @@ def handle_500(error: Any) -> Tuple[Any, int]:
 
 
 @app.route("/api/v1/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify(
         {

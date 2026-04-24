@@ -277,7 +277,9 @@ class DataTransformer:
         return transformed
 
     @staticmethod
-    def normalize_date_format(date_value: Any, target_format: str = "%Y-%m-%d") -> str:
+    def normalize_date_format(
+        date_value: object, target_format: str = "%Y-%m-%d"
+    ) -> str:
         """Normalize date format"""
         if isinstance(date_value, datetime):
             return date_value.strftime(target_format)
@@ -320,8 +322,8 @@ class BaseIntegration(ABC):
     def __init__(
         self,
         config: IntegrationConfig,
-        db_session: Any = None,
-        redis_client: Any = None,
+        db_session: object = None,
+        redis_client: object = None,
     ) -> None:
         self.config = config
         self.db_session = db_session
@@ -353,7 +355,7 @@ class BaseIntegration(ABC):
             self.session.headers.update(config.custom_headers)
         self._initialize_state()
 
-    def _initialize_state(self) -> Any:
+    def _initialize_state(self) -> object:
         """Initialize integration state"""
         if not self.db_session:
             return
@@ -461,7 +463,7 @@ class BaseIntegration(ABC):
         endpoint: str,
         data: Dict[str, Any],
         response: requests.Response,
-    ) -> Any:
+    ) -> object:
         """Log request details"""
         if not self.db_session:
             return
@@ -493,8 +495,8 @@ class BaseIntegration(ABC):
         return None
 
     def set_cached_data(
-        self, cache_key: str, data: Any, ttl: Optional[int] = None
-    ) -> Any:
+        self, cache_key: str, data: object, ttl: Optional[int] = None
+    ) -> object:
         """Set data in cache"""
         if not self.redis_client or not self.config.enable_caching:
             return
@@ -504,7 +506,7 @@ class BaseIntegration(ABC):
         except Exception as e:
             self.logger.error(f"Cache storage error: {str(e)}")
 
-    def update_sync_state(self, entity_type: str, sync_result: SyncResult) -> Any:
+    def update_sync_state(self, entity_type: str, sync_result: SyncResult) -> object:
         """Update synchronization state"""
         if not self.db_session:
             return
@@ -536,7 +538,7 @@ class BaseIntegration(ABC):
 
     def schedule_sync(
         self, entity_type: str, interval_minutes: Optional[int] = None
-    ) -> Any:
+    ) -> object:
         """Schedule periodic synchronization"""
         interval = interval_minutes or self.config.sync_interval // 60
 
@@ -570,7 +572,7 @@ class BaseIntegration(ABC):
             return False
 
     @abstractmethod
-    def _process_webhook_data(self, payload: Dict[str, Any]) -> Any:
+    def _process_webhook_data(self, payload: Dict[str, Any]) -> object:
         """Process webhook data (to be implemented by subclasses)"""
 
     def get_integration_status(self) -> Dict[str, Any]:
@@ -629,7 +631,7 @@ class BaseIntegration(ABC):
 class IntegrationManager:
     """Manager for multiple enterprise integrations"""
 
-    def __init__(self, db_session: Any = None, redis_client: Any = None) -> None:
+    def __init__(self, db_session: object = None, redis_client: object = None) -> None:
         self.db_session = db_session
         self.redis_client = redis_client
         self.integrations: Dict[str, BaseIntegration] = {}
@@ -637,7 +639,7 @@ class IntegrationManager:
         self.scheduler_thread = None
         self.is_running = False
 
-    def register_integration(self, integration: BaseIntegration) -> Any:
+    def register_integration(self, integration: BaseIntegration) -> object:
         """Register an integration"""
         self.integrations[integration.config.system_name] = integration
         self.logger.info(f"Registered integration: {integration.config.system_name}")
@@ -646,7 +648,7 @@ class IntegrationManager:
         """Get integration by system name"""
         return self.integrations.get(system_name)
 
-    def start_scheduler(self) -> Any:
+    def start_scheduler(self) -> object:
         """Start the integration scheduler"""
         if self.is_running:
             return
@@ -661,7 +663,7 @@ class IntegrationManager:
         self.scheduler_thread.start()
         self.logger.info("Integration scheduler started")
 
-    def stop_scheduler(self) -> Any:
+    def stop_scheduler(self) -> object:
         """Stop the integration scheduler"""
         self.is_running = False
         if self.scheduler_thread:
@@ -765,7 +767,7 @@ def create_integration_config_from_env(system_name: str) -> IntegrationConfig:
     )
 
 
-def setup_database(database_url: str) -> Any:
+def setup_database(database_url: str) -> object:
     """Setup database for integration logging"""
     engine = create_engine(database_url)
     Base.metadata.create_all(engine)

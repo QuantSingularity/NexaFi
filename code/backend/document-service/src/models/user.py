@@ -8,12 +8,12 @@ class BaseModel:
     table_name = None
     db_manager = None
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, **kwargs: object) -> None:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     @classmethod
-    def find_by_id(cls: Any, id_value: Any) -> Any:
+    def find_by_id(cls, id_value: object) -> object:
         """Find record by ID - delegates to actual shared BaseModel if available"""
         # Import actual BaseModel from shared if available
         try:
@@ -34,7 +34,7 @@ class BaseModel:
             return None
 
     @classmethod
-    def find_all(cls: Any, where_clause: str = "", params: tuple = ()) -> Any:
+    def find_all(cls, where_clause: str = "", params: tuple = ()) -> object:
         """Find all records - delegates to actual shared BaseModel if available"""
         try:
             import os
@@ -54,7 +54,7 @@ class BaseModel:
             return []
 
     @classmethod
-    def find_one(cls: Any, where_clause: str, params: tuple = ()) -> Any:
+    def find_one(cls, where_clause: str, params: tuple = ()) -> object:
         """Find one record - delegates to actual shared BaseModel if available"""
         try:
             import os
@@ -89,7 +89,7 @@ class BaseModel:
         except (ImportError, AttributeError):
             pass
 
-    def delete(self) -> Any:
+    def delete(self) -> object:
         pass
 
     def to_dict(self) -> Dict[str, Any]:
@@ -99,19 +99,19 @@ class BaseModel:
 class Document(BaseModel):
     table_name: Optional[str] = "documents"
 
-    def get_metadata(self) -> Any:
+    def get_metadata(self) -> object:
         return json.loads(self.metadata) if self.metadata else {}
 
-    def set_metadata(self, metadata: Any) -> Any:
+    def set_metadata(self, metadata: object) -> object:
         self.metadata = json.dumps(metadata)
 
-    def get_extracted_data(self) -> Any:
+    def get_extracted_data(self) -> object:
         return json.loads(self.extracted_data) if self.extracted_data else {}
 
-    def set_extracted_data(self, data: Any) -> Any:
+    def set_extracted_data(self, data: object) -> object:
         self.extracted_data = json.dumps(data)
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["metadata"] = self.get_metadata()
         data["extracted_data"] = self.get_extracted_data()
@@ -121,19 +121,19 @@ class Document(BaseModel):
 class DocumentTemplate(BaseModel):
     table_name: Optional[str] = "document_templates"
 
-    def get_fields(self) -> Any:
+    def get_fields(self) -> object:
         return json.loads(self.fields) if self.fields else []
 
-    def set_fields(self, fields: Any) -> Any:
+    def set_fields(self, fields: object) -> object:
         self.fields = json.dumps(fields)
 
-    def get_metadata(self) -> Any:
+    def get_metadata(self) -> object:
         return json.loads(self.metadata) if self.metadata else {}
 
-    def set_metadata(self, metadata: Any) -> Any:
+    def set_metadata(self, metadata: object) -> object:
         self.metadata = json.dumps(metadata)
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["fields"] = self.get_fields()
         data["metadata"] = self.get_metadata()
@@ -143,12 +143,12 @@ class DocumentTemplate(BaseModel):
 class DocumentShare(BaseModel):
     table_name: Optional[str] = "document_shares"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         return super().to_dict()
 
 
 class DocumentVersion(BaseModel):
     table_name: Optional[str] = "document_versions"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         return super().to_dict()

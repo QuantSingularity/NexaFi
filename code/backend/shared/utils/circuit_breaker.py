@@ -6,7 +6,7 @@ import threading
 import time
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 # Support both package-relative import (when used inside the backend package)
 # and direct/standalone import (e.g. when the shared/ directory is on sys.path).
@@ -47,7 +47,7 @@ class CircuitBreaker:
         self.state = CircuitState.CLOSED
         self.lock = threading.Lock()
 
-    def call(self, func: Callable, *args, **kwargs) -> Any:
+    def call(self, func: Callable, *args: object, **kwargs: object) -> object:
         """Execute function with circuit breaker protection"""
         with self.lock:
             if self.state == CircuitState.OPEN:
@@ -69,12 +69,12 @@ class CircuitBreaker:
             return True
         return time.time() - self.last_failure_time >= self.recovery_timeout
 
-    def _on_success(self) -> Any:
+    def _on_success(self) -> object:
         """Handle successful call"""
         self.failure_count = 0
         self.state = CircuitState.CLOSED
 
-    def _on_failure(self) -> Any:
+    def _on_failure(self) -> object:
         """Handle failed call"""
         self.failure_count += 1
         self.last_failure_time = time.time()
@@ -84,7 +84,7 @@ class CircuitBreaker:
 
 def circuit_breaker(
     failure_threshold: Optional[int] = None, recovery_timeout: Optional[int] = None
-) -> Any:
+) -> object:
     """Decorator for circuit breaker protection"""
 
     def decorator(func):

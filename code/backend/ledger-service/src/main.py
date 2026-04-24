@@ -3,7 +3,7 @@ import sys
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Optional
 
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
@@ -235,7 +235,7 @@ DEFAULT_CHART_OF_ACCOUNTS = {
 }
 
 
-def initialize_chart_of_accounts() -> Any:
+def initialize_chart_of_accounts() -> object:
     """Initialize default chart of accounts"""
     for account_code, account_data in DEFAULT_CHART_OF_ACCOUNTS.items():
         existing = Account.find_one("account_code = ?", (account_code,))
@@ -259,7 +259,7 @@ def initialize_chart_of_accounts() -> Any:
 
 
 @app.route("/api/v1/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify(
         {
@@ -274,7 +274,7 @@ def health_check() -> Any:
 @app.route("/api/v1/accounts", methods=["GET"])
 @require_auth
 @require_permission("account:read")
-def list_accounts() -> Any:
+def list_accounts() -> object:
     """List all accounts"""
     account_type = request.args.get("type")
     currency = request.args.get("currency")
@@ -306,7 +306,7 @@ def list_accounts() -> Any:
 @audit_action(
     AuditEventType.ACCOUNT_CREATE, "account_created", severity=AuditSeverity.MEDIUM
 )
-def create_account() -> Any:
+def create_account() -> object:
     """Create a new account"""
     data = request.validated_data  # type: ignore[attr-defined]
     existing = Account.find_one("account_code = ?", (data["account_code"],))
@@ -348,7 +348,7 @@ def create_account() -> Any:
 @app.route("/api/v1/accounts/<int:account_id>/balance", methods=["GET"])
 @require_auth
 @require_permission("account:read")
-def get_account_balance(account_id: Any) -> Any:
+def get_account_balance(account_id: object) -> object:
     """Get account balance as of a specific date"""
     as_of_date_str = request.args.get("as_of_date")
     as_of_date: Optional[datetime] = None
@@ -386,7 +386,7 @@ def get_account_balance(account_id: Any) -> Any:
     "journal_entry_created",
     severity=AuditSeverity.HIGH,
 )
-def create_journal_entry() -> Any:
+def create_journal_entry() -> object:
     """Create a new journal entry"""
     data = request.validated_data  # type: ignore[attr-defined]
     lines_data = request.get_json().get("lines", [])
@@ -486,7 +486,7 @@ def create_journal_entry() -> Any:
     "journal_entry_posted",
     severity=AuditSeverity.HIGH,
 )
-def post_journal_entry(entry_id: Any) -> Any:
+def post_journal_entry(entry_id: object) -> object:
     """Post a journal entry"""
     entry = JournalEntry.find_by_id(entry_id)
     if not entry:
@@ -515,7 +515,7 @@ def post_journal_entry(entry_id: Any) -> Any:
     "exchange_rate_updated",
     severity=AuditSeverity.MEDIUM,
 )
-def update_exchange_rate() -> Any:
+def update_exchange_rate() -> object:
     """Update exchange rate"""
     data = request.validated_data  # type: ignore[attr-defined]
     existing_rates = ExchangeRate.find_all(
@@ -570,7 +570,7 @@ def update_exchange_rate() -> Any:
     "reconciliation_created",
     severity=AuditSeverity.MEDIUM,
 )
-def create_reconciliation() -> Any:
+def create_reconciliation() -> object:
     """Create account reconciliation"""
     data = request.validated_data  # type: ignore[attr-defined]
     account = Account.find_by_id(data["account_id"])
@@ -623,7 +623,7 @@ def create_reconciliation() -> Any:
 @app.route("/api/v1/reports/trial-balance", methods=["GET"])
 @require_auth
 @require_permission("report:read")
-def trial_balance() -> Any:
+def trial_balance() -> object:
     """Generate trial balance report"""
     as_of_date_str = request.args.get("as_of_date")
     as_of_date: Optional[datetime] = None
@@ -684,7 +684,7 @@ def trial_balance() -> Any:
 @app.route("/api/v1/reports/balance-sheet", methods=["GET"])
 @require_auth
 @require_permission("report:read")
-def balance_sheet() -> Any:
+def balance_sheet() -> object:
     """Generate balance sheet report"""
     as_of_date_str = request.args.get("as_of_date")
     as_of_date: Optional[datetime] = None

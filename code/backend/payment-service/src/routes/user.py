@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from functools import wraps
-from typing import Any, Optional
+from typing import Optional
 
 from flask import Blueprint, jsonify, request
 from models.user import (
@@ -16,7 +16,7 @@ from models.user import (
 payment_bp = Blueprint("payment", __name__)
 
 
-def require_user_id(f: Any) -> Any:
+def require_user_id(f: object) -> object:
     """Decorator to extract user_id from request headers"""
 
     @wraps(f)
@@ -31,7 +31,7 @@ def require_user_id(f: Any) -> Any:
 
 
 def calculate_fees(
-    amount: Decimal, payment_method_type: str, processor_name: Any = "default"
+    amount: Decimal, payment_method_type: str, processor_name: object = "default"
 ) -> Decimal:
     """Calculate transaction fees based on payment method and processor (simulated)"""
     fee_structures = {
@@ -45,7 +45,7 @@ def calculate_fees(
     return total_fee.quantize(Decimal("0.01"))
 
 
-def create_or_update_wallet(user_id: Any, currency: Any = "USD") -> Wallet:
+def create_or_update_wallet(user_id: str, currency: object = "USD") -> Wallet:
     """Create or get existing wallet for user and currency (simulated with custom ORM)"""
     wallet = Wallet.find_one("user_id = ? AND currency = ?", (user_id, currency))
     if not wallet:
@@ -71,7 +71,7 @@ def update_wallet_balance(
     change_type: str,
     description: str,
     transaction_id: Optional[str] = None,
-) -> Any:
+) -> object:
     """Update wallet balance and create history record (simulated with custom ORM)"""
     amount_float = float(amount)
     balance_before = wallet.balance
@@ -105,7 +105,7 @@ def update_wallet_balance(
 
 @payment_bp.route("/payment-methods", methods=["GET"])
 @require_user_id
-def get_payment_methods() -> Any:
+def get_payment_methods() -> object:
     """Get all payment methods for user"""
     try:
         payment_methods = PaymentMethod.find_all(
@@ -130,7 +130,7 @@ def get_payment_methods() -> Any:
 
 @payment_bp.route("/payment-methods", methods=["POST"])
 @require_user_id
-def create_payment_method() -> Any:
+def create_payment_method() -> object:
     """Create new payment method"""
     try:
         data = request.get_json()
@@ -189,7 +189,7 @@ def create_payment_method() -> Any:
 
 @payment_bp.route("/payment-methods/<method_id>", methods=["GET"])
 @require_user_id
-def get_payment_method(method_id: Any) -> Any:
+def get_payment_method(method_id: object) -> object:
     """Get specific payment method"""
     try:
         payment_method = PaymentMethod.find_one(
@@ -207,7 +207,7 @@ def get_payment_method(method_id: Any) -> Any:
 
 @payment_bp.route("/payment-methods/<method_id>", methods=["PUT"])
 @require_user_id
-def update_payment_method(method_id: Any) -> Any:
+def update_payment_method(method_id: object) -> object:
     """Update payment method"""
     try:
         payment_method = PaymentMethod.find_one(
@@ -248,7 +248,7 @@ def update_payment_method(method_id: Any) -> Any:
 
 @payment_bp.route("/payment-methods/<method_id>", methods=["DELETE"])
 @require_user_id
-def delete_payment_method(method_id: Any) -> Any:
+def delete_payment_method(method_id: object) -> object:
     """Delete payment method (soft delete)"""
     try:
         payment_method = PaymentMethod.find_one(
@@ -269,7 +269,7 @@ def delete_payment_method(method_id: Any) -> Any:
 
 @payment_bp.route("/transactions", methods=["GET"])
 @require_user_id
-def get_transactions() -> Any:
+def get_transactions() -> object:
     """Get transactions for user"""
     try:
         status = request.args.get("status")
@@ -313,7 +313,7 @@ def get_transactions() -> Any:
 
 @payment_bp.route("/transactions", methods=["POST"])
 @require_user_id
-def create_transaction() -> Any:
+def create_transaction() -> object:
     """Create new transaction"""
     try:
         data = request.get_json()
@@ -404,7 +404,7 @@ def create_transaction() -> Any:
 
 @payment_bp.route("/transactions/<transaction_id>", methods=["GET"])
 @require_user_id
-def get_transaction(transaction_id: Any) -> Any:
+def get_transaction(transaction_id: object) -> object:
     """Get specific transaction"""
     try:
         transaction = Transaction.find_one(
@@ -419,7 +419,7 @@ def get_transaction(transaction_id: Any) -> Any:
 
 @payment_bp.route("/wallets", methods=["GET"])
 @require_user_id
-def get_wallets() -> Any:
+def get_wallets() -> object:
     """Get all wallets for user"""
     try:
         wallets = Wallet.find_all("user_id = ? AND is_active = 1", (request.user_id,))
@@ -438,7 +438,7 @@ def get_wallets() -> Any:
 
 @payment_bp.route("/wallets/<currency>", methods=["GET"])
 @require_user_id
-def get_wallet_by_currency(currency: Any) -> Any:
+def get_wallet_by_currency(currency: object) -> object:
     """Get wallet for specific currency"""
     try:
         wallet = Wallet.find_one(
@@ -454,7 +454,7 @@ def get_wallet_by_currency(currency: Any) -> Any:
 
 @payment_bp.route("/wallets/<currency>/history", methods=["GET"])
 @require_user_id
-def get_wallet_history(currency: Any) -> Any:
+def get_wallet_history(currency: object) -> object:
     """Get wallet balance history"""
     try:
         wallet = Wallet.find_one(
@@ -485,7 +485,7 @@ def get_wallet_history(currency: Any) -> Any:
 
 @payment_bp.route("/recurring-payments", methods=["GET"])
 @require_user_id
-def get_recurring_payments() -> Any:
+def get_recurring_payments() -> object:
     """Get recurring payments for user"""
     try:
         recurring_payments = RecurringPayment.find_all(
@@ -511,7 +511,7 @@ def get_recurring_payments() -> Any:
 
 @payment_bp.route("/recurring-payments", methods=["POST"])
 @require_user_id
-def create_recurring_payment() -> Any:
+def create_recurring_payment() -> object:
     """Create new recurring payment"""
     try:
         data = request.get_json()
@@ -563,7 +563,7 @@ def create_recurring_payment() -> Any:
 
 
 @payment_bp.route("/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return (
         jsonify(

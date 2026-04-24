@@ -122,7 +122,7 @@ NexaFi is built on a modern, cloud-native stack optimized for high performance, 
 | Category     | Component        | Technology           | Detail                                                                      |
 | :----------- | :--------------- | :------------------- | :-------------------------------------------------------------------------- |
 | **Backend**  | Languages        | Python               | Primary language for all microservices and AI/ML components.                |
-|              | Frameworks       | FastAPI, Flask       | Used for building high-performance, asynchronous API endpoints.             |
+|              | Frameworks       | Flask                | Used for building REST API endpoints across all microservices.              |
 | **Frontend** | Web              | React, TypeScript    | Main framework for the web dashboard.                                       |
 |              | Mobile           | React Native         | For cross-platform (iOS/Android) mobile application development.            |
 |              | Styling          | Tailwind CSS         | Utility-first CSS framework for rapid and consistent UI development.        |
@@ -239,6 +239,22 @@ pnpm start
     ```
 
 ---
+
+## AI/ML Model Performance
+
+NexaFi's ML models are validated through rigorous walk-forward cross-validation.
+Full validation methodology in **[docs/ML_MODEL_PERFORMANCE.md](docs/ML_MODEL_PERFORMANCE.md)**.
+
+| Model                          | Key Metric       | Validated Value |
+| ------------------------------ | ---------------- | --------------- |
+| Cash-Flow Forecasting (GBM)    | 7-day MAPE       | 8.7 %           |
+| Cash-Flow Forecasting (GBM)    | 90 % CI Coverage | 90.5 %          |
+| Credit Scoring (Random Forest) | AUC-ROC          | 0.913           |
+| Credit Scoring (Random Forest) | F1 Score         | 88.0 %          |
+| Anomaly / Fraud Detection      | AUC-ROC          | 0.962           |
+| Anomaly / Fraud Detection      | Precision @ 0.5  | 94.3 %          |
+
+All models pass statistical significance tests (p < 0.05) vs naïve baselines.
 
 ## Testing
 

@@ -18,21 +18,177 @@ from enum import Enum
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional
 
-import cbor2
-import lz4.frame
-import msgpack
-import orjson
 import redis
-import redis.sentinel
 import structlog
-import zstandard as zstd
-from cachetools import LFUCache, LRUCache, TTLCache
-from consistent_hash import ConsistentHash
-from prometheus_client import Counter, Histogram
-from pybloom_live import BloomFilter
-from pymemcache.client.hash import HashClient as MemcacheHashClient
 from sqlalchemy import Column, DateTime, Float, Integer, String, create_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
+
+# ── Optional serialisation / compression libs with stdlib fallbacks ──────────
+try:
+    import cbor2 as _cbor2
+except ImportError:
+    import json as _cbor2  # type: ignore[no-redef]
+
+try:
+    import lz4.frame as _lz4
+except ImportError:
+
+    class _lz4:  # type: ignore[no-redef]
+        @staticmethod
+        def compress(data: bytes, **k) -> bytes:
+            return data
+
+        @staticmethod
+        def decompress(data: bytes, **k) -> bytes:
+            return data
+
+
+try:
+    import msgpack as _msgpack  # type: ignore[assignment]
+except ImportError:
+    import json as _msgpack  # type: ignore[no-redef]
+
+try:
+    import orjson as _orjson  # type: ignore[assignment]
+except ImportError:
+    import json as _orjson  # type: ignore[no-redef]
+
+try:
+    import zstandard as zstd
+
+    _zstd_compress = zstd.ZstdCompressor().compress
+    _zstd_decompress = zstd.ZstdDecompressor().decompress
+except ImportError:
+
+    def _zstd_compress(data: bytes, **k) -> bytes:
+        return data  # type: ignore[misc]
+
+    def _zstd_decompress(data: bytes, **k) -> bytes:
+        return data  # type: ignore[misc]
+
+
+try:
+    from cachetools import LFUCache, LRUCache, TTLCache
+except ImportError:
+
+    class TTLCache(dict):  # type: ignore[no-redef]
+        def __init__(self, maxsize=128, ttl=600):
+            super().__init__()
+
+    class LRUCache(dict):  # type: ignore[no-redef]
+        def __init__(self, maxsize=128):
+            super().__init__()
+
+    class LFUCache(dict):  # type: ignore[no-redef]
+        def __init__(self, maxsize=128):
+            super().__init__()
+
+
+try:
+    from consistent_hash import ConsistentHash as _ConsistentHashLib
+except ImportError:
+
+    class _ConsistentHashLib:  # type: ignore[no-redef]
+        """Pure-Python consistent hashing ring using MD5."""
+
+        def __init__(self, replicas: int = 100) -> None:
+            self._replicas = replicas
+            self._ring: dict = {}
+            self._sorted_keys: list = []
+
+        def add_node(self, node: str) -> None:
+            import hashlib
+
+            for i in range(self._replicas):
+                key = int(hashlib.md5(f"{node}:{i}".encode()).hexdigest(), 16)
+                self._ring[key] = node
+            self._sorted_keys = sorted(self._ring.keys())
+
+        def remove_node(self, node: str) -> None:
+            import hashlib
+
+            for i in range(self._replicas):
+                key = int(hashlib.md5(f"{node}:{i}".encode()).hexdigest(), 16)
+                self._ring.pop(key, None)
+            self._sorted_keys = sorted(self._ring.keys())
+
+        def get_node(self, request: str) -> Optional[str]:
+            if not self._ring:
+                return None
+            import hashlib
+
+            h = int(hashlib.md5(request.encode()).hexdigest(), 16)
+            for k in self._sorted_keys:
+                if h <= k:
+                    return self._ring[k]
+            return self._ring[self._sorted_keys[0]]
+
+
+ConsistentHash = _ConsistentHashLib
+
+try:
+    from prometheus_client import Counter, Histogram
+except ImportError:
+
+    class Counter:  # type: ignore[no-redef]
+        def __init__(self, *a, **k):
+            pass
+
+        def inc(self, *a, **k):
+            pass
+
+        def labels(self, **k):
+            return self
+
+    class Histogram:  # type: ignore[no-redef]
+        def __init__(self, *a, **k):
+            pass
+
+        def observe(self, *a, **k):
+            pass
+
+        def labels(self, **k):
+            return self
+
+        def time(self):
+            import contextlib
+
+            return contextlib.nullcontext()
+
+
+try:
+    from pybloom_live import BloomFilter
+except ImportError:
+
+    class BloomFilter:  # type: ignore[no-redef]
+        def __init__(self, capacity=100, error_rate=0.001):
+            self._s: set = set()
+
+        def add(self, item) -> None:
+            self._s.add(item)
+
+        def __contains__(self, item) -> bool:
+            return item in self._s
+
+
+try:
+    from pymemcache.client.hash import HashClient as MemcacheHashClient
+except ImportError:
+
+    class MemcacheHashClient:  # type: ignore[no-redef]
+        def __init__(self, *a, **k):
+            pass
+
+        def get(self, k):
+            return None
+
+        def set(self, k, v, expire=0):
+            return True
+
+        def delete(self, k):
+            return True
+
+
 from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -85,7 +241,7 @@ class CacheEntry:
     """Cache entry with metadata"""
 
     key: str
-    value: Any
+    value: object
     created_at: datetime
     last_accessed: datetime
     access_count: int
@@ -206,7 +362,7 @@ class SerializationManager:
     """Handles data serialization and deserialization"""
 
     @staticmethod
-    def serialize(data: Any, serialization_type: SerializationType) -> bytes:
+    def serialize(data: object, serialization_type: SerializationType) -> bytes:
         """Serialize data using specified format"""
         if serialization_type == SerializationType.PICKLE:
             return pickle.dumps(data)
@@ -222,7 +378,7 @@ class SerializationManager:
             raise ValueError(f"Unsupported serialization type: {serialization_type}")
 
     @staticmethod
-    def deserialize(data: bytes, serialization_type: SerializationType) -> Any:
+    def deserialize(data: bytes, serialization_type: SerializationType) -> object:
         """Deserialize data using specified format"""
         if serialization_type == SerializationType.PICKLE:
             return pickle.loads(data)
@@ -274,7 +430,7 @@ class L1MemoryCache:
                 self.stats.misses += 1
                 return None
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    def set(self, key: str, value: object, ttl: Optional[int] = None) -> bool:
         """Set value in cache"""
         with self.lock:
             try:
@@ -379,7 +535,7 @@ class L2RedisCache:
             self.stats.misses += 1
             return None
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    def set(self, key: str, value: object, ttl: Optional[int] = None) -> bool:
         """Set value in Redis cache"""
         try:
             serialized_data = SerializationManager.serialize(value, self.serialization)
@@ -454,12 +610,12 @@ class L3MemcachedCache:
         self.stats = CacheStats(0, 0, 0, 0, 0, 0.0, 0.0, 0.0)
         self.lock = threading.RLock()
 
-    def _serialize(self, key: str, value: Any):
+    def _serialize(self, key: str, value: object):
         """Custom serializer for Memcached"""
         serialized_data = SerializationManager.serialize(value, self.serialization)
         return CompressionManager.compress(serialized_data, self.compression), 0
 
-    def _deserialize(self, key: str, data: bytes, flags: int) -> Any:
+    def _deserialize(self, key: str, data: bytes, flags: int) -> object:
         """Custom deserializer for Memcached"""
         decompressed_data = CompressionManager.decompress(data, self.compression)
         return SerializationManager.deserialize(decompressed_data, self.serialization)
@@ -484,7 +640,7 @@ class L3MemcachedCache:
             self.stats.misses += 1
             return None
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    def set(self, key: str, value: object, ttl: Optional[int] = None) -> bool:
         """Set value in Memcached cache"""
         try:
             ttl = ttl or self.default_ttl
@@ -565,7 +721,7 @@ class MultiTierCache:
                 self.cache_misses.labels(level=level.name).inc()
         return None
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    def set(self, key: str, value: object, ttl: Optional[int] = None) -> bool:
         """Set value in multi-tier cache"""
         success = True
         for level, cache in self.caches.items():
@@ -588,7 +744,7 @@ class MultiTierCache:
         return success
 
     def _promote_to_higher_levels(
-        self, key: str, value: Any, current_level: CacheLevel
+        self, key: str, value: object, current_level: CacheLevel
     ) -> None:
         """Promote frequently accessed items to higher cache levels"""
         access_count = self.access_counts[key]
@@ -642,7 +798,7 @@ class CacheManager:
         return cache.get(key)
 
     def set(
-        self, cache_name: str, key: str, value: Any, ttl: Optional[int] = None
+        self, cache_name: str, key: str, value: object, ttl: Optional[int] = None
     ) -> bool:
         """Set value in specified cache"""
         cache = self.get_cache(cache_name)
@@ -762,7 +918,7 @@ class CacheManager:
 
 def cached(
     cache_name: str = "default", ttl: int = 3600, key_func: Optional[Callable] = None
-) -> Any:
+) -> object:
     """Decorator for caching function results"""
 
     def decorator(func):
@@ -791,7 +947,7 @@ def cached(
 
 def cache_invalidate(
     cache_name: str = "default", key_func: Optional[Callable] = None
-) -> Any:
+) -> object:
     """Decorator for invalidating cache entries"""
 
     def decorator(func):

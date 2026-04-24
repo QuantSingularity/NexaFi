@@ -1,5 +1,3 @@
-from typing import Any
-
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -10,8 +8,8 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
 
-    def __repr__(self) -> Any:
+    def __repr__(self) -> object:
         return f"<User {self.username}>"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         return {"id": self.id, "username": self.username, "email": self.email}

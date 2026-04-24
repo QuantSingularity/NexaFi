@@ -118,7 +118,7 @@ class RobustEncryption:
 class FraudDetectionEngine:
     """Engine for detecting fraudulent activities"""
 
-    def __init__(self, db_manager: Any) -> None:
+    def __init__(self, db_manager: object) -> None:
         self.db_manager = db_manager
         self.risk_thresholds = {
             "velocity": 10,  # transactions per minute
@@ -127,7 +127,7 @@ class FraudDetectionEngine:
         }
         self._initialize_fraud_tables()
 
-    def _initialize_fraud_tables(self) -> Any:
+    def _initialize_fraud_tables(self) -> object:
         """Initialize fraud detection tables"""
         statements = [
             """
@@ -197,7 +197,7 @@ class FraudDetectionEngine:
 
     def _create_fraud_alert(
         self, user_id: str, alert_type: str, risk_score: float, details: Dict[str, Any]
-    ) -> Any:
+    ) -> object:
         """Create a new fraud alert in database"""
         insert_sql = """
         INSERT INTO fraud_alerts (user_id, alert_type, risk_score, details)
@@ -209,7 +209,7 @@ class FraudDetectionEngine:
 
     def create_fraud_alert(
         self, user_id: str, alert_type: str, risk_score: float, details: Dict[str, Any]
-    ) -> Any:
+    ) -> object:
         """Public method to create a fraud alert, returns the new row ID."""
         insert_sql = """
         INSERT INTO fraud_alerts (user_id, alert_type, risk_score, details)
@@ -297,7 +297,7 @@ class FraudDetectionEngine:
 class SecurityManager:
     """Centralized security management system"""
 
-    def __init__(self, db_manager: Any) -> None:
+    def __init__(self, db_manager: object) -> None:
         self.db_manager = db_manager
         self.encryption = RobustEncryption()
         self.fraud_engine = FraudDetectionEngine(db_manager)
@@ -306,7 +306,7 @@ class SecurityManager:
         self._lock = threading.Lock()
         self._initialize_monitoring_tables()
 
-    def _initialize_monitoring_tables(self) -> Any:
+    def _initialize_monitoring_tables(self) -> object:
         """Initialize security monitoring tables"""
         statements = [
             """
@@ -480,7 +480,7 @@ class SecurityManager:
             },
         )
 
-    def mark_mfa_verified(self, session_id: str) -> Any:
+    def mark_mfa_verified(self, session_id: str) -> object:
         """Mark session as MFA verified"""
         update_sql = "UPDATE secure_sessions SET mfa_verified = 1 WHERE session_id = ?"
         self.db_manager.execute_query(update_sql, (session_id,))
@@ -488,7 +488,7 @@ class SecurityManager:
             if session_id in self.active_sessions:
                 self.active_sessions[session_id]["mfa_verified"] = True
 
-    def invalidate_session(self, session_id: str) -> Any:
+    def invalidate_session(self, session_id: str) -> object:
         """Invalidate session"""
         update_sql = "UPDATE secure_sessions SET is_active = 0 WHERE session_id = ?"
         self.db_manager.execute_query(update_sql, (session_id,))
@@ -496,7 +496,7 @@ class SecurityManager:
             if session_id in self.active_sessions:
                 del self.active_sessions[session_id]
 
-    def invalidate_all_user_sessions(self, user_id: str) -> Any:
+    def invalidate_all_user_sessions(self, user_id: str) -> object:
         """Invalidate all sessions for a user"""
         update_sql = "UPDATE secure_sessions SET is_active = 0 WHERE user_id = ?"
         self.db_manager.execute_query(update_sql, (user_id,))
@@ -509,12 +509,12 @@ class SecurityManager:
             for sid in to_remove:
                 del self.active_sessions[sid]
 
-    def _update_session_activity(self, session_id: str) -> Any:
+    def _update_session_activity(self, session_id: str) -> object:
         """Update session last activity timestamp"""
         update_sql = "UPDATE secure_sessions SET last_activity = ? WHERE session_id = ?"
         self.db_manager.execute_query(update_sql, (datetime.utcnow(), session_id))
 
-    def cleanup_expired_sessions(self) -> Any:
+    def cleanup_expired_sessions(self) -> object:
         """Clean up expired sessions"""
         cutoff_time = datetime.utcnow()
         delete_sql = "DELETE FROM secure_sessions WHERE expires_at < ? OR is_active = 0"
@@ -529,7 +529,7 @@ class SecurityManager:
             for sid in expired_sessions:
                 del self.active_sessions[sid]
 
-    def log_security_event(self, event: SecurityEvent) -> Any:
+    def log_security_event(self, event: SecurityEvent) -> object:
         """Log security event to database"""
         insert_sql = """
         INSERT INTO security_events
@@ -616,7 +616,7 @@ class AdvancedEncryption(RobustEncryption):
 class MultiFactorAuthentication:
     """Multi-Factor Authentication management."""
 
-    def __init__(self, db_manager: Any) -> None:
+    def __init__(self, db_manager: object) -> None:
         self.db_manager = db_manager
         self._initialize_mfa_tables()
 
@@ -720,7 +720,7 @@ class MultiFactorAuthentication:
 class SecurityMonitor:
     """Real-time security monitoring and threat detection."""
 
-    def __init__(self, db_manager: Any) -> None:
+    def __init__(self, db_manager: object) -> None:
         self.db_manager = db_manager
         self.security_events: list = []
         self._initialize_monitoring_tables()

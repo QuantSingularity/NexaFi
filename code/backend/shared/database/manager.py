@@ -24,7 +24,7 @@ class DatabaseManager:
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self._initialize_pool()
 
-    def _initialize_pool(self) -> Any:
+    def _initialize_pool(self) -> object:
         """Initialize connection pool"""
         for _ in range(self.pool_size):
             conn = self._create_connection()
@@ -39,7 +39,7 @@ class DatabaseManager:
         return conn
 
     @contextmanager
-    def get_connection(self) -> Any:
+    def get_connection(self) -> object:
         """Get connection from pool"""
         conn = None
         try:
@@ -58,7 +58,7 @@ class DatabaseManager:
                         conn.close()
 
     @contextmanager
-    def transaction(self) -> Any:
+    def transaction(self) -> object:
         """Database transaction context manager"""
         with self.get_connection() as conn:
             try:
@@ -69,7 +69,7 @@ class DatabaseManager:
                 conn.rollback()
                 raise
 
-    def execute_query(self, query: str, params: Tuple = ()) -> Any:
+    def execute_query(self, query: str, params: Tuple = ()) -> object:
         """Execute query (SELECT or DML). Returns cursor for DML, rows list for SELECT."""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
@@ -86,7 +86,7 @@ class DatabaseManager:
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
 
-    def fetch_one(self, query: str, params: Tuple = ()) -> Any:
+    def fetch_one(self, query: str, params: Tuple = ()) -> object:
         """Execute SELECT query and return first row as dict or None."""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
@@ -107,7 +107,7 @@ class DatabaseManager:
             conn.commit()
             return cursor.lastrowid
 
-    def close_all_connections(self) -> Any:
+    def close_all_connections(self) -> object:
         """Close all connections in pool"""
         with self.lock:
             for conn in self.connections:
@@ -123,7 +123,7 @@ class MigrationManager:
         self.migrations_table = "schema_migrations"
         self._ensure_migrations_table()
 
-    def _ensure_migrations_table(self) -> Any:
+    def _ensure_migrations_table(self) -> object:
         """Create migrations tracking table"""
         query = f"\n        CREATE TABLE IF NOT EXISTS {self.migrations_table} (\n            version TEXT PRIMARY KEY,\n            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            description TEXT\n        )\n        "
         self.db_manager.execute_update(query)
@@ -134,7 +134,7 @@ class MigrationManager:
         rows = self.db_manager.execute_query(query)
         return [row["version"] for row in rows]
 
-    def apply_migration(self, version: str, description: str, sql: str) -> Any:
+    def apply_migration(self, version: str, description: str, sql: str) -> object:
         """Apply a database migration"""
         applied_migrations = self.get_applied_migrations()
         if version in applied_migrations:
@@ -152,7 +152,7 @@ class MigrationManager:
             )
         logger.info(f"Migration {version} applied successfully")
 
-    def rollback_migration(self, version: str, rollback_sql: str) -> Any:
+    def rollback_migration(self, version: str, rollback_sql: str) -> object:
         """Rollback a database migration"""
         applied_migrations = self.get_applied_migrations()
         if version not in applied_migrations:
@@ -181,12 +181,12 @@ class BaseModel:
             setattr(self, key, value)
 
     @classmethod
-    def set_db_manager(cls: Any, db_manager: DatabaseManager) -> Any:
+    def set_db_manager(cls, db_manager: DatabaseManager) -> object:
         """Set database manager for all models"""
         cls.db_manager = db_manager
 
     @classmethod
-    def find_by_id(cls: Any, id_value: Any) -> Any:
+    def find_by_id(cls, id_value: object) -> object:
         """Find record by ID"""
         query = f"SELECT * FROM {cls.table_name} WHERE id = ?"
         rows = cls.db_manager.execute_query(query, (id_value,))
@@ -195,7 +195,7 @@ class BaseModel:
         return None
 
     @classmethod
-    def find_all(cls: Any, where_clause: str = "", params: Tuple = ()) -> Any:
+    def find_all(cls, where_clause: str = "", params: Tuple = ()) -> object:
         """Find all records matching criteria"""
         query = f"SELECT * FROM {cls.table_name}"
         if where_clause:
@@ -204,7 +204,7 @@ class BaseModel:
         return [cls(**dict(row)) for row in rows]
 
     @classmethod
-    def find_one(cls: Any, where_clause: str, params: Tuple = ()) -> Any:
+    def find_one(cls, where_clause: str, params: Tuple = ()) -> object:
         """Find one record matching criteria"""
         query = f"SELECT * FROM {cls.table_name} WHERE {where_clause} LIMIT 1"
         rows = cls.db_manager.execute_query(query, params)
@@ -212,14 +212,14 @@ class BaseModel:
             return cls(**dict(rows[0]))
         return None
 
-    def save(self) -> Any:
+    def save(self) -> object:
         """Save record to database"""
         if hasattr(self, "id") and self.id:
             return self._update()
         else:
             return self._insert()
 
-    def _insert(self) -> Any:
+    def _insert(self) -> object:
         """Insert new record"""
         fields = [k for k in self.__dict__.keys() if k != "id"]
         values = [getattr(self, k) for k in fields]
@@ -229,7 +229,7 @@ class BaseModel:
         self.id = self.db_manager.execute_insert(query, tuple(values))
         return self
 
-    def _update(self) -> Any:
+    def _update(self) -> object:
         """Update existing record"""
         fields = [k for k in self.__dict__.keys() if k != "id"]
         values = [getattr(self, k) for k in fields]
@@ -239,7 +239,7 @@ class BaseModel:
         self.db_manager.execute_update(query, tuple(values))
         return self
 
-    def delete(self) -> Any:
+    def delete(self) -> object:
         """Delete record from database"""
         if hasattr(self, "id") and self.id:
             query = f"DELETE FROM {self.table_name} WHERE id = ?"

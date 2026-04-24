@@ -5,7 +5,6 @@ Core auth and user routes are handled directly in main.py.
 
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any
 
 import jwt
 from flask import Blueprint, current_app, g, jsonify, request
@@ -14,7 +13,7 @@ from models.user import User, UserSession
 user_bp = Blueprint("user", __name__)
 
 
-def generate_token(user_id: Any, expires_hours: Any = 24) -> Any:
+def generate_token(user_id: str, expires_hours: object = 24) -> object:
     """Generate JWT token"""
     payload = {
         "user_id": user_id,
@@ -26,7 +25,7 @@ def generate_token(user_id: Any, expires_hours: Any = 24) -> Any:
     )
 
 
-def verify_token(token: Any) -> Any:
+def verify_token(token: object) -> object:
     """Verify JWT token"""
     try:
         payload = jwt.decode(
@@ -41,7 +40,7 @@ def verify_token(token: Any) -> Any:
         return None
 
 
-def require_auth(f: Any) -> Any:
+def require_auth(f: object) -> object:
     """Authentication decorator for blueprint routes"""
 
     @wraps(f)
@@ -75,7 +74,7 @@ def require_auth(f: Any) -> Any:
 
 @user_bp.route("/api/v1/users/sessions", methods=["GET"])
 @require_auth
-def get_sessions() -> Any:
+def get_sessions() -> object:
     """Get active sessions for current user"""
     user_id = g.current_user["user_id"]
     sessions = UserSession.find_all("user_id = ? AND is_active = 1", (user_id,))
@@ -100,7 +99,7 @@ def get_sessions() -> Any:
 
 @user_bp.route("/api/v1/users/sessions/<int:session_id>", methods=["DELETE"])
 @require_auth
-def revoke_session(session_id: int) -> Any:
+def revoke_session(session_id: int) -> object:
     """Revoke a specific session"""
     user_id = g.current_user["user_id"]
     session = UserSession.find_one("id = ? AND user_id = ?", (session_id, user_id))
@@ -113,7 +112,7 @@ def revoke_session(session_id: int) -> Any:
 
 @user_bp.route("/api/v1/users/change-password", methods=["POST"])
 @require_auth
-def change_password() -> Any:
+def change_password() -> object:
     """Change user password"""
     data = request.get_json() or {}
     user_id = g.current_user["user_id"]

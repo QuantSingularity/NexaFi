@@ -37,7 +37,7 @@ class InfrastructureConfig:
     )
 
     @classmethod
-    def get_redis_config(cls: Any) -> Dict[str, Any]:
+    def get_redis_config(cls) -> Dict[str, Any]:
         """Get Redis connection configuration"""
         config = {
             "host": cls.REDIS_HOST,
@@ -50,7 +50,7 @@ class InfrastructureConfig:
         return config
 
     @classmethod
-    def get_rabbitmq_config(cls: Any) -> Dict[str, Any]:
+    def get_rabbitmq_config(cls) -> Dict[str, Any]:
         """Get RabbitMQ connection configuration"""
         return {
             "host": cls.RABBITMQ_HOST,
@@ -63,7 +63,7 @@ class InfrastructureConfig:
         }
 
     @classmethod
-    def get_elasticsearch_config(cls: Any) -> Dict[str, Any]:
+    def get_elasticsearch_config(cls) -> Dict[str, Any]:
         """Get Elasticsearch connection configuration"""
         return {
             "hosts": [cls.ELASTICSEARCH_URL],

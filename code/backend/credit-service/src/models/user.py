@@ -9,12 +9,12 @@ class BaseModel:
     table_name = None
     db_manager = None
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, **kwargs: object) -> None:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     @classmethod
-    def find_by_id(cls: Any, id_value: Any) -> Any:
+    def find_by_id(cls, id_value: object) -> object:
         """Find record by ID - delegates to actual shared BaseModel if available"""
         # Import actual BaseModel from shared if available
         try:
@@ -35,7 +35,7 @@ class BaseModel:
             return None
 
     @classmethod
-    def find_all(cls: Any, where_clause: str = "", params: tuple = ()) -> Any:
+    def find_all(cls, where_clause: str = "", params: tuple = ()) -> object:
         """Find all records - delegates to actual shared BaseModel if available"""
         try:
             import os
@@ -55,7 +55,7 @@ class BaseModel:
             return []
 
     @classmethod
-    def find_one(cls: Any, where_clause: str, params: tuple = ()) -> Any:
+    def find_one(cls, where_clause: str, params: tuple = ()) -> object:
         """Find one record - delegates to actual shared BaseModel if available"""
         try:
             import os
@@ -90,7 +90,7 @@ class BaseModel:
         except (ImportError, AttributeError):
             pass
 
-    def delete(self) -> Any:
+    def delete(self) -> object:
         pass
 
     def to_dict(self) -> Dict[str, Any]:
@@ -100,25 +100,25 @@ class BaseModel:
 class CreditScoreModel(BaseModel):
     table_name: Optional[str] = "credit_score_models"
 
-    def get_features(self) -> Any:
+    def get_features(self) -> object:
         return json.loads(self.features) if self.features else []
 
-    def set_features(self, features_list: Any) -> Any:
+    def set_features(self, features_list: object) -> object:
         self.features = json.dumps(features_list)
 
-    def get_weights(self) -> Any:
+    def get_weights(self) -> object:
         return json.loads(self.weights) if self.weights else {}
 
-    def set_weights(self, weights_dict: Any) -> Any:
+    def set_weights(self, weights_dict: object) -> object:
         self.weights = json.dumps(weights_dict)
 
-    def get_thresholds(self) -> Any:
+    def get_thresholds(self) -> object:
         return json.loads(self.thresholds) if self.thresholds else {}
 
-    def set_thresholds(self, thresholds_dict: Any) -> Any:
+    def set_thresholds(self, thresholds_dict: object) -> object:
         self.thresholds = json.dumps(thresholds_dict)
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["features"] = self.get_features()
         data["weights"] = self.get_weights()
@@ -129,19 +129,19 @@ class CreditScoreModel(BaseModel):
 class CreditScore(BaseModel):
     table_name: Optional[str] = "credit_scores"
 
-    def get_input_features(self) -> Any:
+    def get_input_features(self) -> object:
         return json.loads(self.input_features) if self.input_features else {}
 
-    def set_input_features(self, features: Any) -> Any:
+    def set_input_features(self, features: object) -> object:
         self.input_features = json.dumps(features)
 
-    def get_calculation_details(self) -> Any:
+    def get_calculation_details(self) -> object:
         return json.loads(self.calculation_details) if self.calculation_details else {}
 
-    def set_calculation_details(self, details: Any) -> Any:
+    def set_calculation_details(self, details: object) -> object:
         self.calculation_details = json.dumps(details)
 
-    def is_expired(self) -> Any:
+    def is_expired(self) -> object:
         if self.expires_at:
             expires_at_dt = (
                 datetime.fromisoformat(self.expires_at)
@@ -151,7 +151,7 @@ class CreditScore(BaseModel):
             return datetime.utcnow() > expires_at_dt
         return False
 
-    def calculate_grade(self) -> Any:
+    def calculate_grade(self) -> object:
         """Calculate letter grade based on score"""
         score = self.score if self.score is not None else 0
         if score >= 800:
@@ -171,7 +171,7 @@ class CreditScore(BaseModel):
         else:
             return "F"
 
-    def calculate_risk_level(self) -> Any:
+    def calculate_risk_level(self) -> object:
         """Calculate risk level based on score"""
         score = self.score if self.score is not None else 0
         if score >= 750:
@@ -185,7 +185,7 @@ class CreditScore(BaseModel):
         else:
             return "very_high"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["input_features"] = self.get_input_features()
         data["calculation_details"] = self.get_calculation_details()
@@ -206,31 +206,31 @@ class CreditScore(BaseModel):
 class LoanApplication(BaseModel):
     table_name: Optional[str] = "loan_applications"
 
-    def get_applicant_data(self) -> Any:
+    def get_applicant_data(self) -> object:
         return json.loads(self.applicant_data) if self.applicant_data else {}
 
-    def set_applicant_data(self, data: Any) -> Any:
+    def set_applicant_data(self, data: object) -> object:
         self.applicant_data = json.dumps(data)
 
-    def get_financial_data(self) -> Any:
+    def get_financial_data(self) -> object:
         return json.loads(self.financial_data) if self.financial_data else {}
 
-    def set_financial_data(self, data: Any) -> Any:
+    def set_financial_data(self, data: object) -> object:
         self.financial_data = json.dumps(data)
 
-    def get_business_data(self) -> Any:
+    def get_business_data(self) -> object:
         return json.loads(self.business_data) if self.business_data else {}
 
-    def set_business_data(self, data: Any) -> Any:
+    def set_business_data(self, data: object) -> object:
         self.business_data = json.dumps(data)
 
-    def get_risk_assessment(self) -> Any:
+    def get_risk_assessment(self) -> object:
         return json.loads(self.risk_assessment) if self.risk_assessment else {}
 
-    def set_risk_assessment(self, assessment: Any) -> Any:
+    def set_risk_assessment(self, assessment: object) -> object:
         self.risk_assessment = json.dumps(assessment)
 
-    def calculate_monthly_payment(self) -> Any:
+    def calculate_monthly_payment(self) -> object:
         """Calculate monthly payment based on approved terms"""
         if self.approved_amount and self.interest_rate and self.term_months:
             monthly_rate = self.interest_rate / 100 / 12
@@ -244,14 +244,14 @@ class LoanApplication(BaseModel):
             return round(payment, 2)
         return None
 
-    def calculate_total_interest(self) -> Any:
+    def calculate_total_interest(self) -> object:
         """Calculate total interest over loan term"""
         if self.monthly_payment and self.term_months and self.approved_amount:
             total_payments = self.monthly_payment * self.term_months
             return round(total_payments - self.approved_amount, 2)
         return None
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["applicant_data"] = self.get_applicant_data()
         data["financial_data"] = self.get_financial_data()
@@ -273,7 +273,7 @@ class LoanApplication(BaseModel):
 class Loan(BaseModel):
     table_name: Optional[str] = "loans"
 
-    def calculate_remaining_balance(self) -> Any:
+    def calculate_remaining_balance(self) -> object:
         """Calculate remaining loan balance"""
         return (
             (self.principal_balance or 0)
@@ -281,11 +281,11 @@ class Loan(BaseModel):
             + (self.fees_balance or 0)
         )
 
-    def calculate_payoff_amount(self) -> Any:
+    def calculate_payoff_amount(self) -> object:
         """Calculate amount needed to pay off loan"""
         return self.calculate_remaining_balance()
 
-    def update_delinquency_status(self) -> Any:
+    def update_delinquency_status(self) -> object:
         """Update delinquency status based on payment history"""
         if self.next_payment_date:
             next_payment_dt = (
@@ -303,7 +303,7 @@ class Loan(BaseModel):
             self.days_past_due = 0
             self.is_delinquent = False
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["remaining_balance"] = self.calculate_remaining_balance()
         data["payoff_amount"] = self.calculate_payoff_amount()
@@ -313,7 +313,7 @@ class Loan(BaseModel):
 class LoanPayment(BaseModel):
     table_name: Optional[str] = "loan_payments"
 
-    def is_late(self) -> Any:
+    def is_late(self) -> object:
         if self.payment_date and self.due_date:
             payment_dt = (
                 datetime.fromisoformat(self.payment_date)
@@ -328,7 +328,7 @@ class LoanPayment(BaseModel):
             return payment_dt > due_dt
         return False
 
-    def days_late(self) -> Any:
+    def days_late(self) -> object:
         if self.is_late():
             payment_dt = (
                 datetime.fromisoformat(self.payment_date)
@@ -343,7 +343,7 @@ class LoanPayment(BaseModel):
             return (payment_dt - due_dt).days
         return 0
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["is_late"] = self.is_late()
         data["days_late"] = self.days_late()
@@ -353,39 +353,39 @@ class LoanPayment(BaseModel):
 class RiskAssessment(BaseModel):
     table_name: Optional[str] = "risk_assessments"
 
-    def get_risk_factors(self) -> Any:
+    def get_risk_factors(self) -> object:
         return json.loads(self.risk_factors) if self.risk_factors else {}
 
-    def set_risk_factors(self, factors: Any) -> Any:
+    def set_risk_factors(self, factors: object) -> object:
         self.risk_factors = json.dumps(factors)
 
-    def get_risk_scores(self) -> Any:
+    def get_risk_scores(self) -> object:
         return json.loads(self.risk_scores) if self.risk_scores else {}
 
-    def set_risk_scores(self, scores: Any) -> Any:
+    def set_risk_scores(self, scores: object) -> object:
         self.risk_scores = json.dumps(scores)
 
-    def get_recommendations(self) -> Any:
+    def get_recommendations(self) -> object:
         return json.loads(self.recommendations) if self.recommendations else []
 
-    def set_recommendations(self, recommendations: Any) -> Any:
+    def set_recommendations(self, recommendations: object) -> object:
         self.recommendations = json.dumps(recommendations)
 
-    def get_mitigation_strategies(self) -> Any:
+    def get_mitigation_strategies(self) -> object:
         return (
             json.loads(self.mitigation_strategies) if self.mitigation_strategies else []
         )
 
-    def set_mitigation_strategies(self, strategies: Any) -> Any:
+    def set_mitigation_strategies(self, strategies: object) -> object:
         self.mitigation_strategies = json.dumps(strategies)
 
-    def get_data_sources(self) -> Any:
+    def get_data_sources(self) -> object:
         return json.loads(self.data_sources) if self.data_sources else []
 
-    def set_data_sources(self, sources: Any) -> Any:
+    def set_data_sources(self, sources: object) -> object:
         self.data_sources = json.dumps(sources)
 
-    def is_expired(self) -> Any:
+    def is_expired(self) -> object:
         if self.valid_until:
             valid_until_dt = (
                 datetime.fromisoformat(self.valid_until)
@@ -395,7 +395,7 @@ class RiskAssessment(BaseModel):
             return datetime.utcnow() > valid_until_dt
         return False
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["risk_factors"] = self.get_risk_factors()
         data["risk_scores"] = self.get_risk_scores()
@@ -409,13 +409,13 @@ class RiskAssessment(BaseModel):
 class LoanDocument(BaseModel):
     table_name: Optional[str] = "loan_documents"
 
-    def get_extracted_data(self) -> Any:
+    def get_extracted_data(self) -> object:
         return json.loads(self.extracted_data) if self.extracted_data else {}
 
-    def set_extracted_data(self, data: Any) -> Any:
+    def set_extracted_data(self, data: object) -> object:
         self.extracted_data = json.dumps(data)
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         data = super().to_dict()
         data["extracted_data"] = self.get_extracted_data()
         return data
@@ -424,5 +424,5 @@ class LoanDocument(BaseModel):
 class LoanApplicationHistory(BaseModel):
     table_name: Optional[str] = "loan_application_history"
 
-    def to_dict(self) -> Any:
+    def to_dict(self) -> object:
         return super().to_dict()

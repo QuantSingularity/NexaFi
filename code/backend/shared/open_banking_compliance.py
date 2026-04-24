@@ -107,7 +107,7 @@ class FAPI2SecurityProfile:
         self.public_key = self._load_public_key(public_key_path)
         self.algorithm = "RS256"
 
-    def _load_private_key(self, key_path: str) -> Any:
+    def _load_private_key(self, key_path: str) -> object:
         """Load RSA private key"""
         if not os.path.exists(key_path):
             private_key = rsa.generate_private_key(
@@ -128,7 +128,7 @@ class FAPI2SecurityProfile:
                 f.read(), password=None, backend=default_backend()
             )
 
-    def _load_public_key(self, key_path: str) -> Any:
+    def _load_public_key(self, key_path: str) -> object:
         """Load RSA public key"""
         if not os.path.exists(key_path):
             public_key = self.private_key.public_key()
@@ -207,11 +207,11 @@ class FAPI2SecurityProfile:
 class PSD2ConsentManager:
     """PSD2 Consent Management"""
 
-    def __init__(self, db_manager: Any) -> None:
+    def __init__(self, db_manager: object) -> None:
         self.db_manager = db_manager
         self._initialize_consent_tables()
 
-    def _initialize_consent_tables(self) -> Any:
+    def _initialize_consent_tables(self) -> object:
         """Initialize consent management tables"""
         consent_table_sql = "\n        CREATE TABLE IF NOT EXISTS psd2_consents (\n            consent_id TEXT PRIMARY KEY,\n            psu_id TEXT NOT NULL,\n            tpp_id TEXT NOT NULL,\n            status TEXT NOT NULL,\n            valid_until TIMESTAMP NOT NULL,\n            frequency_per_day INTEGER DEFAULT 4,\n            recurring_indicator BOOLEAN DEFAULT FALSE,\n            combined_service_indicator BOOLEAN DEFAULT FALSE,\n            access_data TEXT NOT NULL,\n            creation_date_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            status_change_date_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            last_action_date TIMESTAMP,\n            FOREIGN KEY (psu_id) REFERENCES users(id)\n        );\n\n        CREATE INDEX IF NOT EXISTS idx_psd2_consents_psu_id ON psd2_consents(psu_id);\n        CREATE INDEX IF NOT EXISTS idx_psd2_consents_tpp_id ON psd2_consents(tpp_id);\n        CREATE INDEX IF NOT EXISTS idx_psd2_consents_status ON psd2_consents(status);\n        "
         self.db_manager.execute_query(consent_table_sql)
@@ -313,11 +313,11 @@ class PSD2ConsentManager:
 class SCAManager:
     """Strong Customer Authentication Manager"""
 
-    def __init__(self, db_manager: Any) -> None:
+    def __init__(self, db_manager: object) -> None:
         self.db_manager = db_manager
         self._initialize_sca_tables()
 
-    def _initialize_sca_tables(self) -> Any:
+    def _initialize_sca_tables(self) -> object:
         """Initialize SCA tables"""
         sca_table_sql = "\n        CREATE TABLE IF NOT EXISTS sca_authentications (\n            authentication_id TEXT PRIMARY KEY,\n            psu_id TEXT NOT NULL,\n            consent_id TEXT,\n            transaction_id TEXT,\n            status TEXT NOT NULL,\n            sca_method TEXT NOT NULL,\n            challenge_data TEXT,\n            authentication_method_id TEXT,\n            psu_message TEXT,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            expires_at TIMESTAMP,\n            completed_at TIMESTAMP,\n            attempts INTEGER DEFAULT 0,\n            max_attempts INTEGER DEFAULT 3,\n            FOREIGN KEY (psu_id) REFERENCES users(id),\n            FOREIGN KEY (consent_id) REFERENCES psd2_consents(consent_id)\n        );\n\n        CREATE INDEX IF NOT EXISTS idx_sca_psu_id ON sca_authentications(psu_id);\n        CREATE INDEX IF NOT EXISTS idx_sca_consent_id ON sca_authentications(consent_id);\n        CREATE INDEX IF NOT EXISTS idx_sca_status ON sca_authentications(status);\n        "
         self.db_manager.execute_query(sca_table_sql)
@@ -370,7 +370,7 @@ class SCAManager:
 
     def _send_challenge(
         self, psu_id: str, method: AuthenticationMethod, challenge: str
-    ) -> Any:
+    ) -> object:
         """Send authentication challenge to user"""
         logger.info(f"SCA Challenge for user {psu_id} via {method.value}: {challenge}")
 
@@ -395,7 +395,7 @@ class SCAManager:
         else:
             return (False, SCAStatus.RECEIVED)
 
-    def _update_sca_status(self, authentication_id: str, status: SCAStatus) -> Any:
+    def _update_sca_status(self, authentication_id: str, status: SCAStatus) -> object:
         """Update SCA status"""
         update_sql = "\n        UPDATE sca_authentications\n        SET status = ?, completed_at = ?\n        WHERE authentication_id = ?\n        "
         completed_at = (
@@ -405,7 +405,7 @@ class SCAManager:
             update_sql, (status.value, completed_at, authentication_id)
         )
 
-    def _increment_attempts(self, authentication_id: str) -> Any:
+    def _increment_attempts(self, authentication_id: str) -> object:
         """Increment authentication attempts"""
         update_sql = "\n        UPDATE sca_authentications\n        SET attempts = attempts + 1\n        WHERE authentication_id = ?\n        "
         self.db_manager.execute_query(update_sql, (authentication_id,))
@@ -430,7 +430,7 @@ class OpenBankingAPIValidator:
 
     @staticmethod
     def validate_request_signature(
-        request_data: str, signature: str, public_key: Any
+        request_data: str, signature: str, public_key: object
     ) -> bool:
         """Validate request signature"""
         try:

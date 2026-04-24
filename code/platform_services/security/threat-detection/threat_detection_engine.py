@@ -37,8 +37,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from twilio.rest import Client as TwilioClient
 
 logger = logging.getLogger(__name__)
@@ -137,7 +136,7 @@ class ThreatIntelligenceDB(Base):
     first_seen = Column(DateTime, default=datetime.utcnow)
     last_seen = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
     tags = Column(Text)
 
 
@@ -187,14 +186,14 @@ class AnomalyModel(Base):
 class ThreatIntelligenceCollector:
     """Collects threat intelligence from various sources"""
 
-    def __init__(self, db_session: Any, redis_client: redis.Redis) -> None:
+    def __init__(self, db_session: object, redis_client: redis.Redis) -> None:
         self.db_session = db_session
         self.redis_client = redis_client
         self.logger = logging.getLogger(__name__)
         self.sources = []
         self._initialize_sources()
 
-    def _initialize_sources(self) -> Any:
+    def _initialize_sources(self) -> object:
         """Initialize threat intelligence sources"""
         self.sources = [
             {
@@ -217,7 +216,7 @@ class ThreatIntelligenceCollector:
             },
         ]
 
-    def collect_threat_intelligence(self) -> Any:
+    def collect_threat_intelligence(self) -> object:
         """Collect threat intelligence from all sources"""
         try:
             for source in self.sources:
@@ -226,7 +225,7 @@ class ThreatIntelligenceCollector:
         except Exception as e:
             self.logger.error(f"Threat intelligence collection failed: {str(e)}")
 
-    def _collect_from_source(self, source: Dict[str, Any]) -> Any:
+    def _collect_from_source(self, source: Dict[str, Any]) -> object:
         """Collect threat intelligence from a specific source"""
         try:
             response = requests.get(source["url"], timeout=30)
@@ -256,7 +255,7 @@ class ThreatIntelligenceCollector:
         threat_type: str,
         severity: str,
         confidence: float,
-    ) -> Any:
+    ) -> object:
         """Store threat indicator in database"""
         try:
             existing = (
@@ -316,7 +315,7 @@ class ThreatIntelligenceCollector:
 class AnomalyDetector:
     """Machine learning-based anomaly detection"""
 
-    def __init__(self, db_session: Any, redis_client: redis.Redis) -> None:
+    def __init__(self, db_session: object, redis_client: redis.Redis) -> None:
         self.db_session = db_session
         self.redis_client = redis_client
         self.logger = logging.getLogger(__name__)
@@ -325,7 +324,7 @@ class AnomalyDetector:
         self.feature_extractors = {}
         self._initialize_models()
 
-    def _initialize_models(self) -> Any:
+    def _initialize_models(self) -> object:
         """Initialize anomaly detection models"""
         self.models["user_behavior"] = IsolationForest(
             contamination=0.1, random_state=42, n_estimators=100
@@ -339,7 +338,7 @@ class AnomalyDetector:
         for model_name in self.models.keys():
             self.scalers[model_name] = StandardScaler()
 
-    def train_models(self) -> Any:
+    def train_models(self) -> object:
         """Train anomaly detection models"""
         try:
             self._train_user_behavior_model()
@@ -349,7 +348,7 @@ class AnomalyDetector:
         except Exception as e:
             self.logger.error(f"Model training failed: {str(e)}")
 
-    def _train_user_behavior_model(self) -> Any:
+    def _train_user_behavior_model(self) -> object:
         """Train user behavior anomaly detection model"""
         try:
             np.random.seed(42)
@@ -364,7 +363,7 @@ class AnomalyDetector:
         except Exception as e:
             self.logger.error(f"User behavior model training failed: {str(e)}")
 
-    def _train_network_traffic_model(self) -> Any:
+    def _train_network_traffic_model(self) -> object:
         """Train network traffic anomaly detection model"""
         try:
             np.random.seed(42)
@@ -379,7 +378,7 @@ class AnomalyDetector:
         except Exception as e:
             self.logger.error(f"Network traffic model training failed: {str(e)}")
 
-    def _train_api_usage_model(self) -> Any:
+    def _train_api_usage_model(self) -> object:
         """Train API usage anomaly detection model"""
         try:
             np.random.seed(42)
@@ -394,7 +393,7 @@ class AnomalyDetector:
         except Exception as e:
             self.logger.error(f"API usage model training failed: {str(e)}")
 
-    def _save_model(self, model_name: str) -> Any:
+    def _save_model(self, model_name: str) -> object:
         """Save trained model to disk"""
         try:
             model_dir = f"/tmp/anomaly_models/{model_name}"
@@ -471,14 +470,14 @@ class AnomalyDetector:
 class ThreatDetectionRules:
     """Rule-based threat detection engine"""
 
-    def __init__(self, db_session: Any, redis_client: redis.Redis) -> None:
+    def __init__(self, db_session: object, redis_client: redis.Redis) -> None:
         self.db_session = db_session
         self.redis_client = redis_client
         self.logger = logging.getLogger(__name__)
         self.rules = []
         self._initialize_rules()
 
-    def _initialize_rules(self) -> Any:
+    def _initialize_rules(self) -> object:
         """Initialize threat detection rules"""
         self.rules = [
             {
@@ -952,7 +951,7 @@ class AutomatedResponseSystem:
             self.logger.error(f"Network isolation failed: {str(e)}")
             return {"success": False, "error": str(e)}
 
-    def _send_email_alert(self, message: str, threat_event: ThreatEvent) -> Any:
+    def _send_email_alert(self, message: str, threat_event: ThreatEvent) -> object:
         """Send email alert"""
         try:
             smtp_server = self.config.get("smtp_server")
@@ -975,7 +974,7 @@ class AutomatedResponseSystem:
         except Exception as e:
             self.logger.error(f"Email alert failed: {str(e)}")
 
-    def _send_slack_alert(self, message: str, threat_event: ThreatEvent) -> Any:
+    def _send_slack_alert(self, message: str, threat_event: ThreatEvent) -> object:
         """Send Slack alert"""
         try:
             slack_token = self.config.get("slack_token")
@@ -996,7 +995,7 @@ class AutomatedResponseSystem:
         except Exception as e:
             self.logger.error(f"Slack alert failed: {str(e)}")
 
-    def _send_sms_alert(self, message: str, threat_event: ThreatEvent) -> Any:
+    def _send_sms_alert(self, message: str, threat_event: ThreatEvent) -> object:
         """Send SMS alert"""
         try:
             twilio_sid = self.config.get("twilio_sid")
@@ -1019,7 +1018,7 @@ class ThreatDetectionEngine:
     """Main threat detection engine"""
 
     def __init__(
-        self, db_session: Any, redis_client: redis.Redis, config: Dict[str, Any]
+        self, db_session: object, redis_client: redis.Redis, config: Dict[str, Any]
     ) -> None:
         self.db_session = db_session
         self.redis_client = redis_client
@@ -1243,7 +1242,7 @@ class ThreatDetectionEngine:
             self.logger.error(f"API feature extraction failed: {str(e)}")
             return None
 
-    def _process_threat(self, threat: ThreatEvent) -> Any:
+    def _process_threat(self, threat: ThreatEvent) -> object:
         """Process detected threat"""
         try:
             threat_log = ThreatEventLog(
@@ -1330,7 +1329,7 @@ class ThreatDetectionEngine:
             {"resource": resource, "count": count} for resource, count in top_targets
         ]
 
-    def train_models(self) -> Any:
+    def train_models(self) -> object:
         """Train anomaly detection models"""
         try:
             self.anomaly_detector.train_models()
@@ -1338,7 +1337,7 @@ class ThreatDetectionEngine:
         except Exception as e:
             self.logger.error(f"Model training failed: {str(e)}")
 
-    def update_threat_intelligence(self) -> Any:
+    def update_threat_intelligence(self) -> object:
         """Update threat intelligence data"""
         try:
             self.threat_intel.collect_threat_intelligence()

@@ -21,7 +21,7 @@ class MessageQueue:
         self.channel = None
         self.config = InfrastructureConfig.get_rabbitmq_config()
 
-    def connect(self) -> Any:
+    def connect(self) -> object:
         """Establish connection to RabbitMQ"""
         try:
             credentials = pika.PlainCredentials(
@@ -41,13 +41,13 @@ class MessageQueue:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise
 
-    def disconnect(self) -> Any:
+    def disconnect(self) -> object:
         """Close connection to RabbitMQ"""
         if self.connection and (not self.connection.is_closed):
             self.connection.close()
             logger.info("Disconnected from RabbitMQ")
 
-    def declare_queue(self, queue_name: str, durable: bool = True) -> Any:
+    def declare_queue(self, queue_name: str, durable: bool = True) -> object:
         """Declare a queue"""
         if not self.channel:
             self.connect()
@@ -56,7 +56,7 @@ class MessageQueue:
 
     def declare_exchange(
         self, exchange_name: str, exchange_type: str = "direct"
-    ) -> Any:
+    ) -> object:
         """Declare an exchange"""
         if not self.channel:
             self.connect()
@@ -71,7 +71,7 @@ class MessageQueue:
         message: Dict[str, Any],
         exchange: str = "",
         routing_key: Optional[str] = None,
-    ) -> Any:
+    ) -> object:
         """Publish a message to a queue"""
         if not self.channel:
             self.connect()
@@ -86,7 +86,7 @@ class MessageQueue:
         )
         logger.info(f"Published message to {queue_name}: {message}")
 
-    def consume_messages(self, queue_name: str, callback: Callable) -> Any:
+    def consume_messages(self, queue_name: str, callback: Callable) -> object:
         """Consume messages from a queue"""
         if not self.channel:
             self.connect()
@@ -118,7 +118,7 @@ class Queues:
     AUDIT_LOGGING = "audit_logging"
 
 
-def publish_task(queue_name: str, task_data: Dict[str, Any]) -> Any:
+def publish_task(queue_name: str, task_data: Dict[str, Any]) -> object:
     """Publish a task to a queue"""
     try:
         mq.publish_message(queue_name, task_data)
@@ -128,7 +128,7 @@ def publish_task(queue_name: str, task_data: Dict[str, Any]) -> Any:
         return False
 
 
-def setup_queues() -> Any:
+def setup_queues() -> object:
     """Setup all required queues"""
     queues = [
         Queues.REPORT_GENERATION,

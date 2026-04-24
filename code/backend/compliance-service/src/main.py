@@ -173,7 +173,7 @@ class SanctionsChecker:
     }
 
     @classmethod
-    def screen_entity(cls: Any, entity_name: str) -> tuple[str, int, List[str]]:
+    def screen_entity(cls, entity_name: str) -> tuple[str, int, List[str]]:
         """Screen entity against sanctions lists"""
         entity_name_lower = entity_name.lower()
         matched_lists = []
@@ -207,7 +207,7 @@ class SanctionsChecker:
 
 
 @app.route("/api/v1/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify(
         {
@@ -228,7 +228,7 @@ def health_check() -> Any:
     "kyc_verification_initiated",
     severity=AuditSeverity.HIGH,
 )
-def initiate_kyc_verification() -> Any:
+def initiate_kyc_verification() -> object:
     """Initiate KYC verification for a user"""
     data = request.validated_data  # type: ignore[attr-defined]
     kyc = KYCVerification(
@@ -272,7 +272,7 @@ def initiate_kyc_verification() -> Any:
     "kyc_verification_completed",
     severity=AuditSeverity.HIGH,
 )
-def complete_kyc_verification(verification_id: Any) -> Any:
+def complete_kyc_verification(verification_id: object) -> object:
     """Complete KYC verification"""
     data = request.get_json() or {}
     kyc = KYCVerification.find_by_id(verification_id)
@@ -313,7 +313,7 @@ def complete_kyc_verification(verification_id: Any) -> Any:
     "aml_check_initiated",
     severity=AuditSeverity.HIGH,
 )
-def perform_aml_check() -> Any:
+def perform_aml_check() -> object:
     """Perform AML check on a transaction"""
     data = request.validated_data  # type: ignore[attr-defined]
     transaction_data = request.get_json().get("transaction_data", {})
@@ -365,7 +365,7 @@ def perform_aml_check() -> Any:
 @audit_action(
     AuditEventType.USER_UPDATE, "sanctions_screening", severity=AuditSeverity.HIGH
 )
-def screen_sanctions() -> Any:
+def screen_sanctions() -> object:
     """Screen entity against sanctions lists"""
     data = request.validated_data  # type: ignore[attr-defined]
     result, match_score, matched_lists = SanctionsChecker.screen_entity(
@@ -416,7 +416,7 @@ def screen_sanctions() -> Any:
     "compliance_report_generated",
     severity=AuditSeverity.MEDIUM,
 )
-def generate_compliance_report() -> Any:
+def generate_compliance_report() -> object:
     """Generate compliance report"""
     data = request.get_json() or {}
     report_type = data.get("report_type", "suspicious_activity")
@@ -489,7 +489,7 @@ def generate_compliance_report() -> Any:
 @app.route("/api/v1/compliance/dashboard", methods=["GET"])
 @require_auth
 @require_permission("compliance:read")
-def compliance_dashboard() -> Any:
+def compliance_dashboard() -> object:
     """Get compliance dashboard data"""
     pending_kyc = len(KYCVerification.find_all("status = 'pending'"))
     high_risk_aml = len(

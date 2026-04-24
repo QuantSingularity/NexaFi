@@ -2,7 +2,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import bcrypt
 import jwt
@@ -12,7 +12,7 @@ from flask import g, jsonify, request
 
 class AuthManager:
 
-    def __init__(self, secret_key: str, redis_client: Any = None) -> None:
+    def __init__(self, secret_key: str, redis_client: object = None) -> None:
         self.secret_key = secret_key
         self.redis_client = redis_client or redis.Redis(
             host=os.environ.get("REDIS_HOST", "localhost"),
@@ -117,7 +117,7 @@ class AuthManager:
 auth_manager = None
 
 
-def init_auth_manager(secret_key: str) -> Any:
+def init_auth_manager(secret_key: str) -> object:
     """Initialize global auth manager"""
     global auth_manager
     auth_manager = AuthManager(secret_key)
@@ -175,7 +175,7 @@ def has_permission(user_roles: List[str], required_permission: str) -> bool:
     return required_permission in user_permissions
 
 
-def require_auth(f: Any) -> Any:
+def require_auth(f: object) -> object:
     """Authentication decorator"""
 
     @wraps(f)
@@ -199,7 +199,7 @@ def require_auth(f: Any) -> Any:
     return decorated_function
 
 
-def require_permission(permission: str) -> Any:
+def require_permission(permission: str) -> object:
     """Permission-based authorization decorator"""
 
     def decorator(f):
@@ -218,7 +218,7 @@ def require_permission(permission: str) -> Any:
     return decorator
 
 
-def require_role(required_roles: List[str]) -> Any:
+def require_role(required_roles: List[str]) -> object:
     """Role-based authorization decorator"""
 
     def decorator(f):
@@ -237,7 +237,7 @@ def require_role(required_roles: List[str]) -> Any:
     return decorator
 
 
-def optional_auth(f: Any) -> Any:
+def optional_auth(f: object) -> object:
     """Optional authentication decorator - sets user info if token is valid"""
 
     @wraps(f)

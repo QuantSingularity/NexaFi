@@ -7,7 +7,6 @@ sys.path.insert(
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "shared")
 )  # shared library
-from typing import Any
 
 from database.manager import BaseModel, initialize_database
 from flask import Flask, send_from_directory
@@ -38,7 +37,7 @@ for version, migration in PAYMENT_MIGRATIONS.items():
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
-def serve(path: Any) -> Any:
+def serve(path: str) -> object:
     static_folder_path = app.static_folder
     if static_folder_path is None:
         return ("Static folder not configured", 404)
@@ -53,12 +52,12 @@ def serve(path: Any) -> Any:
 
 
 @app.errorhandler(404)
-def not_found(error: Any) -> Any:
+def not_found(error: Exception) -> object:
     return ({"error": "Endpoint not found"}, 404)
 
 
 @app.errorhandler(500)
-def internal_error(error: Any) -> Any:
+def internal_error(error: Exception) -> object:
     return ({"error": "Internal server error"}, 500)
 
 

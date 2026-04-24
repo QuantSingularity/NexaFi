@@ -14,7 +14,6 @@ from unittest.mock import Mock, patch
 sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )  # backend root (shared/ is a subdir)
-from typing import Any
 
 from shared.open_banking_compliance import (
     AuthenticationMethod,
@@ -42,7 +41,7 @@ logger = logging.getLogger(__name__)
 class TestFAPI2SecurityProfile(unittest.TestCase):
     """Test FAPI 2.0 Security Profile implementation"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test fixtures"""
         self.temp_dir = "/tmp/test_keys"
         os.makedirs(self.temp_dir, exist_ok=True)
@@ -51,7 +50,7 @@ class TestFAPI2SecurityProfile(unittest.TestCase):
             public_key_path=f"{self.temp_dir}/test_public.pem",
         )
 
-    def test_jwt_creation_and_verification(self) -> Any:
+    def test_jwt_creation_and_verification(self) -> None:
         """Test JWT creation and verification"""
         payload = {"test": "data", "user_id": "12345"}
         audience = "test-client"
@@ -68,14 +67,14 @@ class TestFAPI2SecurityProfile(unittest.TestCase):
         for claim in required_claims:
             self.assertIn(claim, verified_payload)
 
-    def test_jwt_verification_with_wrong_audience(self) -> Any:
+    def test_jwt_verification_with_wrong_audience(self) -> None:
         """Test JWT verification fails with wrong audience"""
         payload = {"test": "data"}
         token = self.fapi.create_signed_jwt(payload, "correct-audience", "issuer")
         with self.assertRaises(ValueError):
             self.fapi.verify_jwt(token, "wrong-audience", "issuer")
 
-    def test_dpop_proof_creation(self) -> Any:
+    def test_dpop_proof_creation(self) -> None:
         """Test DPoP proof creation"""
         http_method = "POST"
         http_uri = "https://api.example.com/resource"
@@ -86,7 +85,7 @@ class TestFAPI2SecurityProfile(unittest.TestCase):
         parts = dpop_proof.split(".")
         self.assertEqual(len(parts), 3)
 
-    def tearDown(self) -> Any:
+    def tearDown(self) -> None:
         """Clean up test fixtures"""
         import shutil
 
@@ -97,14 +96,14 @@ class TestFAPI2SecurityProfile(unittest.TestCase):
 class TestPSD2ConsentManager(unittest.TestCase):
     """Test PSD2 Consent Management"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test fixtures"""
         self.mock_db = Mock()
         self.mock_db.execute_query = Mock()
         self.mock_db.fetch_one = Mock()
         self.consent_manager = PSD2ConsentManager(self.mock_db)
 
-    def test_create_consent(self) -> Any:
+    def test_create_consent(self) -> None:
         """Test consent creation"""
         psu_id = "user123"
         tpp_id = "tpp456"
@@ -121,7 +120,7 @@ class TestPSD2ConsentManager(unittest.TestCase):
         self.assertEqual(consent.access, access_data)
         self.mock_db.execute_query.assert_called()
 
-    def test_validate_consent_success(self) -> Any:
+    def test_validate_consent_success(self) -> None:
         """Test successful consent validation"""
         consent_id = "consent123"
         tpp_id = "tpp456"
@@ -144,7 +143,7 @@ class TestPSD2ConsentManager(unittest.TestCase):
         self.assertTrue(is_valid)
         self.assertEqual(message, "Consent is valid")
 
-    def test_validate_consent_expired(self) -> Any:
+    def test_validate_consent_expired(self) -> None:
         """Test consent validation with expired consent"""
         consent_id = "consent123"
         tpp_id = "tpp456"
@@ -169,14 +168,14 @@ class TestPSD2ConsentManager(unittest.TestCase):
 class TestSCAManager(unittest.TestCase):
     """Test Strong Customer Authentication Manager"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test fixtures"""
         self.mock_db = Mock()
         self.mock_db.execute_query = Mock()
         self.mock_db.fetch_one = Mock()
         self.sca_manager = SCAManager(self.mock_db)
 
-    def test_initiate_sca(self) -> Any:
+    def test_initiate_sca(self) -> None:
         """Test SCA initiation"""
         psu_id = "user123"
         sca_method = AuthenticationMethod.SMS_OTP
@@ -189,7 +188,7 @@ class TestSCAManager(unittest.TestCase):
         self.assertIsNotNone(sca_data.expires_at)
         self.mock_db.execute_query.assert_called()
 
-    def test_verify_sca_success(self) -> Any:
+    def test_verify_sca_success(self) -> None:
         """Test successful SCA verification"""
         authentication_id = "auth123"
         challenge_response = "123456"
@@ -208,7 +207,7 @@ class TestSCAManager(unittest.TestCase):
         self.assertTrue(is_verified)
         self.assertEqual(status, SCAStatus.FINALISED)
 
-    def test_verify_sca_expired(self) -> Any:
+    def test_verify_sca_expired(self) -> None:
         """Test SCA verification with expired challenge"""
         authentication_id = "auth123"
         challenge_response = "123456"
@@ -231,11 +230,11 @@ class TestSCAManager(unittest.TestCase):
 class TestAdvancedEncryption(unittest.TestCase):
     """Test Advanced Encryption utilities"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test fixtures"""
         self.encryption = AdvancedEncryption("test-master-key")
 
-    def test_encrypt_decrypt_sensitive_data(self) -> Any:
+    def test_encrypt_decrypt_sensitive_data(self) -> None:
         """Test encryption and decryption of sensitive data"""
         original_data = "sensitive-information-123"
         encrypted_data = self.encryption.encrypt_sensitive_data(original_data)
@@ -244,7 +243,7 @@ class TestAdvancedEncryption(unittest.TestCase):
         decrypted_data = self.encryption.decrypt_sensitive_data(encrypted_data)
         self.assertEqual(decrypted_data, original_data)
 
-    def test_encrypt_decrypt_with_expiry(self) -> Any:
+    def test_encrypt_decrypt_with_expiry(self) -> None:
         """Test encryption with expiry validation"""
         original_data = "time-sensitive-data"
         encrypted_data = self.encryption.encrypt_sensitive_data(original_data)
@@ -255,7 +254,7 @@ class TestAdvancedEncryption(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.encryption.decrypt_sensitive_data(encrypted_data, max_age_seconds=0)
 
-    def test_field_level_encryption(self) -> Any:
+    def test_field_level_encryption(self) -> None:
         """Test field-level encryption and decryption"""
         original_data = {
             "name": "John Doe",
@@ -282,14 +281,14 @@ class TestAdvancedEncryption(unittest.TestCase):
 class TestMultiFactorAuthentication(unittest.TestCase):
     """Test Multi-Factor Authentication"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test fixtures"""
         self.mock_db = Mock()
         self.mock_db.execute_query = Mock()
         self.mock_db.fetch_one = Mock()
         self.mfa = MultiFactorAuthentication(self.mock_db)
 
-    def test_setup_totp(self) -> Any:
+    def test_setup_totp(self) -> None:
         """Test TOTP setup"""
         user_id = "user123"
         user_email = "user@example.com"
@@ -308,7 +307,7 @@ class TestMultiFactorAuthentication(unittest.TestCase):
         self.mock_db.execute_query.assert_called()
 
     @patch("pyotp.TOTP")
-    def test_verify_totp_success(self, mock_totp_class: Any) -> Any:
+    def test_verify_totp_success(self, mock_totp_class: object) -> None:
         """Test successful TOTP verification"""
         user_id = "user123"
         token = "123456"
@@ -323,7 +322,7 @@ class TestMultiFactorAuthentication(unittest.TestCase):
         self.assertTrue(result)
         mock_totp_class.assert_called_with("test-secret")
 
-    def test_verify_backup_code_success(self) -> Any:
+    def test_verify_backup_code_success(self) -> None:
         """Test successful backup code verification"""
         user_id = "user123"
         backup_code = "ABCD1234"
@@ -341,7 +340,7 @@ class TestMultiFactorAuthentication(unittest.TestCase):
 class TestFraudDetectionEngine(unittest.TestCase):
     """Test Fraud Detection Engine"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test fixtures"""
         self.mock_db = Mock()
         self.mock_db.execute_query = Mock()
@@ -349,7 +348,7 @@ class TestFraudDetectionEngine(unittest.TestCase):
         self.mock_db.fetch_all = Mock()
         self.fraud_engine = FraudDetectionEngine(self.mock_db)
 
-    def test_analyze_login_behavior_new_ip(self) -> Any:
+    def test_analyze_login_behavior_new_ip(self) -> None:
         """Test login behavior analysis with new IP"""
         user_id = "user123"
         ip_address = "192.168.1.100"
@@ -361,7 +360,7 @@ class TestFraudDetectionEngine(unittest.TestCase):
         self.assertGreater(risk_score, 0)
         self.assertIn("new_device", risk_factors)
 
-    def test_analyze_transaction_behavior_high_amount(self) -> Any:
+    def test_analyze_transaction_behavior_high_amount(self) -> None:
         """Test transaction behavior analysis with high amount"""
         user_id = "user123"
         amount = 10000.0
@@ -375,7 +374,7 @@ class TestFraudDetectionEngine(unittest.TestCase):
         self.assertGreater(risk_score, 50)
         self.assertIn("high_risk_merchant", risk_factors)
 
-    def test_create_fraud_alert(self) -> Any:
+    def test_create_fraud_alert(self) -> None:
         """Test fraud alert creation"""
         user_id = "user123"
         alert_type = "suspicious_login"
@@ -394,7 +393,7 @@ class TestFraudDetectionEngine(unittest.TestCase):
 class TestTransactionRiskAnalysis(unittest.TestCase):
     """Test Transaction Risk Analysis for SCA exemptions"""
 
-    def test_calculate_risk_score_low_risk(self) -> Any:
+    def test_calculate_risk_score_low_risk(self) -> None:
         """Test risk calculation for low-risk transaction"""
         transaction_data = {
             "amount": 50.0,
@@ -410,7 +409,7 @@ class TestTransactionRiskAnalysis(unittest.TestCase):
         self.assertLess(risk_score, 30)
         self.assertEqual(len(risk_factors), 0)
 
-    def test_calculate_risk_score_high_risk(self) -> Any:
+    def test_calculate_risk_score_high_risk(self) -> None:
         """Test risk calculation for high-risk transaction"""
         transaction_data = {
             "amount": 1000.0,
@@ -430,7 +429,7 @@ class TestTransactionRiskAnalysis(unittest.TestCase):
         self.assertIn("cross_border_transaction", risk_factors)
         self.assertIn("unusual_time", risk_factors)
 
-    def test_exemption_eligibility_low_value(self) -> Any:
+    def test_exemption_eligibility_low_value(self) -> None:
         """Test SCA exemption eligibility for low-value transactions"""
         self.assertTrue(
             TransactionRiskAnalysis.is_eligible_for_exemption(20, 25.0, "low_value")
@@ -442,7 +441,7 @@ class TestTransactionRiskAnalysis(unittest.TestCase):
             TransactionRiskAnalysis.is_eligible_for_exemption(10, 50.0, "low_value")
         )
 
-    def test_exemption_eligibility_low_risk(self) -> Any:
+    def test_exemption_eligibility_low_risk(self) -> None:
         """Test SCA exemption eligibility for low-risk transactions"""
         self.assertTrue(
             TransactionRiskAnalysis.is_eligible_for_exemption(15, 80.0, "low_risk")
@@ -461,7 +460,7 @@ class TestTransactionRiskAnalysis(unittest.TestCase):
 class TestOpenBankingAPIValidator(unittest.TestCase):
     """Test Open Banking API Validator"""
 
-    def test_validate_fapi_headers_success(self) -> Any:
+    def test_validate_fapi_headers_success(self) -> None:
         """Test successful FAPI header validation"""
         headers = {
             "x-fapi-auth-date": datetime.now(timezone.utc).strftime(
@@ -474,7 +473,7 @@ class TestOpenBankingAPIValidator(unittest.TestCase):
         self.assertTrue(is_valid)
         self.assertEqual(len(errors), 0)
 
-    def test_validate_fapi_headers_missing_required(self) -> Any:
+    def test_validate_fapi_headers_missing_required(self) -> None:
         """Test FAPI header validation with missing required headers"""
         headers = {
             "x-fapi-auth-date": datetime.now(timezone.utc).strftime(
@@ -487,7 +486,7 @@ class TestOpenBankingAPIValidator(unittest.TestCase):
         self.assertIn("Missing required header: x-fapi-customer-ip-address", errors)
         self.assertIn("Missing required header: x-fapi-interaction-id", errors)
 
-    def test_validate_fapi_headers_invalid_ip(self) -> Any:
+    def test_validate_fapi_headers_invalid_ip(self) -> None:
         """Test FAPI header validation with invalid IP address"""
         headers = {
             "x-fapi-auth-date": datetime.now(timezone.utc).strftime(
@@ -500,7 +499,7 @@ class TestOpenBankingAPIValidator(unittest.TestCase):
         self.assertFalse(is_valid)
         self.assertIn("Invalid x-fapi-customer-ip-address format", errors)
 
-    def test_validate_tpp_certificate(self) -> Any:
+    def test_validate_tpp_certificate(self) -> None:
         """Test TPP certificate validation"""
         certificate_data = "mock-certificate-data"
         is_valid, cert_info = OpenBankingAPIValidator.validate_tpp_certificate(
@@ -515,7 +514,7 @@ class TestOpenBankingAPIValidator(unittest.TestCase):
 class TestSecurityMonitor(unittest.TestCase):
     """Test Security Monitor"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test fixtures"""
         self.mock_db = Mock()
         self.mock_db.execute_query = Mock()
@@ -523,7 +522,7 @@ class TestSecurityMonitor(unittest.TestCase):
         self.mock_db.fetch_all = Mock()
         self.security_monitor = SecurityMonitor(self.mock_db)
 
-    def test_log_security_event(self) -> Any:
+    def test_log_security_event(self) -> None:
         """Test security event logging"""
         event = SecurityEvent(
             event_type=SecurityEventType.LOGIN_ATTEMPT,
@@ -539,7 +538,7 @@ class TestSecurityMonitor(unittest.TestCase):
         self.assertEqual(len(self.security_monitor.security_events), 1)
         self.assertEqual(self.security_monitor.security_events[0], event)
 
-    def test_get_threat_summary(self) -> Any:
+    def test_get_threat_summary(self) -> None:
         """Test threat summary generation"""
         self.mock_db.fetch_all.side_effect = [
             [{"event_type": "login_failure", "threat_level": "high", "count": 5}],

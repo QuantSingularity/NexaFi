@@ -18,7 +18,7 @@ from pythonjsonlogger import jsonlogger
 class CorrelationIdFilter(logging.Filter):
     """Add correlation ID to log records"""
 
-    def filter(self, record: Any) -> Any:
+    def filter(self, record: object) -> object:
         correlation_id = None
         if has_request_context():
             correlation_id = getattr(g, "correlation_id", None)
@@ -36,7 +36,7 @@ class CorrelationIdFilter(logging.Filter):
 class SecurityFilter(logging.Filter):
     """Filter for security-related log events"""
 
-    def filter(self, record: Any) -> Any:
+    def filter(self, record: object) -> object:
         if has_request_context():
             record.ip_address = request.environ.get(
                 "HTTP_X_FORWARDED_FOR", request.remote_addr
@@ -54,7 +54,9 @@ class SecurityFilter(logging.Filter):
 class NexaFiFormatter(jsonlogger.JsonFormatter):
     """Custom JSON formatter for NexaFi logs"""
 
-    def add_fields(self, log_record: Any, record: Any, message_dict: Any) -> Any:
+    def add_fields(
+        self, log_record: object, record: object, message_dict: object
+    ) -> object:
         super().add_fields(log_record, record, message_dict)
         log_record["timestamp"] = datetime.now(timezone.utc).isoformat()
         log_record["service"] = os.environ.get("SERVICE_NAME", "unknown")
@@ -73,7 +75,7 @@ class LoggerManager:
         self.loggers = {}
         self.setup_root_logger()
 
-    def setup_root_logger(self) -> Any:
+    def setup_root_logger(self) -> object:
         """Setup root logger configuration"""
         log_dir = os.path.join(os.getcwd(), "logs")
         os.makedirs(log_dir, exist_ok=True)
@@ -122,7 +124,7 @@ class LoggerManager:
             self.loggers[name] = logger
         return self.loggers[name]
 
-    def log_request_start(self, logger: logging.Logger) -> Any:
+    def log_request_start(self, logger: logging.Logger) -> object:
         """Log request start"""
         if has_request_context():
             logger.info(
@@ -138,7 +140,7 @@ class LoggerManager:
 
     def log_request_end(
         self, logger: logging.Logger, status_code: int, response_time: float
-    ) -> Any:
+    ) -> object:
         """Log request end"""
         if has_request_context():
             logger.info(
@@ -152,7 +154,7 @@ class LoggerManager:
 
     def log_security_event(
         self, event_type: str, message: str, details: Optional[Dict[str, Any]] = None
-    ) -> Any:
+    ) -> object:
         """Log security event"""
         security_logger = logging.getLogger("security")
         security_logger.warning(
@@ -171,7 +173,7 @@ class LoggerManager:
         currency: str,
         transaction_id: str,
         details: Optional[Dict[str, Any]] = None,
-    ) -> Any:
+    ) -> object:
         """Log financial transaction"""
         logger.info(
             f"Financial transaction: {transaction_type}",
@@ -192,7 +194,7 @@ class LoggerManager:
         table: str,
         record_id: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-    ) -> Any:
+    ) -> object:
         """Log database operation"""
         logger.info(
             f"Database operation: {operation} on {table}",
@@ -213,7 +215,7 @@ class LoggerManager:
         method: str,
         status_code: int,
         response_time: float,
-    ) -> Any:
+    ) -> object:
         """Log external API call"""
         logger.info(
             f"External API call: {method} {service}{endpoint}",
@@ -238,7 +240,7 @@ def get_logger(name: str) -> logging.Logger:
 
 def log_security_event(
     event_type: str, message: str, details: Optional[Dict[str, Any]] = None
-) -> Any:
+) -> object:
     """Log security event"""
     logger_manager.log_security_event(event_type, message, details)
 
@@ -249,7 +251,7 @@ def log_financial_transaction(
     currency: str,
     transaction_id: str,
     details: Optional[Dict[str, Any]] = None,
-) -> Any:
+) -> object:
     """Log financial transaction"""
     logger = get_logger("financial")
     logger_manager.log_financial_transaction(
@@ -257,7 +259,7 @@ def log_financial_transaction(
     )
 
 
-def setup_request_logging(app: Any) -> Any:
+def setup_request_logging(app: object) -> object:
     """Setup request logging middleware for Flask app"""
 
     @app.before_request
@@ -280,7 +282,7 @@ def setup_request_logging(app: Any) -> Any:
 
 def log_function_call(
     logger_name: Optional[str] = None, log_args: bool = False, log_result: bool = False
-) -> Any:
+) -> object:
     """Decorator to log function calls"""
 
     def decorator(f):

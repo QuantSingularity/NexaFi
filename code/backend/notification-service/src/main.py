@@ -144,7 +144,7 @@ class NotificationQueue:
     """Notification queue processor"""
 
     def __init__(self) -> None:
-        self.queue: Any = queue.Queue()
+        self.queue: object = queue.Queue()
         self.worker_thread: Optional[Any] = None
         self.running = False
         self.smtp_config = {
@@ -156,7 +156,7 @@ class NotificationQueue:
         }
         self.start_worker()
 
-    def start_worker(self) -> Any:
+    def start_worker(self) -> object:
         """Start background worker thread"""
         self.running = True
         self.worker_thread = threading.Thread(
@@ -164,13 +164,13 @@ class NotificationQueue:
         )
         self.worker_thread.start()
 
-    def stop_worker(self) -> Any:
+    def stop_worker(self) -> object:
         """Stop background worker thread"""
         self.running = False
         if self.worker_thread:
             self.worker_thread.join()
 
-    def _process_notifications(self) -> Any:
+    def _process_notifications(self) -> object:
         """Background worker to process notifications"""
         while self.running:
             try:
@@ -182,7 +182,7 @@ class NotificationQueue:
             except Exception as e:
                 logger.error(f"Error processing notification: {e}")
 
-    def _send_notification(self, notification_id: int) -> Any:
+    def _send_notification(self, notification_id: int) -> object:
         """Send a notification"""
         notification = Notification.find_by_id(notification_id)
         if not notification:
@@ -214,7 +214,7 @@ class NotificationQueue:
             ]:
                 threading.Timer(300, lambda: self.queue.put(notification_id)).start()
 
-    def _send_email(self, notification: Notification) -> Any:
+    def _send_email(self, notification: Notification) -> object:
         """Send email notification"""
         if not self.smtp_config["host"] or self.smtp_config["host"] == "localhost":
             logger.info(
@@ -237,23 +237,23 @@ class NotificationQueue:
                 )
             server.send_message(msg)
 
-    def _send_sms(self, notification: Notification) -> Any:
+    def _send_sms(self, notification: Notification) -> object:
         """Send SMS notification"""
         logger.info(
             f"Simulated SMS sent to user {notification.user_id}: {notification.message[:50]}..."
         )
 
-    def _send_push(self, notification: Notification) -> Any:
+    def _send_push(self, notification: Notification) -> object:
         """Send push notification"""
         logger.info(
             f"Simulated push notification sent to user {notification.user_id}: {notification.subject}"
         )
 
-    def _send_in_app(self, notification: Notification) -> Any:
+    def _send_in_app(self, notification: Notification) -> object:
         """Send in-app notification"""
         logger.info(f"In-app notification created for user {notification.user_id}")
 
-    def enqueue_notification(self, notification_id: int) -> Any:
+    def enqueue_notification(self, notification_id: int) -> object:
         """Add notification to queue"""
         self.queue.put(notification_id)
 
@@ -274,14 +274,14 @@ class TemplateEngine:
         return rendered
 
     @classmethod
-    def get_template(cls: Any, template_name: str) -> Optional[NotificationTemplate]:
+    def get_template(cls, template_name: str) -> Optional[NotificationTemplate]:
         """Get template by name"""
         return NotificationTemplate.find_one(
             "template_name = ? AND is_active = 1", (template_name,)
         )
 
 
-def initialize_templates() -> Any:
+def initialize_templates() -> object:
     """Initialize default notification templates"""
     for template_name, template_data in DEFAULT_TEMPLATES.items():
         existing = NotificationTemplate.find_one("template_name = ?", (template_name,))
@@ -298,7 +298,7 @@ def initialize_templates() -> Any:
 
 
 @app.route("/api/v1/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify(
         {
@@ -318,7 +318,7 @@ def health_check() -> Any:
 @audit_action(
     AuditEventType.SYSTEM_CONFIG_CHANGE, "notification_sent", severity=AuditSeverity.LOW
 )
-def send_notification() -> Any:
+def send_notification() -> object:
     """Send a notification"""
     data = request.validated_data  # type: ignore[attr-defined]
     preferences = NotificationPreferences.find_one("user_id = ?", (data["user_id"],))
@@ -408,7 +408,7 @@ def send_notification() -> Any:
 
 @app.route("/api/v1/notifications/preferences/<user_id>", methods=["GET"])
 @require_auth
-def get_notification_preferences(user_id: Any) -> Any:
+def get_notification_preferences(user_id: str) -> object:
     """Get user notification preferences"""
     if g.current_user["user_id"] != user_id and (
         not any(
@@ -430,7 +430,7 @@ def get_notification_preferences(user_id: Any) -> Any:
 @require_auth
 @validate_json_request(NotificationPreferencesSchema)
 @audit_action(AuditEventType.USER_UPDATE, "notification_preferences_updated")
-def update_notification_preferences(user_id: Any) -> Any:
+def update_notification_preferences(user_id: str) -> object:
     """Update user notification preferences"""
     if g.current_user["user_id"] != user_id and (
         not any(
@@ -474,7 +474,7 @@ def update_notification_preferences(user_id: Any) -> Any:
 
 @app.route("/api/v1/notifications/user/<user_id>", methods=["GET"])
 @require_auth
-def get_user_notifications(user_id: Any) -> Any:
+def get_user_notifications(user_id: str) -> object:
     """Get notifications for a user"""
     if g.current_user["user_id"] != user_id and (
         not any(
@@ -512,7 +512,7 @@ def get_user_notifications(user_id: Any) -> Any:
 @app.route("/api/v1/notifications/<int:notification_id>/status", methods=["PUT"])
 @require_auth
 @require_permission("notification:write")
-def update_notification_status(notification_id: Any) -> Any:
+def update_notification_status(notification_id: object) -> object:
     """Update notification status (for admin use)"""
     data = request.get_json() or {}
     new_status = data.get("status")
@@ -537,7 +537,7 @@ def update_notification_status(notification_id: Any) -> Any:
 @app.route("/api/v1/notifications/stats", methods=["GET"])
 @require_auth
 @require_permission("notification:read")
-def notification_stats() -> Any:
+def notification_stats() -> object:
     """Get notification statistics"""
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     total_sent = len(

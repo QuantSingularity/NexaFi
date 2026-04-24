@@ -178,7 +178,7 @@ class SCAInitiationSchema(SanitizationMixin, Schema):
 # -------------------------------------------------------------------------
 
 
-def validate_tpp_certificate(f: Any) -> Any:
+def validate_tpp_certificate(f: object) -> object:
     """Decorator to validate TPP eIDAS certificate and extract roles"""
 
     @wraps(f)
@@ -219,7 +219,7 @@ def validate_tpp_certificate(f: Any) -> Any:
     return decorated_function
 
 
-def validate_fapi_headers(f: Any) -> Any:
+def validate_fapi_headers(f: object) -> object:
     """Decorator to enforce FAPI 2.0 header requirements"""
 
     @wraps(f)
@@ -244,7 +244,7 @@ def validate_fapi_headers(f: Any) -> Any:
 
 def log_security_event(
     event_type: SecurityEventType, threat_level: ThreatLevel = ThreatLevel.LOW
-) -> Any:
+) -> object:
     """Decorator for comprehensive security telemetry"""
 
     def decorator(f):
@@ -311,7 +311,7 @@ def log_security_event(
 
 
 @app.route("/api/v1/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Service health and compliance status"""
     return jsonify(
         {
@@ -334,7 +334,7 @@ def health_check() -> Any:
     "consent_creation_requested",
     severity=AuditSeverity.HIGH,
 )
-def create_consent() -> Any:
+def create_consent() -> object:
     """Create PSD2 consent (Account Information Service)"""
     data = request.validated_data
 
@@ -419,7 +419,7 @@ def create_consent() -> Any:
 @validate_tpp_certificate
 @validate_fapi_headers
 @log_security_event(SecurityEventType.DATA_ACCESS)
-def get_consent(consent_id: str) -> Any:
+def get_consent(consent_id: str) -> object:
     """Get consent details"""
     consent = consent_manager.get_consent(consent_id)
     if not consent:
@@ -457,7 +457,7 @@ def get_consent(consent_id: str) -> Any:
 @validate_fapi_headers
 @validate_json_request(SCAInitiationSchema)
 @log_security_event(SecurityEventType.LOGIN_ATTEMPT, ThreatLevel.MODERATE)
-def initiate_consent_authorisation(consent_id: str) -> Any:
+def initiate_consent_authorisation(consent_id: str) -> object:
     """Initiate Strong Customer Authentication for consent"""
     data = request.validated_data
 
@@ -511,7 +511,7 @@ def initiate_consent_authorisation(consent_id: str) -> Any:
 @validate_tpp_certificate
 @validate_fapi_headers
 @log_security_event(SecurityEventType.LOGIN_ATTEMPT, ThreatLevel.HIGH)
-def update_consent_authorisation(consent_id: str, authorisation_id: str) -> Any:
+def update_consent_authorisation(consent_id: str, authorisation_id: str) -> object:
     """Update SCA authorisation with authentication data"""
     data = request.get_json() or {}
     auth_response = data.get("scaAuthenticationData")
@@ -559,7 +559,7 @@ def update_consent_authorisation(consent_id: str, authorisation_id: str) -> Any:
     "payment_initiation_requested",
     severity=AuditSeverity.CRITICAL,
 )
-def initiate_payment() -> Any:
+def initiate_payment() -> object:
     """Initiate SEPA Credit Transfer (Payment Initiation Service)"""
     data = request.validated_data
 
@@ -681,7 +681,7 @@ def initiate_payment() -> Any:
 @validate_tpp_certificate
 @validate_fapi_headers
 @log_security_event(SecurityEventType.DATA_ACCESS)
-def get_accounts() -> Any:
+def get_accounts() -> object:
     """Get account list (Account Information Service)"""
     consent_id = request.headers.get("Consent-ID")
     if not consent_id:
@@ -733,7 +733,7 @@ def get_accounts() -> Any:
 @validate_tpp_certificate
 @validate_fapi_headers
 @log_security_event(SecurityEventType.DATA_ACCESS)
-def get_account_balances(account_id: str) -> Any:
+def get_account_balances(account_id: str) -> object:
     """Get account balances"""
     consent_id = request.headers.get("Consent-ID")
     if not consent_id:
@@ -770,7 +770,7 @@ def get_account_balances(account_id: str) -> Any:
 @app.route("/api/v1/security/threat-summary", methods=["GET"])
 @require_auth
 @require_permission("security:read")
-def get_threat_summary() -> Any:
+def get_threat_summary() -> object:
     """Get security threat summary"""
     try:
         hours = int(request.args.get("hours", 24))
@@ -787,7 +787,7 @@ def get_threat_summary() -> Any:
 
 
 @app.errorhandler(400)
-def bad_request(error: Any) -> Any:
+def bad_request(error: object) -> object:
     return (
         jsonify(
             {
@@ -800,7 +800,7 @@ def bad_request(error: Any) -> Any:
 
 
 @app.errorhandler(401)
-def unauthorized(error: Any) -> Any:
+def unauthorized(error: object) -> object:
     return (
         jsonify(
             {
@@ -813,7 +813,7 @@ def unauthorized(error: Any) -> Any:
 
 
 @app.errorhandler(403)
-def forbidden(error: Any) -> Any:
+def forbidden(error: object) -> object:
     return (
         jsonify(
             {"error": "forbidden", "error_description": "Insufficient permissions"}
@@ -823,7 +823,7 @@ def forbidden(error: Any) -> Any:
 
 
 @app.errorhandler(404)
-def not_found(error: Any) -> Any:
+def not_found(error: Exception) -> object:
     return (
         jsonify({"error": "not_found", "error_description": "Resource not found"}),
         404,
@@ -831,7 +831,7 @@ def not_found(error: Any) -> Any:
 
 
 @app.errorhandler(500)
-def internal_error(error: Any) -> Any:
+def internal_error(error: Exception) -> object:
     logger.error(f"Internal server error: {str(error)}", exc_info=True)
     return (
         jsonify(

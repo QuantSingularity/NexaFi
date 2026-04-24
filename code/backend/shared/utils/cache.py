@@ -34,7 +34,7 @@ class CacheManager:
         except Exception:
             return None
 
-    def set(self, key: str, value: Any, timeout: Optional[int] = None) -> bool:
+    def set(self, key: str, value: object, timeout: Optional[int] = None) -> bool:
         """Set value in cache"""
         try:
             timeout = timeout or self.default_timeout
@@ -87,7 +87,9 @@ class CacheManager:
 cache = CacheManager()
 
 
-def cached(timeout: Optional[int] = None, key_func: Optional[callable] = None) -> Any:
+def cached(
+    timeout: Optional[int] = None, key_func: Optional[callable] = None
+) -> object:
     """Decorator for caching function results"""
 
     def decorator(func):

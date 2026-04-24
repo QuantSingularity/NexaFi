@@ -18,7 +18,6 @@ db_path = os.path.join(os.path.dirname(__file__), "database", "app.db")
 os.makedirs(os.path.dirname(db_path), exist_ok=True)
 db_manager, migration_manager = initialize_database(db_path)
 BaseModel.set_db_manager(db_manager)
-from typing import Any
 
 from migrations import DOCUMENT_MIGRATIONS
 
@@ -30,7 +29,7 @@ for version, migration in DOCUMENT_MIGRATIONS.items():
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
-def serve(path: Any) -> Any:
+def serve(path: str) -> object:
     static_folder_path = app.static_folder
     if static_folder_path is None:
         return ("Static folder not configured", 404)

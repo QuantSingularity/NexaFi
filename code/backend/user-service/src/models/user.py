@@ -23,11 +23,11 @@ class User(BaseModel):
         if not hasattr(self, "failed_login_attempts"):
             self.failed_login_attempts = 0
 
-    def set_password(self, password: str, auth_manager: Any) -> Any:
+    def set_password(self, password: str, auth_manager: object) -> object:
         """Set hashed password"""
         self.password_hash = auth_manager.hash_password(password)
 
-    def check_password(self, password: str, auth_manager: Any) -> bool:
+    def check_password(self, password: str, auth_manager: object) -> bool:
         """Check password against hash"""
         return auth_manager.verify_password(password, self.password_hash)
 
@@ -40,27 +40,27 @@ class User(BaseModel):
             return datetime.utcnow() < locked_until
         return False
 
-    def lock_account(self, duration_minutes: int = 30) -> Any:
+    def lock_account(self, duration_minutes: int = 30) -> object:
         """Lock account for specified duration"""
         self.locked_until = (
             datetime.utcnow() + timedelta(minutes=duration_minutes)
         ).isoformat()
         self.save()
 
-    def unlock_account(self) -> Any:
+    def unlock_account(self) -> object:
         """Unlock account"""
         self.locked_until = None
         self.failed_login_attempts = 0
         self.save()
 
-    def increment_failed_attempts(self) -> Any:
+    def increment_failed_attempts(self) -> object:
         """Increment failed login attempts"""
         self.failed_login_attempts += 1
         if self.failed_login_attempts >= 5:
             self.lock_account()
         self.save()
 
-    def reset_failed_attempts(self) -> Any:
+    def reset_failed_attempts(self) -> object:
         """Reset failed login attempts"""
         self.failed_login_attempts = 0
         self.save()
@@ -71,19 +71,19 @@ class User(BaseModel):
         rows = self.db_manager.execute_query(query, (self.id,))
         return [row["role_name"] for row in rows]
 
-    def add_role(self, role_name: str, granted_by: Optional[int] = None) -> Any:
+    def add_role(self, role_name: str, granted_by: Optional[int] = None) -> object:
         """Add role to user"""
         query = (
             "INSERT INTO user_roles (user_id, role_name, granted_by) VALUES (?, ?, ?)"
         )
         self.db_manager.execute_insert(query, (self.id, role_name, granted_by))
 
-    def remove_role(self, role_name: str) -> Any:
+    def remove_role(self, role_name: str) -> object:
         """Remove role from user"""
         query = "DELETE FROM user_roles WHERE user_id = ? AND role_name = ?"
         self.db_manager.execute_update(query, (self.id, role_name))
 
-    def to_dict(self, include_sensitive: Any = False) -> Dict[str, Any]:
+    def to_dict(self, include_sensitive: bool = False) -> Dict[str, Any]:
         """Convert user to dictionary"""
         data = super().to_dict()
         if not include_sensitive:

@@ -27,8 +27,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
 Base = declarative_base()
@@ -152,7 +151,7 @@ class UserBehavior(Base):
     device_id = Column(String(100))
     success = Column(Boolean)
     anomaly_score = Column(Float, default=0.0)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
 
 
 class ThreatIntelligence(Base):
@@ -169,7 +168,7 @@ class ThreatIntelligence(Base):
     first_seen = Column(DateTime, default=datetime.utcnow)
     last_seen = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
 
 
 class ContextAnalyzer:
@@ -178,7 +177,7 @@ class ContextAnalyzer:
     def __init__(
         self,
         redis_client: redis.Redis,
-        db_session: Any,
+        db_session: object,
         geoip_db_path: Optional[str] = None,
     ) -> None:
         self.redis_client = redis_client
@@ -668,14 +667,14 @@ class ContextAnalyzer:
 class PolicyEngine:
     """Zero-trust policy engine"""
 
-    def __init__(self, redis_client: redis.Redis, db_session: Any) -> None:
+    def __init__(self, redis_client: redis.Redis, db_session: object) -> None:
         self.redis_client = redis_client
         self.db_session = db_session
         self.logger = logging.getLogger(__name__)
         self.policies: List[PolicyRule] = []
         self._load_policies()
 
-    def _load_policies(self) -> Any:
+    def _load_policies(self) -> object:
         """Load policies from configuration"""
         default_policies = [
             PolicyRule(
@@ -816,18 +815,18 @@ class PolicyEngine:
         else:
             return False
 
-    def add_policy(self, policy: PolicyRule) -> Any:
+    def add_policy(self, policy: PolicyRule) -> object:
         """Add new policy"""
         self.policies.append(policy)
         self.policies.sort(key=lambda p: p.priority)
         self.logger.info(f"Added policy: {policy.name}")
 
-    def remove_policy(self, rule_id: str) -> Any:
+    def remove_policy(self, rule_id: str) -> object:
         """Remove policy by ID"""
         self.policies = [p for p in self.policies if p.rule_id != rule_id]
         self.logger.info(f"Removed policy: {rule_id}")
 
-    def update_policy(self, rule_id: str, updates: Dict[str, Any]) -> Any:
+    def update_policy(self, rule_id: str, updates: Dict[str, Any]) -> object:
         """Update existing policy"""
         for policy in self.policies:
             if policy.rule_id == rule_id:
@@ -845,7 +844,7 @@ class ZeroTrustFramework:
     def __init__(
         self,
         redis_client: redis.Redis,
-        db_session: Any,
+        db_session: object,
         geoip_db_path: Optional[str] = None,
     ) -> None:
         self.redis_client = redis_client
@@ -883,7 +882,7 @@ class ZeroTrustFramework:
         action: str,
         decision: AccessDecision,
         policy_name: str,
-    ) -> Any:
+    ) -> object:
         """Log security event"""
         try:
             event = SecurityEvent(
@@ -915,7 +914,7 @@ class ZeroTrustFramework:
 
     def _track_user_behavior(
         self, context: SecurityContext, resource: str, action: str, success: bool
-    ) -> Any:
+    ) -> object:
         """Track user behavior"""
         try:
             behavior = UserBehavior(
@@ -940,7 +939,7 @@ class ZeroTrustFramework:
         except Exception as e:
             self.logger.error(f"Behavior tracking failed: {str(e)}")
 
-    def _update_device_fingerprint(self, context: SecurityContext) -> Any:
+    def _update_device_fingerprint(self, context: SecurityContext) -> object:
         """Update device fingerprint information"""
         try:
             device = (

@@ -10,7 +10,7 @@ from models.user import Account, JournalEntry, JournalEntryLine
 ledger_bp = Blueprint("ledger", __name__)
 
 
-def require_user_id(f: Any) -> Any:
+def require_user_id(f: object) -> object:
     """Decorator to extract user_id from request headers"""
 
     @wraps(f)
@@ -24,14 +24,14 @@ def require_user_id(f: Any) -> Any:
     return decorated_function
 
 
-def generate_entry_number(user_id: Any) -> Any:
+def generate_entry_number(user_id: str) -> object:
     """Generate unique journal entry number (simulated)"""
     return f"JE-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
 
 @ledger_bp.route("/accounts", methods=["GET"])
 @require_user_id
-def get_accounts() -> Any:
+def get_accounts() -> object:
     """Get all accounts for user"""
     try:
         account_type = request.args.get("type")
@@ -58,7 +58,7 @@ def get_accounts() -> Any:
 
 @ledger_bp.route("/accounts", methods=["POST"])
 @require_user_id
-def create_account() -> Any:
+def create_account() -> object:
     """Create new account"""
     try:
         data = request.get_json()
@@ -108,7 +108,7 @@ def create_account() -> Any:
 
 @ledger_bp.route("/accounts/<account_id>", methods=["GET"])
 @require_user_id
-def get_account(account_id: Any) -> Any:
+def get_account(account_id: object) -> object:
     """Get specific account"""
     try:
         account = Account.find_one(
@@ -126,7 +126,7 @@ def get_account(account_id: Any) -> Any:
 
 @ledger_bp.route("/accounts/<account_id>", methods=["PUT"])
 @require_user_id
-def update_account(account_id: Any) -> Any:
+def update_account(account_id: object) -> object:
     """Update account"""
     try:
         account = Account.find_one(
@@ -163,7 +163,7 @@ def update_account(account_id: Any) -> Any:
 
 @ledger_bp.route("/journal-entries", methods=["GET"])
 @require_user_id
-def get_journal_entries() -> Any:
+def get_journal_entries() -> object:
     """Get journal entries for user"""
     try:
         status = request.args.get("status")
@@ -201,7 +201,7 @@ def get_journal_entries() -> Any:
 
 @ledger_bp.route("/journal-entries", methods=["POST"])
 @require_user_id
-def create_journal_entry() -> Any:
+def create_journal_entry() -> object:
     """Create new journal entry"""
     try:
         data = request.get_json()
@@ -294,7 +294,7 @@ def create_journal_entry() -> Any:
 
 @ledger_bp.route("/journal-entries/<entry_id>/post", methods=["POST"])
 @require_user_id
-def post_journal_entry(entry_id: Any) -> Any:
+def post_journal_entry(entry_id: object) -> object:
     """Post a journal entry (simplified, full posting logic is in main.py)"""
     try:
         entry = JournalEntry.find_one(
@@ -326,7 +326,7 @@ def post_journal_entry(entry_id: Any) -> Any:
 
 @ledger_bp.route("/reports/trial-balance", methods=["GET"])
 @require_user_id
-def get_trial_balance() -> Any:
+def get_trial_balance() -> object:
     """Generate trial balance report (simulated)"""
     return (
         jsonify({"error": "Report generation is handled by the core logic in main.py"}),
@@ -336,7 +336,7 @@ def get_trial_balance() -> Any:
 
 @ledger_bp.route("/reports/balance-sheet", methods=["GET"])
 @require_user_id
-def get_balance_sheet() -> Any:
+def get_balance_sheet() -> object:
     """Generate balance sheet report (simulated)"""
     return (
         jsonify({"error": "Report generation is handled by the core logic in main.py"}),
@@ -346,7 +346,7 @@ def get_balance_sheet() -> Any:
 
 @ledger_bp.route("/reports/income-statement", methods=["GET"])
 @require_user_id
-def get_income_statement() -> Any:
+def get_income_statement() -> object:
     """Generate income statement report (simulated)"""
     return (
         jsonify({"error": "Report generation is handled by the core logic in main.py"}),
@@ -356,7 +356,7 @@ def get_income_statement() -> Any:
 
 @ledger_bp.route("/accounts/initialize", methods=["POST"])
 @require_user_id
-def initialize_accounts() -> Any:
+def initialize_accounts() -> object:
     """Initialize default chart of accounts for user (simulated)"""
     try:
         existing_accounts = Account.find_all("user_id = ?", (request.user_id,))
@@ -374,7 +374,7 @@ def initialize_accounts() -> Any:
 
 
 @ledger_bp.route("/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return (
         jsonify(

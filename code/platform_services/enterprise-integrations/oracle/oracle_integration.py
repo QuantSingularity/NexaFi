@@ -236,7 +236,7 @@ class OracleDatabaseConnector:
             self.logger.error(f"Database connection failed: {str(e)}")
             return False
 
-    def disconnect(self) -> Any:
+    def disconnect(self) -> object:
         """Disconnect from Oracle Database"""
         if self.connection:
             self.connection.close()
@@ -285,7 +285,7 @@ class OracleDatabaseConnector:
 
     def execute_procedure(
         self, procedure_name: str, params: Optional[Dict[str, Any]] = None
-    ) -> Any:
+    ) -> object:
         """Execute stored procedure"""
         if not self.connection:
             raise Exception("Not connected to Oracle Database")
@@ -509,7 +509,7 @@ class OracleSupplierSync:
             "source_system": "Oracle",
         }
 
-    def _process_supplier(self, supplier: Dict[str, Any]) -> Any:
+    def _process_supplier(self, supplier: Dict[str, Any]) -> object:
         """Process supplier (implement based on your system)"""
         self.logger.info(f"Processing supplier: {supplier['external_id']}")
 
@@ -679,11 +679,11 @@ class OracleFinancialSync:
             "source_system": "Oracle",
         }
 
-    def _process_invoice(self, invoice: Dict[str, Any]) -> Any:
+    def _process_invoice(self, invoice: Dict[str, Any]) -> object:
         """Process invoice (implement based on your system)"""
         self.logger.info(f"Processing invoice: {invoice['external_id']}")
 
-    def _process_gl_entry(self, entry: Dict[str, Any]) -> Any:
+    def _process_gl_entry(self, entry: Dict[str, Any]) -> object:
         """Process GL entry (implement based on your system)"""
         self.logger.info(f"Processing GL entry: {entry['journal_entry_id']}")
 
@@ -695,8 +695,8 @@ class OracleIntegration(BaseIntegration):
         self,
         config: IntegrationConfig,
         oracle_config: OracleConfig,
-        db_session: Any = None,
-        redis_client: Any = None,
+        db_session: object = None,
+        redis_client: object = None,
     ) -> None:
         super().__init__(config, db_session, redis_client)
         self.oracle_config = oracle_config
@@ -774,7 +774,7 @@ class OracleIntegration(BaseIntegration):
         """Get authentication headers"""
         return self.authenticator.get_auth_headers()
 
-    def _process_webhook_data(self, payload: Dict[str, Any]) -> Any:
+    def _process_webhook_data(self, payload: Dict[str, Any]) -> object:
         """Process Oracle webhook data"""
         try:
             event_type = payload.get("eventType")
@@ -789,21 +789,21 @@ class OracleIntegration(BaseIntegration):
         except Exception as e:
             self.logger.error(f"Oracle webhook processing failed: {str(e)}")
 
-    def _handle_supplier_created(self, payload: Dict[str, Any]) -> Any:
+    def _handle_supplier_created(self, payload: Dict[str, Any]) -> object:
         """Handle supplier created event"""
         supplier_id = payload.get("supplierId")
         self.logger.info(f"Supplier created: {supplier_id}")
         if self.supplier_sync:
             self.supplier_sync.sync_suppliers({"SupplierId": supplier_id})
 
-    def _handle_supplier_updated(self, payload: Dict[str, Any]) -> Any:
+    def _handle_supplier_updated(self, payload: Dict[str, Any]) -> object:
         """Handle supplier updated event"""
         supplier_id = payload.get("supplierId")
         self.logger.info(f"Supplier updated: {supplier_id}")
         if self.supplier_sync:
             self.supplier_sync.sync_suppliers({"SupplierId": supplier_id})
 
-    def _handle_invoice_created(self, payload: Dict[str, Any]) -> Any:
+    def _handle_invoice_created(self, payload: Dict[str, Any]) -> object:
         """Handle invoice created event"""
         invoice_id = payload.get("invoiceId")
         self.logger.info(f"Invoice created: {invoice_id}")

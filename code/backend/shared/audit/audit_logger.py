@@ -106,7 +106,7 @@ class AuditEvent:
 class AuditLogger:
     """Audit logging system with integrity verification"""
 
-    def __init__(self, storage_backend: Any = None) -> None:
+    def __init__(self, storage_backend: object = None) -> None:
         self.storage_backend = storage_backend
         self.event_queue = queue.Queue()
         self.worker_thread = None
@@ -114,19 +114,19 @@ class AuditLogger:
         self.previous_hash = None
         self.start_worker()
 
-    def start_worker(self) -> Any:
+    def start_worker(self) -> object:
         """Start background worker thread for processing audit events"""
         self.running = True
         self.worker_thread = threading.Thread(target=self._process_events, daemon=True)
         self.worker_thread.start()
 
-    def stop_worker(self) -> Any:
+    def stop_worker(self) -> object:
         """Stop background worker thread"""
         self.running = False
         if self.worker_thread:
             self.worker_thread.join()
 
-    def _process_events(self) -> Any:
+    def _process_events(self) -> object:
         """Background worker to process audit events"""
         while self.running:
             try:
@@ -138,7 +138,7 @@ class AuditLogger:
             except Exception as e:
                 logger.info(f"Error processing audit event: {e}")
 
-    def _store_event(self, event: AuditEvent) -> Any:
+    def _store_event(self, event: AuditEvent) -> object:
         """Store audit event with integrity chain"""
         event_hash = event.calculate_hash()
         if self.previous_hash:
@@ -157,7 +157,7 @@ class AuditLogger:
             self._write_to_file(event_data)
         self.previous_hash = chain_hash
 
-    def _write_to_file(self, event_data: Dict[str, Any]) -> Any:
+    def _write_to_file(self, event_data: Dict[str, Any]) -> object:
         """Write audit event to file"""
         import os
 
@@ -187,7 +187,7 @@ class AuditLogger:
         error_message: Optional[str] = None,
         severity: AuditSeverity = AuditSeverity.MEDIUM,
         correlation_id: Optional[str] = None,
-    ) -> Any:
+    ) -> object:
         """Log an audit event"""
         event = AuditEvent(
             event_id=str(uuid.uuid4()),
@@ -217,7 +217,7 @@ class AuditLogger:
         action: str,
         details: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ) -> Any:
+    ) -> object:
         """Log user-related action"""
         self.log_event(
             event_type=event_type,
@@ -238,7 +238,7 @@ class AuditLogger:
         currency: str,
         details: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ) -> Any:
+    ) -> object:
         """Log financial transaction"""
         transaction_details = {
             "amount": amount,
@@ -262,7 +262,7 @@ class AuditLogger:
         ip_address: str,
         details: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ) -> Any:
+    ) -> object:
         """Log security-related event"""
         self.log_event(
             event_type=AuditEventType.SECURITY_VIOLATION,
@@ -283,7 +283,7 @@ class AuditLogger:
         user_agent: str,
         response_time: float,
         **kwargs,
-    ) -> Any:
+    ) -> object:
         """Log API access"""
         details = {
             "endpoint": endpoint,
@@ -312,7 +312,7 @@ def audit_action(
     action: str,
     resource_type: Optional[str] = None,
     severity: AuditSeverity = AuditSeverity.MEDIUM,
-) -> Any:
+) -> object:
     """Decorator for automatic audit logging of function calls"""
 
     def decorator(f):

@@ -37,8 +37,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from twilio.rest import Client as TwilioClient
 
 logger = logging.getLogger(__name__)
@@ -137,7 +136,7 @@ class ThreatIntelligenceDB(Base):
     first_seen = Column(DateTime, default=datetime.utcnow)
     last_seen = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
     tags = Column(Text)
 
 

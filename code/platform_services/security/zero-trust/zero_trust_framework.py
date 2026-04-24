@@ -27,8 +27,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
 Base = declarative_base()
@@ -152,7 +151,7 @@ class UserBehavior(Base):
     device_id = Column(String(100))
     success = Column(Boolean)
     anomaly_score = Column(Float, default=0.0)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
 
 
 class ThreatIntelligence(Base):
@@ -169,7 +168,7 @@ class ThreatIntelligence(Base):
     first_seen = Column(DateTime, default=datetime.utcnow)
     last_seen = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
 
 
 class ContextAnalyzer:

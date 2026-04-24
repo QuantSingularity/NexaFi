@@ -31,8 +31,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import QueuePool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -112,7 +111,7 @@ class TransactionLog(Base):
     priority = Column(Integer, nullable=False)
     processing_node = Column(String(100))
     retry_count = Column(Integer, default=0)
-    metadata = Column(Text)
+    extra_metadata = Column("metadata", Text)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime)
@@ -763,7 +762,7 @@ class DistributedTransactionManager:
                 destination_account=transaction.destination_account,
                 status=transaction.status.value,
                 priority=transaction.priority.value,
-                metadata=json.dumps(transaction.metadata),
+                extra_metadata=json.dumps(transaction.metadata),
                 checksum=transaction.checksum,
             )
             self.db_session.add(tx_log)

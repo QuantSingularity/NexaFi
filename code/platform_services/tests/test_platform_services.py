@@ -24,8 +24,7 @@ _AI_SVC_SRC = os.path.normpath(
     os.path.join(_PLATFORM_DIR, "..", "ml_services", "ai-service", "src")
 )
 
-_ENTERPRISE_PKG = "/tmp/enterprise_pkg"
-for p in [_AI_SVC_SRC, _ENTERPRISE_PKG, _BACKEND_SHARED, _PLATFORM_DIR]:
+for p in [_AI_SVC_SRC, _BACKEND_SHARED, _PLATFORM_DIR]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
@@ -65,9 +64,19 @@ _dtp = _load(
         "distributed_transaction_processor.py",
     ),
 )
-import enterprise_integrations.oracle.oracle_integration as _oracle_mod
-import enterprise_integrations.sap.sap_integration as _sap_mod
-import enterprise_integrations.shared.base_integration as _base_mod
+# ── Enterprise integrations (inside 'enterprise-integrations/' with hyphen) ──
+# Relative imports have been converted to importlib loads inside each file.
+_ei_base = os.path.join(_PLATFORM_DIR, "enterprise-integrations")
+_base_mod = _load(
+    "nexafi_base_integration", os.path.join(_ei_base, "shared", "base_integration.py")
+)
+_sap_mod = _load(
+    "nexafi_sap_integration", os.path.join(_ei_base, "sap", "sap_integration.py")
+)
+_oracle_mod = _load(
+    "nexafi_oracle_integration",
+    os.path.join(_ei_base, "oracle", "oracle_integration.py"),
+)
 
 # ── Zero-trust exports ────────────────────────────────────────────────────────
 TrustLevel = _zt.TrustLevel

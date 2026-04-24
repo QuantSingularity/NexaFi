@@ -5,9 +5,15 @@ Comprehensive integration with Oracle ERP Cloud, Oracle Database, Oracle HCM, an
 
 import base64
 import csv
+
+# Resolve base_integration via importlib (parent dir has a hyphen — not importable as package)
+import importlib.util as _ilu
 import io
 import logging
 import os
+import os as _os
+import sys
+import sys as _sys
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -20,7 +26,18 @@ import requests
 from requests.auth import HTTPBasicAuth
 from sqlalchemy import create_engine
 
-from ..shared.base_integration import (
+_bi_path = _os.path.join(
+    _os.path.dirname(__file__), "..", "shared", "base_integration.py"
+)
+_bi_path = _os.path.normpath(_bi_path)
+if "nexafi_base_integration" not in _sys.modules:
+    _bi_spec = _ilu.spec_from_file_location("nexafi_base_integration", _bi_path)
+    _bi_mod = _ilu.module_from_spec(_bi_spec)
+    _sys.modules["nexafi_base_integration"] = _bi_mod
+    _bi_spec.loader.exec_module(_bi_mod)
+else:
+    _bi_mod = _sys.modules["nexafi_base_integration"]
+from nexafi_base_integration import (
     AuthMethod,
     BaseIntegration,
     DataTransformer,

@@ -44,7 +44,7 @@
 :root {
   --radius: 0.75rem;
 
-  /* NexaFi brand — blue-to-purple gradient palette */
+  /* NexaFi brand - blue-to-purple gradient palette */
   --nexafi-blue: oklch(0.52 0.22 258);
   --nexafi-purple: oklch(0.52 0.22 300);
   --nexafi-cyan: oklch(0.72 0.15 200);

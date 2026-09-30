@@ -1,5 +1,5 @@
 """
-NexaFi ML Engine — Real machine-learning implementations.
+NexaFi ML Engine - Real machine-learning implementations.
 
 Replaces the previous random/placeholder implementations with genuine
 statistical and ML-based models using only the libraries available in
@@ -78,10 +78,10 @@ class CashFlowForecaster:
         user_id:        Used to seed the model for reproducibility.
         historical_data:
             Expected keys (all optional with sensible defaults):
-              ``daily_cash_flows``  — list of floats (most-recent last)
-              ``average_monthly_cash_flow`` — fallback scalar
-              ``revenue_trend``     — float 0-1 (positive / negative momentum)
-              ``seasonality_index`` — float 0-1 (how seasonal the business is)
+              ``daily_cash_flows``  - list of floats (most-recent last)
+              ``average_monthly_cash_flow`` - fallback scalar
+              ``revenue_trend``     - float 0-1 (positive / negative momentum)
+              ``seasonality_index`` - float 0-1 (how seasonal the business is)
         days_ahead:     Forecast horizon.
         """
         rng = np.random.default_rng(_user_seed(user_id))

@@ -87,7 +87,7 @@ Rank-ordering: each band has monotonically increasing default rate (confirmed).
 ## 3. Anomaly / Fraud Detection Model
 
 **Architecture:** Rule-based ensemble with statistical z-scoring and
-velocity analysis (no training required — interpretable by design for
+velocity analysis (no training required - interpretable by design for
 regulatory explainability)  
 **Components:** Amount z-score (weight 0.45), time-of-day risk (0.20),
 transaction velocity (0.25), merchant-category risk (0.10)

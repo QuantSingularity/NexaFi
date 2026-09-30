@@ -35,7 +35,7 @@ check_requirements() {
 
     if [[ ! -f "${ENV_FILE}" ]]; then
         if [[ -f "${SCRIPT_DIR}/.env.example" ]]; then
-            log_warning ".env not found. Copying from .env.example — please fill in real values before use."
+            log_warning ".env not found. Copying from .env.example - please fill in real values before use."
             cp "${SCRIPT_DIR}/.env.example" "${ENV_FILE}"
         else
             log_error ".env file missing. Create one from .env.example."
@@ -149,7 +149,7 @@ verify_health() {
 print_summary() {
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║       NexaFi Infrastructure — Ready                 ║${NC}"
+    echo -e "${GREEN}║       NexaFi Infrastructure - Ready                 ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${BLUE}Service         URL${NC}"

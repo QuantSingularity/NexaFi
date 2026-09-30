@@ -1,5 +1,5 @@
 ---
-# Default deny all ingress and egress — applied to EVERY application namespace
+# Default deny all ingress and egress - applied to EVERY application namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

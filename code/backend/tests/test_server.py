@@ -84,7 +84,7 @@ def test_flask_test_client_index():
 
 
 # ---------------------------------------------------------------------------
-# Standalone runner — starts a real server; NOT executed during pytest
+# Standalone runner - starts a real server; NOT executed during pytest
 # ---------------------------------------------------------------------------
 
 

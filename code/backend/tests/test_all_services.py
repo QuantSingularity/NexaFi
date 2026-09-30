@@ -220,7 +220,7 @@ def test_service_health(service: Dict[str, Any]):
     the service is not managed by this test run) or when the service binary
     cannot be launched.
     """
-    # Skip if the service is already running externally on this port —
+    # Skip if the service is already running externally on this port -
     # we do not want to fight over ports in CI.
     if _is_port_open(service["port"]):
         pytest.skip(

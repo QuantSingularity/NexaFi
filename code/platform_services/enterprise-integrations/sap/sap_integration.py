@@ -5,7 +5,7 @@ Comprehensive integration with SAP ERP, S/4HANA, SuccessFactors, and other SAP s
 
 import base64
 
-# Resolve base_integration via importlib (parent dir has a hyphen — not importable as package)
+# Resolve base_integration via importlib (parent dir has a hyphen - not importable as package)
 import importlib.util as _ilu
 import logging
 import os

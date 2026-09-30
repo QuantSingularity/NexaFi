@@ -114,7 +114,7 @@ DataTransformer = _base_mod.DataTransformer
 
 
 # =============================================================================
-# Zero-Trust — Enums
+# Zero-Trust - Enums
 # =============================================================================
 
 
@@ -144,7 +144,7 @@ class TestZeroTrustEnums(unittest.TestCase):
 
 
 # =============================================================================
-# Zero-Trust — SecurityContext
+# Zero-Trust - SecurityContext
 # =============================================================================
 
 
@@ -192,7 +192,7 @@ class TestSecurityContext(unittest.TestCase):
 
 
 # =============================================================================
-# Zero-Trust — ContextAnalyzer
+# Zero-Trust - ContextAnalyzer
 # =============================================================================
 
 
@@ -241,7 +241,7 @@ class TestContextAnalyzer(unittest.TestCase):
 
 
 # =============================================================================
-# Zero-Trust — PolicyRule
+# Zero-Trust - PolicyRule
 # =============================================================================
 
 
@@ -269,7 +269,7 @@ class TestPolicyRule(unittest.TestCase):
 
 
 # =============================================================================
-# Threat Detection — Enums
+# Threat Detection - Enums
 # =============================================================================
 
 
@@ -290,7 +290,7 @@ class TestThreatDetectionEnums(unittest.TestCase):
 
 
 # =============================================================================
-# Threat Detection — AnomalyDetectionResult
+# Threat Detection - AnomalyDetectionResult
 # =============================================================================
 
 
@@ -320,7 +320,7 @@ class TestAnomalyDetectionResult(unittest.TestCase):
 
 
 # =============================================================================
-# Threat Detection — ThreatDetectionRules
+# Threat Detection - ThreatDetectionRules
 # =============================================================================
 
 
@@ -458,7 +458,7 @@ class TestBaseIntegration(unittest.TestCase):
 
 
 # =============================================================================
-# ML Engine — CashFlowForecaster
+# ML Engine - CashFlowForecaster
 # =============================================================================
 
 
@@ -513,7 +513,7 @@ class TestCashFlowForecaster(unittest.TestCase):
 
 
 # =============================================================================
-# ML Engine — CreditScorer
+# ML Engine - CreditScorer
 # =============================================================================
 
 
@@ -581,7 +581,7 @@ class TestCreditScorer(unittest.TestCase):
 
 
 # =============================================================================
-# ML Engine — TransactionAnomalyDetector
+# ML Engine - TransactionAnomalyDetector
 # =============================================================================
 
 

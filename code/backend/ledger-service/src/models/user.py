@@ -1,5 +1,3 @@
-# The concrete models below use the real shared BaseModel, which resolves
-# table_name on the calling subclass and shares the configured db_manager.
 import os
 import sys
 from datetime import datetime
@@ -14,7 +12,6 @@ class Account(BaseModel):
     table_name: Optional[str] = "accounts"
 
     def get_balance(self, as_of_date: Optional[datetime] = None) -> Decimal:
-        """Calculate account balance as of a specific date"""
         if as_of_date is None:
             return Decimal(str(self.current_balance))
         return Decimal(str(self.current_balance))

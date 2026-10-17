@@ -1,10 +1,3 @@
-"""
-Comprehensive tests for NexaFi Platform Services.
-
-Covers Zero-Trust, Threat Detection, Cache, Distributed Transactions,
-Enterprise Integrations (SAP/Oracle), and the ML Engine.
-"""
-
 from __future__ import annotations
 
 import importlib.util
@@ -14,23 +7,18 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-# ── Path setup ───────────────────────────────────────────────────────────────
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PLATFORM_DIR = os.path.dirname(_TESTS_DIR)
 _BACKEND_SHARED = os.path.normpath(
     os.path.join(_PLATFORM_DIR, "..", "backend", "shared")
 )
-_AI_SVC_SRC = os.path.normpath(
-    os.path.join(_PLATFORM_DIR, "..", "ml_services", "ai-service", "src")
-)
 
-for p in [_AI_SVC_SRC, _BACKEND_SHARED, _PLATFORM_DIR]:
+for p in [_BACKEND_SHARED, _PLATFORM_DIR]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
 
 def _load(name: str, path: str):
-    """Load a module from a file path (handles hyphenated directory names)."""
     if name in sys.modules:
         return sys.modules[name]
     spec = importlib.util.spec_from_file_location(name, path)
@@ -40,7 +28,6 @@ def _load(name: str, path: str):
     return mod
 
 
-# ── Load all modules from hyphenated directories ─────────────────────────────
 _zt = _load(
     "zero_trust_framework",
     os.path.join(_PLATFORM_DIR, "security", "zero-trust", "zero_trust_framework.py"),
@@ -64,8 +51,6 @@ _dtp = _load(
         "distributed_transaction_processor.py",
     ),
 )
-# ── Enterprise integrations (inside 'enterprise-integrations/' with hyphen) ──
-# Relative imports have been converted to importlib loads inside each file.
 _ei_base = os.path.join(_PLATFORM_DIR, "enterprise-integrations")
 _base_mod = _load(
     "nexafi_base_integration", os.path.join(_ei_base, "shared", "base_integration.py")
@@ -78,7 +63,6 @@ _oracle_mod = _load(
     os.path.join(_ei_base, "oracle", "oracle_integration.py"),
 )
 
-# ── Zero-trust exports ────────────────────────────────────────────────────────
 TrustLevel = _zt.TrustLevel
 RiskLevel = _zt.RiskLevel
 AccessDecision = _zt.AccessDecision
@@ -86,22 +70,18 @@ SecurityContext = _zt.SecurityContext
 ContextAnalyzer = _zt.ContextAnalyzer
 PolicyRule = _zt.PolicyRule
 
-# ── Threat detection exports ──────────────────────────────────────────────────
 ThreatType = _tde.ThreatType
 Severity = _tde.Severity
 ResponseAction = _tde.ResponseAction
 AnomalyDetectionResult = _tde.AnomalyDetectionResult
 ThreatDetectionRules = _tde.ThreatDetectionRules
 
-# ── Cache exports ─────────────────────────────────────────────────────────────
 CacheStrategy = _cache.CacheStrategy
 CacheSystem = _cache.CacheConfiguration
 
-# ── Distributed transaction exports ──────────────────────────────────────────
 TransactionCoordinator = _dtp.DistributedTransactionManager
 TransactionStatus = _dtp.TransactionStatus
 
-# ── Enterprise integration exports ───────────────────────────────────────────
 SAPConfig = _sap_mod.SAPConfig
 SAPAuthenticator = _sap_mod.SAPAuthenticator
 SAPIntegration = _sap_mod.SAPIntegration
@@ -111,11 +91,6 @@ AuthMethod = _base_mod.AuthMethod
 IntegrationConfig = _base_mod.IntegrationConfig
 SyncResult = _base_mod.SyncResult
 DataTransformer = _base_mod.DataTransformer
-
-
-# =============================================================================
-# Zero-Trust - Enums
-# =============================================================================
 
 
 class TestZeroTrustEnums(unittest.TestCase):
@@ -141,11 +116,6 @@ class TestZeroTrustEnums(unittest.TestCase):
         names = {t.name for t in TrustLevel}
         for expected in ("UNTRUSTED", "LOW", "MEDIUM", "HIGH", "VERIFIED"):
             self.assertIn(expected, names)
-
-
-# =============================================================================
-# Zero-Trust - SecurityContext
-# =============================================================================
 
 
 class TestSecurityContext(unittest.TestCase):
@@ -189,11 +159,6 @@ class TestSecurityContext(unittest.TestCase):
         )
         self.assertGreaterEqual(ctx.trust_score, 0.0)
         self.assertLessEqual(ctx.trust_score, 1.0)
-
-
-# =============================================================================
-# Zero-Trust - ContextAnalyzer
-# =============================================================================
 
 
 class TestContextAnalyzer(unittest.TestCase):
@@ -240,11 +205,6 @@ class TestContextAnalyzer(unittest.TestCase):
         self.assertGreaterEqual(ctx_ext.trust_score, 0.0)
 
 
-# =============================================================================
-# Zero-Trust - PolicyRule
-# =============================================================================
-
-
 class TestPolicyRule(unittest.TestCase):
 
     def test_construction(self) -> None:
@@ -268,11 +228,6 @@ class TestPolicyRule(unittest.TestCase):
         self.assertEqual(rule.priority, 10)
 
 
-# =============================================================================
-# Threat Detection - Enums
-# =============================================================================
-
-
 class TestThreatDetectionEnums(unittest.TestCase):
 
     def test_threat_type_enum(self) -> None:
@@ -287,11 +242,6 @@ class TestThreatDetectionEnums(unittest.TestCase):
 
     def test_response_action_non_empty(self) -> None:
         self.assertGreater(len(list(ResponseAction)), 0)
-
-
-# =============================================================================
-# Threat Detection - AnomalyDetectionResult
-# =============================================================================
 
 
 class TestAnomalyDetectionResult(unittest.TestCase):
@@ -317,11 +267,6 @@ class TestAnomalyDetectionResult(unittest.TestCase):
         )
         self.assertFalse(r.is_anomaly)
         self.assertLess(r.anomaly_score, 0.5)
-
-
-# =============================================================================
-# Threat Detection - ThreatDetectionRules
-# =============================================================================
 
 
 class TestThreatDetectionRules(unittest.TestCase):
@@ -367,37 +312,22 @@ class TestThreatDetectionRules(unittest.TestCase):
         self.assertIsNotNone(self.rules)
 
 
-# =============================================================================
-# Cache System
-# =============================================================================
-
-
 class TestCacheSystem(unittest.TestCase):
 
     def test_cache_strategy_enum(self) -> None:
         self.assertGreater(len(list(CacheStrategy)), 0)
 
     def test_cache_system_importable(self) -> None:
-        self.assertIsNotNone(CacheSystem)  # CacheConfiguration
-
-
-# =============================================================================
-# Distributed Transaction Processor
-# =============================================================================
+        self.assertIsNotNone(CacheSystem)
 
 
 class TestDistributedTransactionProcessor(unittest.TestCase):
 
     def test_coordinator_importable(self) -> None:
-        self.assertIsNotNone(TransactionCoordinator)  # DistributedTransactionManager
+        self.assertIsNotNone(TransactionCoordinator)
 
     def test_status_enum_non_empty(self) -> None:
         self.assertGreater(len(list(TransactionStatus)), 0)
-
-
-# =============================================================================
-# SAP Integration
-# =============================================================================
 
 
 class TestSAPIntegration(unittest.TestCase):
@@ -419,11 +349,6 @@ class TestSAPIntegration(unittest.TestCase):
         self.assertIsNotNone(SAPIntegration)
 
 
-# =============================================================================
-# Oracle Integration
-# =============================================================================
-
-
 class TestOracleIntegration(unittest.TestCase):
 
     def test_config_importable(self) -> None:
@@ -435,11 +360,6 @@ class TestOracleIntegration(unittest.TestCase):
 
     def test_integration_importable(self) -> None:
         self.assertIsNotNone(OracleIntegration)
-
-
-# =============================================================================
-# Base Integration
-# =============================================================================
 
 
 class TestBaseIntegration(unittest.TestCase):
@@ -455,238 +375,6 @@ class TestBaseIntegration(unittest.TestCase):
 
     def test_data_transformer_importable(self) -> None:
         self.assertIsNotNone(DataTransformer)
-
-
-# =============================================================================
-# ML Engine - CashFlowForecaster
-# =============================================================================
-
-
-class TestCashFlowForecaster(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        from ml_engine import CashFlowForecaster
-
-        cls.f = CashFlowForecaster()
-
-    def test_returns_correct_length(self) -> None:
-        self.assertEqual(len(self.f.forecast("u1", {}, 7)), 7)
-
-    def test_has_required_keys(self) -> None:
-        for entry in self.f.forecast("u2", {"average_monthly_cash_flow": 15000}, 3):
-            self.assertIn("date", entry)
-            self.assertIn("predicted_cash_flow", entry)
-            self.assertIn("confidence_interval", entry)
-
-    def test_ci_lower_le_upper(self) -> None:
-        for entry in self.f.forecast("u3", {}, 5):
-            ci = entry["confidence_interval"]
-            self.assertLessEqual(ci["lower"], ci["upper"])
-
-    def test_non_negative_amounts(self) -> None:
-        for entry in self.f.forecast("u4", {}, 5):
-            self.assertGreaterEqual(entry["predicted_cash_flow"], 0.0)
-            self.assertGreaterEqual(entry["confidence_interval"]["lower"], 0.0)
-
-    def test_ci_widens_with_horizon(self) -> None:
-        result = self.f.forecast("u5", {}, 30)
-        ci1 = (
-            result[0]["confidence_interval"]["upper"]
-            - result[0]["confidence_interval"]["lower"]
-        )
-        ci30 = (
-            result[29]["confidence_interval"]["upper"]
-            - result[29]["confidence_interval"]["lower"]
-        )
-        self.assertGreaterEqual(ci30, ci1)
-
-    def test_deterministic_same_user(self) -> None:
-        r1 = self.f.forecast("same", {}, 3)
-        r2 = self.f.forecast("same", {}, 3)
-        self.assertEqual(r1[0]["predicted_cash_flow"], r2[0]["predicted_cash_flow"])
-
-    def test_accepts_daily_history(self) -> None:
-        hist = {"daily_cash_flows": [300 + i * 5 for i in range(30)]}
-        result = self.f.forecast("u-hist", hist, 7)
-        self.assertEqual(len(result), 7)
-
-
-# =============================================================================
-# ML Engine - CreditScorer
-# =============================================================================
-
-
-class TestCreditScorer(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        from ml_engine import CreditScorer
-
-        cls.scorer = CreditScorer()
-
-    def test_returns_dict(self) -> None:
-        self.assertIsInstance(self.scorer.score("u1", {}), dict)
-
-    def test_has_required_keys(self) -> None:
-        r = self.scorer.score("u2", {})
-        for k in ("credit_score", "risk_category", "probability_of_default", "factors"):
-            self.assertIn(k, r)
-
-    def test_score_in_fico_range(self) -> None:
-        r = self.scorer.score(
-            "u3", {"annual_revenue": 1_000_000, "business_age_months": 60}
-        )
-        self.assertGreaterEqual(r["credit_score"], 300)
-        self.assertLessEqual(r["credit_score"], 850)
-
-    def test_pod_in_unit_interval(self) -> None:
-        r = self.scorer.score("u4", {"payment_history_score": 80})
-        self.assertGreaterEqual(r["probability_of_default"], 0.0)
-        self.assertLessEqual(r["probability_of_default"], 1.0)
-
-    def test_valid_risk_category(self) -> None:
-        r = self.scorer.score("u5", {})
-        self.assertIn(
-            r["risk_category"], ("excellent", "good", "fair", "poor", "very_poor")
-        )
-
-    def test_good_business_better_score(self) -> None:
-        good = self.scorer.score(
-            "g",
-            {
-                "annual_revenue": 2_000_000,
-                "business_age_months": 84,
-                "payment_history_score": 95,
-                "credit_utilization": 0.1,
-            },
-        )
-        bad = self.scorer.score(
-            "b",
-            {
-                "annual_revenue": 10_000,
-                "business_age_months": 3,
-                "payment_history_score": 10,
-                "credit_utilization": 0.95,
-            },
-        )
-        self.assertGreater(good["credit_score"], bad["credit_score"])
-
-    def test_factors_non_empty(self) -> None:
-        r = self.scorer.score("u6", {})
-        self.assertGreater(len(r["factors"]), 0)
-
-    def test_model_version_present(self) -> None:
-        self.assertIn("model_version", self.scorer.score("u7", {}))
-
-
-# =============================================================================
-# ML Engine - TransactionAnomalyDetector
-# =============================================================================
-
-
-class TestTransactionAnomalyDetector(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        from ml_engine import TransactionAnomalyDetector
-
-        cls.det = TransactionAnomalyDetector()
-        cls.history = [
-            {
-                "amount": 100.0,
-                "timestamp": "2024-01-01T10:00:00Z",
-                "merchant_category": "retail",
-            }
-            for _ in range(20)
-        ]
-
-    def test_returns_dict(self) -> None:
-        tx = {
-            "amount": 100.0,
-            "timestamp": "2024-01-15T10:00:00Z",
-            "merchant_category": "retail",
-        }
-        self.assertIsInstance(self.det.score_transaction(tx, self.history), dict)
-
-    def test_required_keys(self) -> None:
-        tx = {
-            "amount": 100.0,
-            "timestamp": "2024-01-15T10:00:00Z",
-            "merchant_category": "retail",
-        }
-        r = self.det.score_transaction(tx, self.history)
-        for k in ("anomaly_score", "is_anomaly", "severity", "risk_factors"):
-            self.assertIn(k, r)
-
-    def test_score_in_unit_interval(self) -> None:
-        tx = {
-            "amount": 50_000.0,
-            "timestamp": "2024-01-15T02:30:00Z",
-            "merchant_category": "crypto",
-        }
-        r = self.det.score_transaction(tx, self.history)
-        self.assertGreaterEqual(r["anomaly_score"], 0.0)
-        self.assertLessEqual(r["anomaly_score"], 1.0)
-
-    def test_large_amount_flagged_higher(self) -> None:
-        tx_big = {
-            "amount": 50_000.0,
-            "timestamp": "2024-01-15T14:00:00Z",
-            "merchant_category": "retail",
-        }
-        tx_ok = {
-            "amount": 105.0,
-            "timestamp": "2024-01-15T14:00:00Z",
-            "merchant_category": "retail",
-        }
-        self.assertGreater(
-            self.det.score_transaction(tx_big, self.history)["anomaly_score"],
-            self.det.score_transaction(tx_ok, self.history)["anomaly_score"],
-        )
-
-    def test_late_night_flagged_higher(self) -> None:
-        tx_day = {
-            "amount": 100.0,
-            "timestamp": "2024-01-15T14:00:00Z",
-            "merchant_category": "retail",
-        }
-        tx_night = {
-            "amount": 100.0,
-            "timestamp": "2024-01-15T02:00:00Z",
-            "merchant_category": "retail",
-        }
-        self.assertGreater(
-            self.det.score_transaction(tx_night, self.history)["anomaly_score"],
-            self.det.score_transaction(tx_day, self.history)["anomaly_score"],
-        )
-
-    def test_valid_severity(self) -> None:
-        tx = {
-            "amount": 100.0,
-            "timestamp": "2024-01-15T10:00:00Z",
-            "merchant_category": "retail",
-        }
-        r = self.det.score_transaction(tx, [])
-        self.assertIn(r["severity"], ("critical", "high", "medium", "low"))
-
-    def test_high_risk_merchant_flagged(self) -> None:
-        tx = {
-            "amount": 100.0,
-            "timestamp": "2024-01-15T10:00:00Z",
-            "merchant_category": "crypto_exchange",
-        }
-        r = self.det.score_transaction(tx, self.history)
-        self.assertTrue(any("merchant" in rf.lower() for rf in r["risk_factors"]))
-
-    def test_empty_history_no_crash(self) -> None:
-        tx = {
-            "amount": 200.0,
-            "timestamp": "2024-01-15T10:00:00Z",
-            "merchant_category": "retail",
-        }
-        r = self.det.score_transaction(tx, [])
-        self.assertIsInstance(r, dict)
 
 
 if __name__ == "__main__":

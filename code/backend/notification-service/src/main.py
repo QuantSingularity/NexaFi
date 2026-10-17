@@ -1,8 +1,3 @@
-"""
-Notification Service for NexaFi
-Handles email, SMS, and in-app notifications with compliance requirements
-"""
-
 import json
 import os
 import queue
@@ -16,10 +11,8 @@ from typing import Any, Dict, Optional
 
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
+from middleware.internal import install_internal_auth
 
-# Add this service's src directory (local packages like "models"/"routes")
-# and the shared library to sys.path so imports work regardless of how the
-# service is launched (python src/main.py, gunicorn, runpy, or any CWD).
 _SERVICE_SRC = os.path.dirname(os.path.abspath(__file__))
 _SHARED_DIR = os.path.abspath(os.path.join(_SERVICE_SRC, "..", "..", "shared"))
 for _p in (_SERVICE_SRC, _SHARED_DIR):
@@ -39,6 +32,7 @@ from validation_schemas.schemas import (
 )
 
 app = Flask(__name__)
+install_internal_auth(app)
 app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
@@ -148,7 +142,6 @@ DEFAULT_TEMPLATES = {
 
 
 class NotificationQueue:
-    """Notification queue processor"""
 
     def __init__(self) -> None:
         self.queue: object = queue.Queue()
@@ -164,7 +157,6 @@ class NotificationQueue:
         self.start_worker()
 
     def start_worker(self) -> object:
-        """Start background worker thread"""
         self.running = True
         self.worker_thread = threading.Thread(
             target=self._process_notifications, daemon=True
@@ -172,13 +164,11 @@ class NotificationQueue:
         self.worker_thread.start()
 
     def stop_worker(self) -> object:
-        """Stop background worker thread"""
         self.running = False
         if self.worker_thread:
             self.worker_thread.join()
 
     def _process_notifications(self) -> object:
-        """Background worker to process notifications"""
         while self.running:
             try:
                 notification_id = self.queue.get(timeout=1)
@@ -190,7 +180,6 @@ class NotificationQueue:
                 logger.error(f"Error processing notification: {e}")
 
     def _send_notification(self, notification_id: int) -> object:
-        """Send a notification"""
         notification = Notification.find_by_id(notification_id)
         if not notification:
             return
@@ -222,7 +211,6 @@ class NotificationQueue:
                 threading.Timer(300, lambda: self.queue.put(notification_id)).start()
 
     def _send_email(self, notification: Notification) -> object:
-        """Send email notification"""
         if not self.smtp_config["host"] or self.smtp_config["host"] == "localhost":
             logger.info(
                 f"Simulated email sent to user {notification.user_id}: {notification.subject}"
@@ -245,23 +233,19 @@ class NotificationQueue:
             server.send_message(msg)
 
     def _send_sms(self, notification: Notification) -> object:
-        """Send SMS notification"""
         logger.info(
             f"Simulated SMS sent to user {notification.user_id}: {notification.message[:50]}..."
         )
 
     def _send_push(self, notification: Notification) -> object:
-        """Send push notification"""
         logger.info(
             f"Simulated push notification sent to user {notification.user_id}: {notification.subject}"
         )
 
     def _send_in_app(self, notification: Notification) -> object:
-        """Send in-app notification"""
         logger.info(f"In-app notification created for user {notification.user_id}")
 
     def enqueue_notification(self, notification_id: int) -> object:
-        """Add notification to queue"""
         self.queue.put(notification_id)
 
 
@@ -269,11 +253,9 @@ notification_queue = NotificationQueue()
 
 
 class TemplateEngine:
-    """Simple template engine for notifications"""
 
     @staticmethod
     def render_template(template: str, variables: Dict[str, Any]) -> str:
-        """Render template with variables"""
         rendered = template
         for key, value in variables.items():
             placeholder = f"{{{key}}}"
@@ -282,14 +264,12 @@ class TemplateEngine:
 
     @classmethod
     def get_template(cls, template_name: str) -> Optional[NotificationTemplate]:
-        """Get template by name"""
         return NotificationTemplate.find_one(
             "template_name = ? AND is_active = 1", (template_name,)
         )
 
 
 def initialize_templates() -> object:
-    """Initialize default notification templates"""
     for template_name, template_data in DEFAULT_TEMPLATES.items():
         existing = NotificationTemplate.find_one("template_name = ?", (template_name,))
         if not existing:
@@ -306,7 +286,6 @@ def initialize_templates() -> object:
 
 @app.route("/api/v1/health", methods=["GET"])
 def health_check() -> object:
-    """Health check endpoint"""
     return jsonify(
         {
             "status": "healthy",
@@ -326,8 +305,7 @@ def health_check() -> object:
     AuditEventType.SYSTEM_CONFIG_CHANGE, "notification_sent", severity=AuditSeverity.LOW
 )
 def send_notification() -> object:
-    """Send a notification"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     preferences = NotificationPreferences.find_one("user_id = ?", (data["user_id"],))
     if preferences:
         channel = data["channel"]
@@ -416,7 +394,6 @@ def send_notification() -> object:
 @app.route("/api/v1/notifications/preferences/<user_id>", methods=["GET"])
 @require_auth
 def get_notification_preferences(user_id: str) -> object:
-    """Get user notification preferences"""
     if g.current_user["user_id"] != user_id and (
         not any(
             (
@@ -438,7 +415,6 @@ def get_notification_preferences(user_id: str) -> object:
 @validate_json_request(NotificationPreferencesSchema)
 @audit_action(AuditEventType.USER_UPDATE, "notification_preferences_updated")
 def update_notification_preferences(user_id: str) -> object:
-    """Update user notification preferences"""
     if g.current_user["user_id"] != user_id and (
         not any(
             (
@@ -448,7 +424,7 @@ def update_notification_preferences(user_id: str) -> object:
         )
     ):
         return (jsonify({"error": "Access denied"}), 403)
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     preferences = NotificationPreferences.find_one("user_id = ?", (user_id,))
     if not preferences:
         preferences = NotificationPreferences(user_id=user_id)
@@ -482,7 +458,6 @@ def update_notification_preferences(user_id: str) -> object:
 @app.route("/api/v1/notifications/user/<user_id>", methods=["GET"])
 @require_auth
 def get_user_notifications(user_id: str) -> object:
-    """Get notifications for a user"""
     if g.current_user["user_id"] != user_id and (
         not any(
             (
@@ -520,7 +495,6 @@ def get_user_notifications(user_id: str) -> object:
 @require_auth
 @require_permission("notification:write")
 def update_notification_status(notification_id: object) -> object:
-    """Update notification status (for admin use)"""
     data = request.get_json() or {}
     new_status = data.get("status")
     if new_status not in ["pending", "sent", "failed", "cancelled"]:
@@ -545,7 +519,6 @@ def update_notification_status(notification_id: object) -> object:
 @require_auth
 @require_permission("notification:read")
 def notification_stats() -> object:
-    """Get notification statistics"""
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     total_sent = len(
         Notification.find_all(

@@ -125,3 +125,13 @@ AI_MIGRATIONS = {
         """,
     },
 }
+
+AI_MIGRATIONS["008_create_ai_indexes"] = {
+    "description": "Create AI service indexes",
+    "sql": """
+    CREATE INDEX IF NOT EXISTS idx_ai_predictions_user_type ON ai_predictions (user_id, prediction_type, created_at);
+    CREATE INDEX IF NOT EXISTS idx_financial_insights_user ON financial_insights (user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_conversation_sessions_user ON conversation_sessions (user_id, last_activity_at);
+    CREATE INDEX IF NOT EXISTS idx_conversation_messages_session ON conversation_messages (session_id, created_at);
+    """,
+}

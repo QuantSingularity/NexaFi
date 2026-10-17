@@ -1,8 +1,3 @@
-"""
-User Service API Gateway
-Handles user authentication, registration, profile management, and role-based access control.
-"""
-
 import os
 import re
 import sys
@@ -12,17 +7,10 @@ from typing import Any, Tuple, Union
 from dotenv import load_dotenv
 from flask import Flask, Response, g, jsonify, request
 from flask_cors import CORS
+from middleware.internal import install_internal_auth
 
-# Load environment variables at the very beginning
 load_dotenv()
 
-# -------------------------------------------------------------------------
-# Path Configuration
-# -------------------------------------------------------------------------
-# BASE_DIR is this service's src directory; SHARED_DIR is the shared library.
-# Both are added to sys.path so local packages ("models", "routes", ...) and
-# shared modules import correctly no matter how the service is launched
-# (python src/main.py, gunicorn main:app, runpy, or from any other directory).
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SHARED_DIR = os.path.join(BASE_DIR, "..", "..", "shared")
 for _path in (BASE_DIR, SHARED_DIR):
@@ -40,10 +28,6 @@ from middleware.auth import (
     require_permission,
 )
 from models.user import User
-
-# -------------------------------------------------------------------------
-# Imports (Ensure these modules exist in the shared path)
-# -------------------------------------------------------------------------
 from nexafi_logging.logger import get_logger, setup_request_logging
 from validation_schemas.schemas import (
     UserLoginSchema,
@@ -52,26 +36,20 @@ from validation_schemas.schemas import (
     validate_json_request,
 )
 
-# -------------------------------------------------------------------------
-# App Configuration & Initialization
-# -------------------------------------------------------------------------
 app = Flask(__name__)
+install_internal_auth(app)
 
-# Environment Variable Validation
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY not set in environment. Exiting.")
 
-# Configuration
 app.config["SECRET_KEY"] = SECRET_KEY
 app.config["DEBUG"] = os.getenv("DEBUG", "False").lower() == "true"
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", 5001))
 
-# Initialize Auth Manager
 auth_manager = init_auth_manager(app.config["SECRET_KEY"])
 
-# CORS Configuration (Restrict in production)
 CORS(
     app,
     origins=os.getenv("ALLOWED_ORIGINS", "*"),
@@ -79,19 +57,15 @@ CORS(
     supports_credentials=True,
 )
 
-# Logging Setup
 setup_request_logging(app)
 logger = get_logger("user_service")
 
-# Database Setup
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL not set in environment. Exiting.")
 
-# Determine database path for sqlite or other drivers
 if DATABASE_URL.startswith("sqlite:///"):
     db_path = DATABASE_URL.replace("sqlite:///", "")
-    # Ensure database directory exists if using sqlite
     db_dir = os.path.dirname(db_path)
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
@@ -101,26 +75,19 @@ else:
 db_manager, migration_manager = initialize_database(db_path)
 BaseModel.set_db_manager(db_manager)
 
-# -------------------------------------------------------------------------
-# Utility Functions
-# -------------------------------------------------------------------------
-
 
 def validate_password_strength(password: str) -> Tuple[bool, str]:
-    """Validate password strength according to financial industry standards."""
     if len(password) < 12:
         return (False, "Password must be at least 12 characters long")
-    # Check complexity
     if not re.search("[A-Z]", password):
         return (False, "Password must contain at least one uppercase letter")
     if not re.search("[a-z]", password):
         return (False, "Password must contain at least one lowercase letter")
-    if not re.search(r"\d", password):  # Use raw string for cleaner regex
+    if not re.search(r"\d", password):
         return (False, "Password must contain at least one digit")
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>\[\]\-\+_=\\]", password):
         return (False, "Password must contain at least one special character")
 
-    # Check common patterns/dictionary words (Optimized)
     common_patterns = ["123", "abc", "password", "admin", "user", "qwert"]
     for pattern in common_patterns:
         if pattern.lower() in password.lower():
@@ -129,22 +96,13 @@ def validate_password_strength(password: str) -> Tuple[bool, str]:
     return (True, "Password is strong")
 
 
-#
-
-# -------------------------------------------------------------------------
-# Error Handlers
-# -------------------------------------------------------------------------
-
-
 @app.errorhandler(400)
 def handle_400(error: Exception) -> Tuple[Any, int]:
-    """Return a custom 400 Bad Request JSON response."""
     return (jsonify({"error": "Bad request", "message": str(error)}), 400)
 
 
 @app.errorhandler(401)
 def handle_401(error: Exception) -> Tuple[Any, int]:
-    """Return a custom 401 Unauthorized JSON response."""
     return (
         jsonify(
             {
@@ -158,7 +116,6 @@ def handle_401(error: Exception) -> Tuple[Any, int]:
 
 @app.errorhandler(403)
 def handle_403(error: Exception) -> Tuple[Any, int]:
-    """Return a custom 403 Forbidden JSON response."""
     return (
         jsonify(
             {
@@ -172,13 +129,11 @@ def handle_403(error: Exception) -> Tuple[Any, int]:
 
 @app.errorhandler(404)
 def handle_404(error: Exception) -> Tuple[Any, int]:
-    """Return a custom 404 Not Found JSON response."""
     return (jsonify({"error": "Not found", "message": str(error)}), 404)
 
 
 @app.errorhandler(500)
 def handle_500(error: Exception) -> Tuple[Any, int]:
-    """Return a custom 500 Internal Server Error JSON response."""
     logger.error(f"Internal Server Error: {error}", exc_info=True)
     return (
         jsonify(
@@ -191,28 +146,16 @@ def handle_500(error: Exception) -> Tuple[Any, int]:
     )
 
 
-# -------------------------------------------------------------------------
-# Health Check Route
-# -------------------------------------------------------------------------
-
-
 @app.route("/api/v1/health", methods=["GET"])
 def health_check() -> object:
-    """Health check endpoint"""
     return jsonify(
         {
             "status": "healthy",
             "service": "user-service",
-            # Use timezone-aware datetime
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "2.0.1",
         }
     )
-
-
-# -------------------------------------------------------------------------
-# Authentication Routes
-# -------------------------------------------------------------------------
 
 
 @app.route("/api/v1/auth/register", methods=["POST"])
@@ -221,8 +164,7 @@ def health_check() -> object:
     AuditEventType.USER_REGISTRATION, "user_registration", severity=AuditSeverity.HIGH
 )
 def register() -> Tuple[Any, int]:
-    """User registration with security"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     existing_user = User.find_one("email = ?", (data["email"],))
 
     if existing_user:
@@ -270,8 +212,7 @@ def register() -> Tuple[Any, int]:
 @validate_json_request(UserLoginSchema)
 @audit_action(AuditEventType.USER_LOGIN, "user_login", severity=AuditSeverity.MEDIUM)
 def login() -> Tuple[Any, int]:
-    """User login with security"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     user = User.find_one("email = ?", (data["email"],))
 
     if not user:
@@ -309,12 +250,10 @@ def login() -> Tuple[Any, int]:
                 "failed_attempts": user.failed_login_attempts,
             },
         )
-        # Lock account if failed attempts threshold is met (logic assumed in User model)
         if user.is_locked():
             logger.warning(f"Account locked: {user.email}")
         return (jsonify({"error": "Invalid credentials"}), 401)
 
-    # Successful login
     user.reset_failed_attempts()
     roles = user.get_roles()
     access_token, refresh_token = auth_manager.generate_tokens(
@@ -329,7 +268,6 @@ def login() -> Tuple[Any, int]:
     )
     logger.info(f"User logged in: {user.email}")
 
-    # Corrected return structure
     return (
         jsonify(
             {
@@ -346,7 +284,6 @@ def login() -> Tuple[Any, int]:
 
 @app.route("/api/v1/auth/refresh", methods=["POST"])
 def refresh_token() -> Union[Tuple[Response, int], Response]:
-    """Refresh access token"""
     data = request.get_json() or {}
     refresh_token = data.get("refresh_token")
 
@@ -370,13 +307,11 @@ def refresh_token() -> Union[Tuple[Response, int], Response]:
 @require_auth
 @audit_action(AuditEventType.USER_LOGOUT, "user_logout")
 def logout() -> Tuple[Any, int]:
-    """User logout"""
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
         auth_manager.revoke_token(token)
 
-    # Ensure g.current_user is available from require_auth decorator
     user_id = g.get("current_user", {}).get("user_id")
     if user_id:
         audit_logger.log_user_action(
@@ -386,20 +321,13 @@ def logout() -> Tuple[Any, int]:
     return jsonify({"message": "Logged out successfully"}), 200
 
 
-# -------------------------------------------------------------------------
-# User Profile Routes
-# -------------------------------------------------------------------------
-
-
 @app.route("/api/v1/users/profile", methods=["GET"])
 @require_auth
 def get_profile() -> Tuple[Any, int]:
-    """Get authenticated user profile"""
     user_id = g.current_user["user_id"]
     user = User.find_by_id(user_id)
 
     if not user:
-        # Should not happen if require_auth works, but safe check
         return (jsonify({"error": "User not found"}), 404)
 
     return jsonify({"user": user.to_dict()}), 200
@@ -410,8 +338,7 @@ def get_profile() -> Tuple[Any, int]:
 @validate_json_request(UserUpdateSchema)
 @audit_action(AuditEventType.USER_UPDATE, "user_profile_update")
 def update_profile() -> Tuple[Any, int]:
-    """Update authenticated user profile"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     user_id = g.current_user["user_id"]
     user = User.find_by_id(user_id)
 
@@ -424,7 +351,6 @@ def update_profile() -> Tuple[Any, int]:
         if field in data:
             setattr(user, field, data[field])
 
-    # Use timezone-aware datetime
     user.updated_at = datetime.now(timezone.utc)
     user.save()
 
@@ -442,16 +368,10 @@ def update_profile() -> Tuple[Any, int]:
     )
 
 
-# -------------------------------------------------------------------------
-# Admin/Role Management Routes
-# -------------------------------------------------------------------------
-
-
 @app.route("/api/v1/users", methods=["GET"])
 @require_auth
 @require_permission("user:read")
 def list_users() -> Tuple[Any, int]:
-    """List all users (admin only)"""
     users = User.find_all()
 
     return (
@@ -464,7 +384,6 @@ def list_users() -> Tuple[Any, int]:
 @require_auth
 @require_permission("user:read")
 def get_user_roles(user_id: int) -> Tuple[Any, int]:
-    """Get user roles and permissions"""
     user = User.find_by_id(user_id)
 
     if not user:
@@ -486,7 +405,6 @@ def get_user_roles(user_id: int) -> Tuple[Any, int]:
     AuditEventType.USER_UPDATE, "user_role_granted", severity=AuditSeverity.HIGH
 )
 def grant_role(user_id: int) -> Tuple[Any, int]:
-    """Grant role to user"""
     data = request.get_json() or {}
     role_name = data.get("role_name")
 
@@ -501,7 +419,6 @@ def grant_role(user_id: int) -> Tuple[Any, int]:
     if role_name in current_roles:
         return (jsonify({"error": "User already has this role"}), 409)
 
-    # Pass the user_id of the user performing the action (admin)
     admin_id = g.current_user["user_id"]
     user.add_role(role_name, admin_id)
 
@@ -530,13 +447,11 @@ def grant_role(user_id: int) -> Tuple[Any, int]:
     AuditEventType.USER_UPDATE, "user_role_revoked", severity=AuditSeverity.HIGH
 )
 def revoke_role(user_id: int, role_name: str) -> Tuple[Any, int]:
-    """Revoke role from user"""
     user = User.find_by_id(user_id)
 
     if not user:
         return (jsonify({"error": "User not found"}), 404)
 
-    # Check if user has the role before attempting removal
     if role_name not in user.get_roles():
         return (jsonify({"error": f"User does not have role: {role_name}"}), 404)
 
@@ -560,12 +475,7 @@ def revoke_role(user_id: int, role_name: str) -> Tuple[Any, int]:
     )
 
 
-# -------------------------------------------------------------------------
-# Run Application
-# -------------------------------------------------------------------------
-
 if __name__ == "__main__":
-    # Ensure the database directory exists before running
     data_dir = os.path.join(BASE_DIR, "data")
     os.makedirs(data_dir, exist_ok=True)
 

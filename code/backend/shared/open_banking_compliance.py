@@ -1,8 +1,3 @@
-"""
-Open Banking Compliance Module
-Implements PSD2, FAPI 2.0, and Strong Customer Authentication (SCA) requirements
-"""
-
 import base64
 import hashlib
 import json
@@ -24,11 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 def _parse_utc_datetime(value: str) -> datetime:
-    """Parse an ISO 8601 datetime string and ensure it is timezone-aware (UTC).
-
-    Handles both naive strings (from legacy DB rows / test mocks) and
-    already-aware strings (e.g. those ending in '+00:00' or 'Z').
-    """
     dt = datetime.fromisoformat(value)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
@@ -36,7 +26,6 @@ def _parse_utc_datetime(value: str) -> datetime:
 
 
 class ConsentStatus(Enum):
-    """PSD2 Consent Status"""
 
     RECEIVED = "received"
     VALID = "valid"
@@ -47,7 +36,6 @@ class ConsentStatus(Enum):
 
 
 class SCAStatus(Enum):
-    """Strong Customer Authentication Status"""
 
     RECEIVED = "received"
     PSUIDENTIFIED = "psuIdentified"
@@ -60,7 +48,6 @@ class SCAStatus(Enum):
 
 
 class AuthenticationMethod(Enum):
-    """SCA Authentication Methods"""
 
     SMS_OTP = "sms_otp"
     PUSH_NOTIFICATION = "push_notification"
@@ -71,7 +58,6 @@ class AuthenticationMethod(Enum):
 
 @dataclass
 class ConsentData:
-    """PSD2 Consent Data Structure"""
 
     consent_id: str
     status: ConsentStatus
@@ -88,7 +74,6 @@ class ConsentData:
 
 @dataclass
 class SCAData:
-    """Strong Customer Authentication Data"""
 
     authentication_id: str
     status: SCAStatus
@@ -100,7 +85,6 @@ class SCAData:
 
 
 class FAPI2SecurityProfile:
-    """FAPI 2.0 Security Profile Implementation"""
 
     def __init__(self, private_key_path: str, public_key_path: str) -> None:
         self.private_key = self._load_private_key(private_key_path)
@@ -108,12 +92,6 @@ class FAPI2SecurityProfile:
         self.algorithm = "RS256"
 
     def _load_private_key(self, key_path: str) -> object:
-        """Load an RSA private key, generating one if none exists.
-
-        If the generated key cannot be persisted (for example the target
-        directory is not writable), fall back to an in-memory ephemeral key so
-        the service still starts rather than crashing.
-        """
         if not os.path.exists(key_path):
             private_key = rsa.generate_private_key(
                 public_exponent=65537, key_size=2048, backend=default_backend()
@@ -144,7 +122,6 @@ class FAPI2SecurityProfile:
             )
 
     def _load_public_key(self, key_path: str) -> object:
-        """Load an RSA public key, deriving it from the private key if absent."""
         if not os.path.exists(key_path):
             public_key = self.private_key.public_key()
             try:
@@ -174,7 +151,6 @@ class FAPI2SecurityProfile:
     def create_signed_jwt(
         self, payload: Dict[str, Any], audience: str, issuer: str
     ) -> str:
-        """Create FAPI 2.0 compliant signed JWT"""
         now = datetime.now(timezone.utc)
         jwt_payload = {
             "iss": issuer,
@@ -192,7 +168,6 @@ class FAPI2SecurityProfile:
         )
 
     def verify_jwt(self, token: str, audience: str, issuer: str) -> Dict[str, Any]:
-        """Verify FAPI 2.0 compliant JWT"""
         try:
             payload = jwt.decode(
                 token,
@@ -209,7 +184,6 @@ class FAPI2SecurityProfile:
     def create_dpop_proof(
         self, http_method: str, http_uri: str, access_token: Optional[str] = None
     ) -> str:
-        """Create DPoP (Demonstrating Proof of Possession) proof JWT"""
         now = datetime.now(timezone.utc)
         payload = {
             "jti": secrets.token_urlsafe(32),
@@ -230,14 +204,12 @@ class FAPI2SecurityProfile:
 
 
 class PSD2ConsentManager:
-    """PSD2 Consent Management"""
 
     def __init__(self, db_manager: object) -> None:
         self.db_manager = db_manager
         self._initialize_consent_tables()
 
     def _initialize_consent_tables(self) -> object:
-        """Initialize consent management tables"""
         consent_table_sql = "\n        CREATE TABLE IF NOT EXISTS psd2_consents (\n            consent_id TEXT PRIMARY KEY,\n            psu_id TEXT NOT NULL,\n            tpp_id TEXT NOT NULL,\n            status TEXT NOT NULL,\n            valid_until TIMESTAMP NOT NULL,\n            frequency_per_day INTEGER DEFAULT 4,\n            recurring_indicator BOOLEAN DEFAULT FALSE,\n            combined_service_indicator BOOLEAN DEFAULT FALSE,\n            access_data TEXT NOT NULL,\n            creation_date_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            status_change_date_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            last_action_date TIMESTAMP,\n            FOREIGN KEY (psu_id) REFERENCES users(id)\n        );\n\n        CREATE INDEX IF NOT EXISTS idx_psd2_consents_psu_id ON psd2_consents(psu_id);\n        CREATE INDEX IF NOT EXISTS idx_psd2_consents_tpp_id ON psd2_consents(tpp_id);\n        CREATE INDEX IF NOT EXISTS idx_psd2_consents_status ON psd2_consents(status);\n        "
         self.db_manager.execute_query(consent_table_sql)
 
@@ -249,7 +221,6 @@ class PSD2ConsentManager:
         valid_until: Optional[datetime] = None,
         frequency_per_day: int = 4,
     ) -> ConsentData:
-        """Create new PSD2 consent"""
         consent_id = f"consent_{secrets.token_urlsafe(16)}"
         if not valid_until:
             valid_until = datetime.now(timezone.utc) + timedelta(days=90)
@@ -288,7 +259,6 @@ class PSD2ConsentManager:
         return consent
 
     def get_consent(self, consent_id: str) -> Optional[ConsentData]:
-        """Retrieve consent by ID"""
         query_sql = "SELECT * FROM psd2_consents WHERE consent_id = ?"
         result = self.db_manager.fetch_one(query_sql, (consent_id,))
         if not result:
@@ -310,7 +280,6 @@ class PSD2ConsentManager:
         )
 
     def update_consent_status(self, consent_id: str, new_status: ConsentStatus) -> bool:
-        """Update consent status"""
         update_sql = "\n        UPDATE psd2_consents\n        SET status = ?, status_change_date_time = ?\n        WHERE consent_id = ?\n        "
         result = self.db_manager.execute_query(
             update_sql, (new_status.value, datetime.now(timezone.utc), consent_id)
@@ -321,7 +290,6 @@ class PSD2ConsentManager:
             return result is not None
 
     def validate_consent(self, consent_id: str, tpp_id: str) -> Tuple[bool, str]:
-        """Validate consent for TPP access"""
         consent = self.get_consent(consent_id)
         if not consent:
             return (False, "Consent not found")
@@ -336,14 +304,12 @@ class PSD2ConsentManager:
 
 
 class SCAManager:
-    """Strong Customer Authentication Manager"""
 
     def __init__(self, db_manager: object) -> None:
         self.db_manager = db_manager
         self._initialize_sca_tables()
 
     def _initialize_sca_tables(self) -> object:
-        """Initialize SCA tables"""
         sca_table_sql = "\n        CREATE TABLE IF NOT EXISTS sca_authentications (\n            authentication_id TEXT PRIMARY KEY,\n            psu_id TEXT NOT NULL,\n            consent_id TEXT,\n            transaction_id TEXT,\n            status TEXT NOT NULL,\n            sca_method TEXT NOT NULL,\n            challenge_data TEXT,\n            authentication_method_id TEXT,\n            psu_message TEXT,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            expires_at TIMESTAMP,\n            completed_at TIMESTAMP,\n            attempts INTEGER DEFAULT 0,\n            max_attempts INTEGER DEFAULT 3,\n            FOREIGN KEY (psu_id) REFERENCES users(id),\n            FOREIGN KEY (consent_id) REFERENCES psd2_consents(consent_id)\n        );\n\n        CREATE INDEX IF NOT EXISTS idx_sca_psu_id ON sca_authentications(psu_id);\n        CREATE INDEX IF NOT EXISTS idx_sca_consent_id ON sca_authentications(consent_id);\n        CREATE INDEX IF NOT EXISTS idx_sca_status ON sca_authentications(status);\n        "
         self.db_manager.execute_query(sca_table_sql)
 
@@ -354,7 +320,6 @@ class SCAManager:
         consent_id: Optional[str] = None,
         transaction_id: Optional[str] = None,
     ) -> SCAData:
-        """Initiate Strong Customer Authentication"""
         authentication_id = f"sca_{secrets.token_urlsafe(16)}"
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
         challenge_data = self._generate_challenge(sca_method)
@@ -383,7 +348,6 @@ class SCAManager:
         return sca_data
 
     def _generate_challenge(self, method: AuthenticationMethod) -> str:
-        """Generate authentication challenge"""
         if method == AuthenticationMethod.SMS_OTP:
             return f"{secrets.randbelow(900000) + 100000:06d}"
         elif method == AuthenticationMethod.PUSH_NOTIFICATION:
@@ -396,13 +360,11 @@ class SCAManager:
     def _send_challenge(
         self, psu_id: str, method: AuthenticationMethod, challenge: str
     ) -> object:
-        """Send authentication challenge to user"""
         logger.info(f"SCA Challenge for user {psu_id} via {method.value}: {challenge}")
 
     def verify_sca(
         self, authentication_id: str, response: str
     ) -> Tuple[bool, SCAStatus]:
-        """Verify SCA response"""
         query_sql = "\n        SELECT * FROM sca_authentications\n        WHERE authentication_id = ?\n        "
         result = self.db_manager.fetch_one(query_sql, (authentication_id,))
         if not result:
@@ -421,7 +383,6 @@ class SCAManager:
             return (False, SCAStatus.RECEIVED)
 
     def _update_sca_status(self, authentication_id: str, status: SCAStatus) -> object:
-        """Update SCA status"""
         update_sql = "\n        UPDATE sca_authentications\n        SET status = ?, completed_at = ?\n        WHERE authentication_id = ?\n        "
         completed_at = (
             datetime.now(timezone.utc) if status == SCAStatus.FINALISED else None
@@ -431,17 +392,14 @@ class SCAManager:
         )
 
     def _increment_attempts(self, authentication_id: str) -> object:
-        """Increment authentication attempts"""
         update_sql = "\n        UPDATE sca_authentications\n        SET attempts = attempts + 1\n        WHERE authentication_id = ?\n        "
         self.db_manager.execute_query(update_sql, (authentication_id,))
 
 
 class OpenBankingAPIValidator:
-    """Open Banking API Request/Response Validator"""
 
     @staticmethod
     def validate_tpp_certificate(certificate_data: str) -> Tuple[bool, Dict[str, Any]]:
-        """Validate TPP certificate according to PSD2 requirements"""
         return (
             True,
             {
@@ -457,7 +415,6 @@ class OpenBankingAPIValidator:
     def validate_request_signature(
         request_data: str, signature: str, public_key: object
     ) -> bool:
-        """Validate request signature"""
         try:
             public_key.verify(
                 base64.b64decode(signature),
@@ -474,7 +431,6 @@ class OpenBankingAPIValidator:
 
     @staticmethod
     def validate_fapi_headers(headers: Dict[str, str]) -> Tuple[bool, List[str]]:
-        """Validate FAPI required headers"""
         errors: List[Any] = []
         required_headers = [
             "x-fapi-auth-date",
@@ -499,13 +455,11 @@ class OpenBankingAPIValidator:
 
 
 class TransactionRiskAnalysis:
-    """PSD2 Transaction Risk Analysis for SCA Exemptions"""
 
     @staticmethod
     def calculate_risk_score(
         transaction_data: Dict[str, Any], user_data: Dict[str, Any]
     ) -> Tuple[int, List[str]]:
-        """Calculate transaction risk score for SCA exemption eligibility"""
         risk_score = 0
         risk_factors: List[Any] = []
         amount = float(transaction_data.get("amount", 0))
@@ -542,7 +496,6 @@ class TransactionRiskAnalysis:
     def is_eligible_for_exemption(
         risk_score: int, amount: float, exemption_type: str
     ) -> bool:
-        """Check if transaction is eligible for SCA exemption"""
         if exemption_type == "low_value":
             return amount < 30 and risk_score < 30
         elif exemption_type == "low_risk":

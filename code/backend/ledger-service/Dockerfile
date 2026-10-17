@@ -2,19 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends     gcc     && rm -rf /var/lib/apt/lists/*
 
-# Copy shared library first (for layer caching)
 COPY shared/ /app/shared/
 
-# Copy service files
 COPY ledger-service/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ledger-service/src/ /app/src/
 
-# Set Python path
 ENV PYTHONPATH=/app:/app/src
 ENV FLASK_APP=src/main.py
 ENV PORT=5002

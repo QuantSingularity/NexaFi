@@ -1,21 +1,21 @@
 import os
 import sys
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(__file__))
-)  # local service root (routes, models, migrations)
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "shared")
-)  # shared library
+)
 
 from datetime import datetime, timezone
 
 from database.manager import BaseModel, initialize_database
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
+from middleware.internal import install_internal_auth
 from routes.user import payment_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
+install_internal_auth(app)
 app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
@@ -39,7 +39,6 @@ for version, migration in PAYMENT_MIGRATIONS.items():
 
 @app.route("/api/v1/health", methods=["GET"])
 def health_check() -> object:
-    """Standard service health endpoint, consistent with the other services."""
     return (
         jsonify(
             {

@@ -1,8 +1,3 @@
-"""
-Comprehensive audit logging system for NexaFi
-Implements immutable audit trails for financial transactions and system events
-"""
-
 import hashlib
 import json
 import logging
@@ -19,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class AuditEventType(Enum):
-    """Types of audit events"""
 
     USER_LOGIN = "user_login"
     USER_LOGOUT = "user_logout"
@@ -50,7 +44,6 @@ class AuditEventType(Enum):
 
 
 class AuditSeverity(Enum):
-    """Severity levels for audit events"""
 
     LOW = "low"
     MEDIUM = "medium"
@@ -60,7 +53,6 @@ class AuditSeverity(Enum):
 
 @dataclass
 class AuditEvent:
-    """Audit event data structure"""
 
     event_id: str
     event_type: AuditEventType
@@ -81,7 +73,6 @@ class AuditEvent:
     correlation_id: Optional[str]
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert audit event to dictionary"""
         data = asdict(self)
         data["event_type"] = self.event_type.value
         data["severity"] = self.severity.value
@@ -89,7 +80,6 @@ class AuditEvent:
         return data
 
     def calculate_hash(self) -> str:
-        """Calculate hash of audit event for integrity verification"""
         canonical_data = {
             "event_id": self.event_id,
             "event_type": self.event_type.value,
@@ -104,7 +94,6 @@ class AuditEvent:
 
 
 class AuditLogger:
-    """Audit logging system with integrity verification"""
 
     def __init__(self, storage_backend: object = None) -> None:
         self.storage_backend = storage_backend
@@ -115,19 +104,16 @@ class AuditLogger:
         self.start_worker()
 
     def start_worker(self) -> object:
-        """Start background worker thread for processing audit events"""
         self.running = True
         self.worker_thread = threading.Thread(target=self._process_events, daemon=True)
         self.worker_thread.start()
 
     def stop_worker(self) -> object:
-        """Stop background worker thread"""
         self.running = False
         if self.worker_thread:
             self.worker_thread.join()
 
     def _process_events(self) -> object:
-        """Background worker to process audit events"""
         while self.running:
             try:
                 event = self.event_queue.get(timeout=1)
@@ -139,7 +125,6 @@ class AuditLogger:
                 logger.info(f"Error processing audit event: {e}")
 
     def _store_event(self, event: AuditEvent) -> object:
-        """Store audit event with integrity chain"""
         event_hash = event.calculate_hash()
         if self.previous_hash:
             chain_hash = hashlib.sha256(
@@ -158,7 +143,6 @@ class AuditLogger:
         self.previous_hash = chain_hash
 
     def _write_to_file(self, event_data: Dict[str, Any]) -> object:
-        """Write audit event to file"""
         import os
 
         log_dir = os.environ.get(
@@ -188,7 +172,6 @@ class AuditLogger:
         severity: AuditSeverity = AuditSeverity.MEDIUM,
         correlation_id: Optional[str] = None,
     ) -> object:
-        """Log an audit event"""
         event = AuditEvent(
             event_id=str(uuid.uuid4()),
             event_type=event_type,
@@ -218,7 +201,6 @@ class AuditLogger:
         details: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> object:
-        """Log user-related action"""
         self.log_event(
             event_type=event_type,
             action=action,
@@ -239,7 +221,6 @@ class AuditLogger:
         details: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> object:
-        """Log financial transaction"""
         transaction_details = {
             "amount": amount,
             "currency": currency,
@@ -263,7 +244,6 @@ class AuditLogger:
         details: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> object:
-        """Log security-related event"""
         self.log_event(
             event_type=AuditEventType.SECURITY_VIOLATION,
             action=action,
@@ -284,7 +264,6 @@ class AuditLogger:
         response_time: float,
         **kwargs,
     ) -> object:
-        """Log API access"""
         details = {
             "endpoint": endpoint,
             "method": method,
@@ -313,7 +292,6 @@ def audit_action(
     resource_type: Optional[str] = None,
     severity: AuditSeverity = AuditSeverity.MEDIUM,
 ) -> object:
-    """Decorator for automatic audit logging of function calls"""
 
     def decorator(f):
         from functools import wraps

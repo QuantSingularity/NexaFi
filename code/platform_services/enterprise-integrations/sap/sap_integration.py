@@ -1,11 +1,4 @@
-"""
-SAP Enterprise Integration for NexaFi
-Comprehensive integration with SAP ERP, S/4HANA, SuccessFactors, and other SAP systems
-"""
-
 import base64
-
-# Resolve base_integration via importlib (parent dir has a hyphen - not importable as package)
 import importlib.util as _ilu
 import logging
 import os
@@ -21,7 +14,7 @@ from oauthlib.oauth2 import WebApplicationClient
 
 try:
     from pyrfc import Connection
-except ImportError:  # optional SAP RFC dependency, guarded at point of use
+except ImportError:
     Connection = None
 from requests.auth import HTTPBasicAuth
 
@@ -49,7 +42,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SAPConfig:
-    """SAP-specific configuration"""
 
     sap_system: str
     sap_client: str = "100"
@@ -68,7 +60,6 @@ class SAPConfig:
 
 
 class SAPAuthenticator:
-    """SAP authentication handler"""
 
     def __init__(self, config: IntegrationConfig, sap_config: SAPConfig) -> None:
         self.config = config
@@ -79,7 +70,6 @@ class SAPAuthenticator:
         self.csrf_token = None
 
     def authenticate(self) -> bool:
-        """Authenticate with SAP system"""
         try:
             if self.config.auth_method == AuthMethod.OAUTH2:
                 return self._oauth2_authenticate()
@@ -97,7 +87,6 @@ class SAPAuthenticator:
             return False
 
     def _oauth2_authenticate(self) -> bool:
-        """OAuth2 authentication for SAP systems"""
         try:
             if self.sap_config.sap_system == "SUCCESSFACTORS":
                 return self._successfactors_oauth2()
@@ -110,7 +99,6 @@ class SAPAuthenticator:
             return False
 
     def _successfactors_oauth2(self) -> bool:
-        """SuccessFactors OAuth2 authentication"""
         token_url = f"{self.config.base_url}/oauth/token"
         data = {
             "grant_type": "client_credentials",
@@ -129,7 +117,6 @@ class SAPAuthenticator:
         return True
 
     def _s4hana_oauth2(self) -> bool:
-        """S/4HANA OAuth2 authentication"""
         token_url = f"{self.config.base_url}/sap/bc/sec/oauth2/token"
         auth = HTTPBasicAuth(
             self.config.credentials["client_id"],
@@ -149,7 +136,6 @@ class SAPAuthenticator:
         return True
 
     def _generic_oauth2(self) -> bool:
-        """Generic OAuth2 authentication"""
         client = WebApplicationClient(self.config.credentials["client_id"])
         token_url = f"{self.config.base_url}/oauth2/token"
         token = client.prepare_request_body(
@@ -170,7 +156,6 @@ class SAPAuthenticator:
         return True
 
     def _basic_authenticate(self) -> bool:
-        """Basic authentication for SAP systems"""
         test_url = (
             f"{self.config.base_url}/sap/opu/odata/sap/API_BUSINESS_PARTNER/$metadata"
         )
@@ -181,7 +166,6 @@ class SAPAuthenticator:
         return response.status_code == 200
 
     def _saml_authenticate(self) -> bool:
-        """SAML authentication for SAP systems"""
         saml_endpoint = f"{self.config.base_url}/sap/bc/sec/saml2/idp/sso"
         assertion = self._create_saml_assertion()
         response = requests.post(
@@ -190,7 +174,6 @@ class SAPAuthenticator:
         return response.status_code == 200
 
     def _certificate_authenticate(self) -> bool:
-        """Certificate-based authentication"""
         cert_file = self.config.credentials.get("cert_file")
         key_file = self.config.credentials.get("key_file")
         if not cert_file or not key_file:
@@ -204,7 +187,6 @@ class SAPAuthenticator:
         return response.status_code == 200
 
     def _create_saml_assertion(self) -> str:
-        """Create SAML assertion (simplified)"""
         assertion_template = '\n        <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">\n            <saml:Subject>\n                <saml:NameID>{username}</saml:NameID>\n            </saml:Subject>\n            <saml:AttributeStatement>\n                <saml:Attribute Name="company">\n                    <saml:AttributeValue>{company}</saml:AttributeValue>\n                </saml:Attribute>\n            </saml:AttributeStatement>\n        </saml:Assertion>\n        '
         assertion = assertion_template.format(
             username=self.config.credentials["username"],
@@ -213,7 +195,6 @@ class SAPAuthenticator:
         return base64.b64encode(assertion.encode()).decode()
 
     def get_auth_headers(self) -> Dict[str, str]:
-        """Get authentication headers"""
         headers: Dict[str, Any] = {}
         if self.config.auth_method == AuthMethod.OAUTH2:
             if self.access_token:
@@ -230,7 +211,6 @@ class SAPAuthenticator:
         return headers
 
     def get_csrf_token(self) -> str:
-        """Get CSRF token for SAP OData services"""
         if self.csrf_token:
             return self.csrf_token
         try:
@@ -246,7 +226,6 @@ class SAPAuthenticator:
         return ""
 
     def is_token_valid(self) -> bool:
-        """Check if current token is valid"""
         if not self.access_token:
             return False
         if self.token_expires_at and datetime.utcnow() >= self.token_expires_at:
@@ -255,7 +234,6 @@ class SAPAuthenticator:
 
 
 class SAPRFCConnector:
-    """SAP RFC connector for direct system access"""
 
     def __init__(self, config: IntegrationConfig, sap_config: SAPConfig) -> None:
         self.config = config
@@ -264,7 +242,6 @@ class SAPRFCConnector:
         self.connection = None
 
     def connect(self) -> bool:
-        """Connect to SAP system via RFC"""
         try:
             connection_params = {
                 "ashost": self.config.base_url.replace("http://", "").replace(
@@ -287,13 +264,11 @@ class SAPRFCConnector:
             return False
 
     def disconnect(self) -> object:
-        """Disconnect from SAP system"""
         if self.connection:
             self.connection.close()
             self.connection = None
 
     def call_function(self, function_name: str, **kwargs) -> Dict[str, Any]:
-        """Call SAP function module"""
         if not self.connection:
             raise Exception("Not connected to SAP system")
         try:
@@ -310,7 +285,6 @@ class SAPRFCConnector:
         where_clause: Optional[str] = None,
         max_rows: int = 1000,
     ) -> List[Dict[str, Any]]:
-        """Read data from SAP table"""
         try:
             options: List[Any] = []
             if where_clause:
@@ -339,7 +313,6 @@ class SAPRFCConnector:
 
 
 class SAPODataConnector:
-    """SAP OData connector for modern API access"""
 
     def __init__(
         self,
@@ -362,7 +335,6 @@ class SAPODataConnector:
         top: Optional[int] = None,
         skip: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Get data from OData entity set"""
         try:
             url = (
                 f"{self.config.base_url}/sap/opu/odata/sap/{service_name}/{entity_set}"
@@ -395,7 +367,6 @@ class SAPODataConnector:
     def create_entity(
         self, service_name: str, entity_set: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Create new entity via OData"""
         try:
             url = (
                 f"{self.config.base_url}/sap/opu/odata/sap/{service_name}/{entity_set}"
@@ -416,7 +387,6 @@ class SAPODataConnector:
     def update_entity(
         self, service_name: str, entity_set: str, key: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Update entity via OData"""
         try:
             url = f"{self.config.base_url}/sap/opu/odata/sap/{service_name}/{entity_set}('{key}')"
             headers = self.authenticator.get_auth_headers()
@@ -433,7 +403,6 @@ class SAPODataConnector:
             raise
 
     def delete_entity(self, service_name: str, entity_set: str, key: str) -> bool:
-        """Delete entity via OData"""
         try:
             url = f"{self.config.base_url}/sap/opu/odata/sap/{service_name}/{entity_set}('{key}')"
             headers = self.authenticator.get_auth_headers()
@@ -449,7 +418,6 @@ class SAPODataConnector:
 
 
 class SAPBusinessPartnerSync:
-    """SAP Business Partner synchronization"""
 
     def __init__(
         self, odata_connector: SAPODataConnector, data_transformer: DataTransformer
@@ -461,7 +429,6 @@ class SAPBusinessPartnerSync:
     def sync_business_partners(
         self, filters: Optional[Dict[str, Any]] = None
     ) -> SyncResult:
-        """Sync business partners from SAP"""
         start_time = datetime.utcnow()
         records_processed = 0
         records_failed = 0
@@ -523,7 +490,6 @@ class SAPBusinessPartnerSync:
             )
 
     def _transform_business_partner(self, bp: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform SAP business partner data"""
         return {
             "external_id": bp["BusinessPartner"],
             "category": bp["BusinessPartnerCategory"],
@@ -536,12 +502,10 @@ class SAPBusinessPartnerSync:
         }
 
     def _process_business_partner(self, bp: Dict[str, Any]) -> object:
-        """Process business partner (implement based on your system)"""
         self.logger.info(f"Processing business partner: {bp['external_id']}")
 
 
 class SAPFinancialSync:
-    """SAP Financial data synchronization"""
 
     def __init__(
         self,
@@ -561,7 +525,6 @@ class SAPFinancialSync:
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
     ) -> SyncResult:
-        """Sync General Ledger data from SAP"""
         start_time = datetime.utcnow()
         records_processed = 0
         records_failed = 0
@@ -625,7 +588,6 @@ class SAPFinancialSync:
             )
 
     def _transform_gl_entry(self, entry: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform SAP GL entry"""
         return {
             "company_code": entry["BUKRS"],
             "document_number": entry["BELNR"],
@@ -639,12 +601,10 @@ class SAPFinancialSync:
         }
 
     def _process_gl_entry(self, entry: Dict[str, Any]) -> object:
-        """Process GL entry (implement based on your system)"""
         self.logger.info(f"Processing GL entry: {entry['document_number']}")
 
 
 class SAPIntegration(BaseIntegration):
-    """Main SAP integration class"""
 
     def __init__(
         self,
@@ -675,11 +635,9 @@ class SAPIntegration(BaseIntegration):
             )
 
     def authenticate(self) -> bool:
-        """Authenticate with SAP system"""
         return self.authenticator.authenticate()
 
     def test_connection(self) -> bool:
-        """Test connection to SAP system"""
         try:
             if self.odata_connector:
                 self.odata_connector.get_entity_set(
@@ -695,7 +653,6 @@ class SAPIntegration(BaseIntegration):
             return False
 
     def sync_data(self, entity_type: str, **kwargs) -> SyncResult:
-        """Sync data with SAP system"""
         try:
             if entity_type == "business_partners":
                 return self.bp_sync.sync_business_partners(kwargs.get("filters"))
@@ -723,11 +680,9 @@ class SAPIntegration(BaseIntegration):
             )
 
     def _get_auth_headers(self) -> Dict[str, str]:
-        """Get authentication headers"""
         return self.authenticator.get_auth_headers()
 
     def _process_webhook_data(self, payload: Dict[str, Any]) -> object:
-        """Process SAP webhook data"""
         try:
             event_type = payload.get("eventType")
             if event_type == "BusinessPartner.Created":
@@ -742,21 +697,18 @@ class SAPIntegration(BaseIntegration):
             self.logger.error(f"SAP webhook processing failed: {str(e)}")
 
     def _handle_bp_created(self, payload: Dict[str, Any]) -> object:
-        """Handle business partner created event"""
         bp_id = payload.get("businessPartner")
         self.logger.info(f"Business partner created: {bp_id}")
         if self.bp_sync:
             self.bp_sync.sync_business_partners({"BusinessPartner": bp_id})
 
     def _handle_bp_updated(self, payload: Dict[str, Any]) -> object:
-        """Handle business partner updated event"""
         bp_id = payload.get("businessPartner")
         self.logger.info(f"Business partner updated: {bp_id}")
         if self.bp_sync:
             self.bp_sync.sync_business_partners({"BusinessPartner": bp_id})
 
     def _handle_document_posted(self, payload: Dict[str, Any]) -> object:
-        """Handle document posted event"""
         doc_number = payload.get("documentNumber")
         company_code = payload.get("companyCode")
         fiscal_year = payload.get("fiscalYear")
@@ -770,7 +722,6 @@ class SAPIntegration(BaseIntegration):
             )
 
     def get_business_partner(self, bp_id: str) -> Optional[Dict[str, Any]]:
-        """Get specific business partner"""
         if not self.odata_connector:
             return None
         try:
@@ -785,7 +736,6 @@ class SAPIntegration(BaseIntegration):
             return None
 
     def create_business_partner(self, bp_data: Dict[str, Any]) -> Optional[str]:
-        """Create new business partner in SAP"""
         if not self.odata_connector:
             return None
         try:
@@ -800,7 +750,6 @@ class SAPIntegration(BaseIntegration):
     def get_financial_documents(
         self, company_code: str, fiscal_year: str, document_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Get financial documents from SAP"""
         if not self.rfc_connector:
             return []
         try:
@@ -821,7 +770,6 @@ class SAPIntegration(BaseIntegration):
 
 
 def create_sap_integration(system_type: str = "S4HANA") -> SAPIntegration:
-    """Factory function to create SAP integration"""
     config = IntegrationConfig(
         system_name="SAP",
         base_url=os.getenv("SAP_BASE_URL"),

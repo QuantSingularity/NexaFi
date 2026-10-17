@@ -1,0 +1,4 @@
+-r requirements.txt
+-r ai-service/requirements.txt
+pytest>=8.0
+pyflakes>=3.2

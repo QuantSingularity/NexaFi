@@ -1,7 +1,3 @@
-"""
-Shared message queue utilities for NexaFi services
-"""
-
 import json
 import logging
 from typing import Any, Callable, Dict, Optional
@@ -14,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class MessageQueue:
-    """RabbitMQ message queue manager"""
 
     def __init__(self) -> None:
         self.connection = None
@@ -22,7 +17,6 @@ class MessageQueue:
         self.config = InfrastructureConfig.get_rabbitmq_config()
 
     def connect(self) -> object:
-        """Establish connection to RabbitMQ"""
         try:
             credentials = pika.PlainCredentials(
                 self.config["credentials"]["username"],
@@ -42,13 +36,11 @@ class MessageQueue:
             raise
 
     def disconnect(self) -> object:
-        """Close connection to RabbitMQ"""
         if self.connection and (not self.connection.is_closed):
             self.connection.close()
             logger.info("Disconnected from RabbitMQ")
 
     def declare_queue(self, queue_name: str, durable: bool = True) -> object:
-        """Declare a queue"""
         if not self.channel:
             self.connect()
         self.channel.queue_declare(queue=queue_name, durable=durable)
@@ -57,7 +49,6 @@ class MessageQueue:
     def declare_exchange(
         self, exchange_name: str, exchange_type: str = "direct"
     ) -> object:
-        """Declare an exchange"""
         if not self.channel:
             self.connect()
         self.channel.exchange_declare(
@@ -72,7 +63,6 @@ class MessageQueue:
         exchange: str = "",
         routing_key: Optional[str] = None,
     ) -> object:
-        """Publish a message to a queue"""
         if not self.channel:
             self.connect()
         routing_key = routing_key or queue_name
@@ -87,7 +77,6 @@ class MessageQueue:
         logger.info(f"Published message to {queue_name}: {message}")
 
     def consume_messages(self, queue_name: str, callback: Callable) -> object:
-        """Consume messages from a queue"""
         if not self.channel:
             self.connect()
 
@@ -119,7 +108,6 @@ class Queues:
 
 
 def publish_task(queue_name: str, task_data: Dict[str, Any]) -> object:
-    """Publish a task to a queue"""
     try:
         mq.publish_message(queue_name, task_data)
         return True
@@ -129,7 +117,6 @@ def publish_task(queue_name: str, task_data: Dict[str, Any]) -> object:
 
 
 def setup_queues() -> object:
-    """Setup all required queues"""
     queues = [
         Queues.REPORT_GENERATION,
         Queues.EMAIL_NOTIFICATIONS,

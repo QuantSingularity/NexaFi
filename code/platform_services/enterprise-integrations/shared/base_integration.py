@@ -1,12 +1,6 @@
-"""
-Base Enterprise Integration Framework for NexaFi
-Provides common functionality for all enterprise system integrations
-"""
-
 import os
 import sys
 
-# Add backend shared library to path
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_BASE_DIR, "..", "..", "..", "backend", "shared"))
 
@@ -52,7 +46,6 @@ INTEGRATION_SYNC_STATUS = Gauge(
 
 
 class IntegrationStatus(Enum):
-    """Integration status enumeration"""
 
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -62,7 +55,6 @@ class IntegrationStatus(Enum):
 
 
 class AuthMethod(Enum):
-    """Authentication method enumeration"""
 
     OAUTH2 = "oauth2"
     BASIC = "basic"
@@ -75,7 +67,6 @@ class AuthMethod(Enum):
 
 @dataclass
 class IntegrationConfig:
-    """Integration configuration"""
 
     system_name: str
     base_url: str
@@ -100,7 +91,6 @@ class IntegrationConfig:
 
 @dataclass
 class SyncResult:
-    """Synchronization result"""
 
     system_name: str
     entity_type: str
@@ -120,7 +110,6 @@ Base = declarative_base()
 
 
 class IntegrationLog(Base):
-    """Integration log model"""
 
     __tablename__ = "integration_logs"
     id = Column(Integer, primary_key=True)
@@ -138,7 +127,6 @@ class IntegrationLog(Base):
 
 
 class IntegrationState(Base):
-    """Integration state tracking"""
 
     __tablename__ = "integration_states"
     id = Column(Integer, primary_key=True)
@@ -156,7 +144,6 @@ class IntegrationState(Base):
 
 
 class SecurityManager:
-    """Security manager for enterprise integrations"""
 
     def __init__(self, encryption_key: Optional[str] = None) -> None:
         self.encryption_key = encryption_key or os.getenv("INTEGRATION_ENCRYPTION_KEY")
@@ -167,7 +154,6 @@ class SecurityManager:
         self.logger = logging.getLogger(__name__)
 
     def encrypt_credentials(self, credentials: Dict[str, Any]) -> str:
-        """Encrypt sensitive credentials"""
         if not self.cipher:
             self.logger.warning(
                 "No encryption key provided, storing credentials in plain text"
@@ -182,7 +168,6 @@ class SecurityManager:
             raise
 
     def decrypt_credentials(self, encrypted_credentials: str) -> Dict[str, Any]:
-        """Decrypt sensitive credentials"""
         if not self.cipher:
             return json.loads(encrypted_credentials)
         try:
@@ -200,7 +185,6 @@ class SecurityManager:
         secret: str,
         timestamp: Optional[str] = None,
     ) -> str:
-        """Generate API signature for secure requests"""
         if not timestamp:
             timestamp = str(int(datetime.utcnow().timestamp()))
         message = f"{method}\n{url}\n{body}\n{timestamp}"
@@ -212,7 +196,6 @@ class SecurityManager:
     def validate_webhook_signature(
         self, payload: str, signature: str, secret: str
     ) -> bool:
-        """Validate webhook signature"""
         expected_signature = hashlib.hmac.new(
             secret.encode(), payload.encode(), hashlib.sha256
         ).hexdigest()
@@ -220,7 +203,6 @@ class SecurityManager:
 
 
 class RateLimiter:
-    """Rate limiter for API requests"""
 
     def __init__(self, redis_client: redis.Redis, rate_limit: int = 100) -> None:
         self.redis_client = redis_client
@@ -228,7 +210,6 @@ class RateLimiter:
         self.window_size = 60
 
     def is_allowed(self, key: str) -> bool:
-        """Check if request is allowed under rate limit"""
         try:
             current_time = int(time.time())
             window_start = current_time - self.window_size
@@ -245,13 +226,11 @@ class RateLimiter:
 
 
 class DataTransformer:
-    """Data transformation utilities"""
 
     @staticmethod
     def apply_field_mapping(
         data: Dict[str, Any], mapping: Dict[str, str]
     ) -> Dict[str, Any]:
-        """Apply field mapping to data"""
         if not mapping:
             return data
         transformed: Dict[str, Any] = {}
@@ -264,7 +243,6 @@ class DataTransformer:
     def apply_transformations(
         data: Dict[str, Any], transformations: Dict[str, Callable]
     ) -> Dict[str, Any]:
-        """Apply field transformations"""
         if not transformations:
             return data
         transformed = data.copy()
@@ -280,7 +258,6 @@ class DataTransformer:
     def normalize_date_format(
         date_value: object, target_format: str = "%Y-%m-%d"
     ) -> str:
-        """Normalize date format"""
         if isinstance(date_value, datetime):
             return date_value.strftime(target_format)
         elif isinstance(date_value, str):
@@ -295,7 +272,6 @@ class DataTransformer:
 
     @staticmethod
     def sanitize_data(data: Dict[str, Any]) -> Dict[str, Any]:
-        """Sanitize data for security"""
         sanitized: Dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, str):
@@ -317,7 +293,6 @@ class DataTransformer:
 
 
 class BaseIntegration(ABC):
-    """Base class for all enterprise integrations"""
 
     def __init__(
         self,
@@ -356,7 +331,6 @@ class BaseIntegration(ABC):
         self._initialize_state()
 
     def _initialize_state(self) -> object:
-        """Initialize integration state"""
         if not self.db_session:
             return
         try:
@@ -378,15 +352,15 @@ class BaseIntegration(ABC):
 
     @abstractmethod
     def authenticate(self) -> bool:
-        """Authenticate with the enterprise system"""
+        pass
 
     @abstractmethod
     def test_connection(self) -> bool:
-        """Test connection to the enterprise system"""
+        pass
 
     @abstractmethod
     def sync_data(self, entity_type: str, **kwargs) -> SyncResult:
-        """Sync data with the enterprise system"""
+        pass
 
     def _make_request(
         self,
@@ -396,7 +370,6 @@ class BaseIntegration(ABC):
         params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
     ) -> requests.Response:
-        """Make authenticated request to enterprise system"""
         if self.rate_limiter:
             rate_limit_key = f"rate_limit:{self.config.system_name}"
             if not self.rate_limiter.is_allowed(rate_limit_key):
@@ -426,7 +399,6 @@ class BaseIntegration(ABC):
         params: Dict[str, Any],
         headers: Dict[str, str],
     ) -> requests.Response:
-        """Execute HTTP request"""
         start_time = time.time()
         try:
             response = self.session.request(
@@ -455,7 +427,7 @@ class BaseIntegration(ABC):
 
     @abstractmethod
     def _get_auth_headers(self) -> Dict[str, str]:
-        """Get authentication headers"""
+        pass
 
     def _log_request(
         self,
@@ -464,7 +436,6 @@ class BaseIntegration(ABC):
         data: Dict[str, Any],
         response: requests.Response,
     ) -> object:
-        """Log request details"""
         if not self.db_session:
             return
         try:
@@ -483,7 +454,6 @@ class BaseIntegration(ABC):
             self.logger.error(f"Failed to log request: {str(e)}")
 
     def get_cached_data(self, cache_key: str) -> Optional[Any]:
-        """Get data from cache"""
         if not self.redis_client or not self.config.enable_caching:
             return None
         try:
@@ -497,7 +467,6 @@ class BaseIntegration(ABC):
     def set_cached_data(
         self, cache_key: str, data: object, ttl: Optional[int] = None
     ) -> object:
-        """Set data in cache"""
         if not self.redis_client or not self.config.enable_caching:
             return
         try:
@@ -507,7 +476,6 @@ class BaseIntegration(ABC):
             self.logger.error(f"Cache storage error: {str(e)}")
 
     def update_sync_state(self, entity_type: str, sync_result: SyncResult) -> object:
-        """Update synchronization state"""
         if not self.db_session:
             return
         try:
@@ -539,7 +507,6 @@ class BaseIntegration(ABC):
     def schedule_sync(
         self, entity_type: str, interval_minutes: Optional[int] = None
     ) -> object:
-        """Schedule periodic synchronization"""
         interval = interval_minutes or self.config.sync_interval // 60
 
         def sync_job():
@@ -555,7 +522,6 @@ class BaseIntegration(ABC):
     def process_webhook(
         self, payload: Dict[str, Any], signature: Optional[str] = None
     ) -> bool:
-        """Process incoming webhook"""
         try:
             if signature and hasattr(self.config.credentials, "webhook_secret"):
                 if not self.security_manager.validate_webhook_signature(
@@ -573,10 +539,9 @@ class BaseIntegration(ABC):
 
     @abstractmethod
     def _process_webhook_data(self, payload: Dict[str, Any]) -> object:
-        """Process webhook data (to be implemented by subclasses)"""
+        pass
 
     def get_integration_status(self) -> Dict[str, Any]:
-        """Get integration status and health"""
         try:
             connection_ok = self.test_connection()
             last_sync_status = None
@@ -629,7 +594,6 @@ class BaseIntegration(ABC):
 
 
 class IntegrationManager:
-    """Manager for multiple enterprise integrations"""
 
     def __init__(self, db_session: object = None, redis_client: object = None) -> None:
         self.db_session = db_session
@@ -640,16 +604,13 @@ class IntegrationManager:
         self.is_running = False
 
     def register_integration(self, integration: BaseIntegration) -> object:
-        """Register an integration"""
         self.integrations[integration.config.system_name] = integration
         self.logger.info(f"Registered integration: {integration.config.system_name}")
 
     def get_integration(self, system_name: str) -> Optional[BaseIntegration]:
-        """Get integration by system name"""
         return self.integrations.get(system_name)
 
     def start_scheduler(self) -> object:
-        """Start the integration scheduler"""
         if self.is_running:
             return
         self.is_running = True
@@ -664,14 +625,12 @@ class IntegrationManager:
         self.logger.info("Integration scheduler started")
 
     def stop_scheduler(self) -> object:
-        """Stop the integration scheduler"""
         self.is_running = False
         if self.scheduler_thread:
             self.scheduler_thread.join()
         self.logger.info("Integration scheduler stopped")
 
     def sync_all(self, entity_type: Optional[str] = None) -> Dict[str, SyncResult]:
-        """Sync all integrations"""
         results: Dict[str, Any] = {}
         with ThreadPoolExecutor(max_workers=5) as executor:
             future_to_system: Dict[str, Any] = {}
@@ -703,14 +662,12 @@ class IntegrationManager:
         return results
 
     def get_all_status(self) -> Dict[str, Dict[str, Any]]:
-        """Get status of all integrations"""
         status: Dict[str, Any] = {}
         for system_name, integration in self.integrations.items():
             status[system_name] = integration.get_integration_status()
         return status
 
     def health_check(self) -> Dict[str, Any]:
-        """Perform health check on all integrations"""
         healthy_count = 0
         total_count = len(self.integrations)
         system_status: Dict[str, Any] = {}
@@ -737,7 +694,6 @@ class IntegrationManager:
 
 
 def create_integration_config_from_env(system_name: str) -> IntegrationConfig:
-    """Create integration config from environment variables"""
     prefix = f"{system_name.upper()}_"
     return IntegrationConfig(
         system_name=system_name,
@@ -768,7 +724,6 @@ def create_integration_config_from_env(system_name: str) -> IntegrationConfig:
 
 
 def setup_database(database_url: str) -> object:
-    """Setup database for integration logging"""
     engine = create_engine(database_url)
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)

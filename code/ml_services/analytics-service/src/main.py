@@ -1,20 +1,27 @@
 import os
 import sys
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(__file__))
-)  # local service root (routes, models, migrations)
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(
     0,
     os.path.join(
         os.path.dirname(os.path.dirname(__file__)), "..", "..", "backend", "shared"
     ),
-)  # shared library
+)
 from database.manager import BaseModel, initialize_database
-from flask import Flask, send_from_directory
+from flask import Flask, jsonify, send_from_directory
+from middleware.internal import install_internal_auth
 from routes.user import analytics_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
+install_internal_auth(app)
+
+
+@app.route("/api/v1/health", methods=["GET"])
+def service_health():
+    return jsonify({"status": "healthy", "service": "analytics-service"}), 200
+
+
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "asdf#FGSgvasgf$5$WGT")
 app.register_blueprint(analytics_bp, url_prefix="/api/v1/analytics")
 db_path = os.path.join(os.path.dirname(__file__), "database", "app.db")

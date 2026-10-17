@@ -16,7 +16,6 @@ analytics_bp = Blueprint("analytics", __name__)
 
 
 def require_user_id(f: object) -> object:
-    """Decorator to extract user_id from request headers"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -32,7 +31,6 @@ def require_user_id(f: object) -> object:
 @analytics_bp.route("/dashboards", methods=["GET"])
 @require_user_id
 def get_dashboards() -> object:
-    """Get all dashboards for the current user."""
     try:
         dashboards = Dashboard.find_all("user_id = ?", (request.user_id,))
         return (jsonify([d.to_dict() for d in dashboards]), 200)
@@ -46,7 +44,6 @@ def get_dashboards() -> object:
 @analytics_bp.route("/dashboards", methods=["POST"])
 @require_user_id
 def create_dashboard() -> object:
-    """Create a new dashboard."""
     try:
         data = request.get_json()
         new_dashboard = Dashboard(
@@ -73,7 +70,6 @@ def create_dashboard() -> object:
 @analytics_bp.route("/dashboards/<dashboard_id>", methods=["GET"])
 @require_user_id
 def get_dashboard(dashboard_id: str) -> object:
-    """Get a specific dashboard by ID."""
     dashboard = Dashboard.find_one(
         "id = ? AND user_id = ?", (dashboard_id, request.user_id)
     )
@@ -85,7 +81,6 @@ def get_dashboard(dashboard_id: str) -> object:
 @analytics_bp.route("/dashboards/<dashboard_id>", methods=["PUT"])
 @require_user_id
 def update_dashboard(dashboard_id: str) -> object:
-    """Update an existing dashboard."""
     try:
         dashboard = Dashboard.find_one(
             "id = ? AND user_id = ?", (dashboard_id, request.user_id)
@@ -112,7 +107,6 @@ def update_dashboard(dashboard_id: str) -> object:
 @analytics_bp.route("/dashboards/<dashboard_id>", methods=["DELETE"])
 @require_user_id
 def delete_dashboard(dashboard_id: str) -> object:
-    """Delete a dashboard."""
     try:
         dashboard = Dashboard.find_one(
             "id = ? AND user_id = ?", (dashboard_id, request.user_id)
@@ -131,7 +125,6 @@ def delete_dashboard(dashboard_id: str) -> object:
 @analytics_bp.route("/reports", methods=["GET"])
 @require_user_id
 def get_reports() -> object:
-    """Get all reports for the current user."""
     try:
         reports = Report.find_all("user_id = ?", (request.user_id,))
         return (jsonify([r.to_dict() for r in reports]), 200)
@@ -142,7 +135,6 @@ def get_reports() -> object:
 @analytics_bp.route("/reports", methods=["POST"])
 @require_user_id
 def create_report() -> object:
-    """Create a new report."""
     try:
         data = request.get_json()
         new_report = Report(
@@ -167,7 +159,6 @@ def create_report() -> object:
 @analytics_bp.route("/reports/<report_id>", methods=["GET"])
 @require_user_id
 def get_report(report_id: str) -> object:
-    """Get a specific report by ID."""
     report = Report.find_one("id = ? AND user_id = ?", (report_id, request.user_id))
     if not report:
         return (jsonify({"error": "Report not found"}), 404)
@@ -177,7 +168,6 @@ def get_report(report_id: str) -> object:
 @analytics_bp.route("/reports/<report_id>", methods=["PUT"])
 @require_user_id
 def update_report(report_id: str) -> object:
-    """Update an existing report."""
     try:
         report = Report.find_one("id = ? AND user_id = ?", (report_id, request.user_id))
         if not report:
@@ -202,7 +192,6 @@ def update_report(report_id: str) -> object:
 @analytics_bp.route("/reports/<report_id>", methods=["DELETE"])
 @require_user_id
 def delete_report(report_id: str) -> object:
-    """Delete a report."""
     try:
         report = Report.find_one("id = ? AND user_id = ?", (report_id, request.user_id))
         if not report:
@@ -216,7 +205,6 @@ def delete_report(report_id: str) -> object:
 @analytics_bp.route("/reports/<report_id>/execute", methods=["POST"])
 @require_user_id
 def execute_report(report_id: str) -> object:
-    """Execute a report (simulated)."""
     try:
         report = Report.find_one("id = ? AND user_id = ?", (report_id, request.user_id))
         if not report:
@@ -252,7 +240,6 @@ def execute_report(report_id: str) -> object:
 @analytics_bp.route("/reports/<report_id>/executions", methods=["GET"])
 @require_user_id
 def get_report_executions(report_id: str) -> object:
-    """Get all executions for a report."""
     try:
         report = Report.find_one("id = ? AND user_id = ?", (report_id, request.user_id))
         if not report:
@@ -270,7 +257,6 @@ def get_report_executions(report_id: str) -> object:
 @analytics_bp.route("/data-sources", methods=["GET"])
 @require_user_id
 def get_data_sources() -> object:
-    """Get all data sources for the current user."""
     try:
         data_sources = DataSource.find_all("user_id = ?", (request.user_id,))
         return (jsonify([d.to_dict() for d in data_sources]), 200)
@@ -284,7 +270,6 @@ def get_data_sources() -> object:
 @analytics_bp.route("/data-sources", methods=["POST"])
 @require_user_id
 def create_data_source() -> object:
-    """Create a new data source."""
     try:
         data = request.get_json()
         new_source = DataSource(
@@ -313,7 +298,6 @@ def create_data_source() -> object:
 @analytics_bp.route("/data-sources/<source_id>", methods=["GET"])
 @require_user_id
 def get_data_source(source_id: object) -> object:
-    """Get a specific data source by ID."""
     data_source = DataSource.find_one(
         "id = ? AND user_id = ?", (source_id, request.user_id)
     )
@@ -325,7 +309,6 @@ def get_data_source(source_id: object) -> object:
 @analytics_bp.route("/data-sources/<source_id>", methods=["PUT"])
 @require_user_id
 def update_data_source(source_id: object) -> object:
-    """Update an existing data source."""
     try:
         data_source = DataSource.find_one(
             "id = ? AND user_id = ?", (source_id, request.user_id)
@@ -362,7 +345,6 @@ def update_data_source(source_id: object) -> object:
 @analytics_bp.route("/data-sources/<source_id>", methods=["DELETE"])
 @require_user_id
 def delete_data_source(source_id: object) -> object:
-    """Delete a data source."""
     try:
         data_source = DataSource.find_one(
             "id = ? AND user_id = ?", (source_id, request.user_id)
@@ -381,7 +363,6 @@ def delete_data_source(source_id: object) -> object:
 @analytics_bp.route("/metrics", methods=["GET"])
 @require_user_id
 def get_metrics() -> object:
-    """Get all metrics for the current user."""
     try:
         metrics = Metric.find_all("user_id = ?", (request.user_id,))
         return (jsonify([m.to_dict() for m in metrics]), 200)
@@ -392,7 +373,6 @@ def get_metrics() -> object:
 @analytics_bp.route("/metrics", methods=["POST"])
 @require_user_id
 def create_metric() -> object:
-    """Create a new metric."""
     try:
         data = request.get_json()
         new_metric = Metric(
@@ -422,7 +402,6 @@ def create_metric() -> object:
 @analytics_bp.route("/metrics/<metric_id>", methods=["GET"])
 @require_user_id
 def get_metric(metric_id: str) -> object:
-    """Get a specific metric by ID."""
     metric = Metric.find_one("id = ? AND user_id = ?", (metric_id, request.user_id))
     if not metric:
         return (jsonify({"error": "Metric not found"}), 404)
@@ -432,7 +411,6 @@ def get_metric(metric_id: str) -> object:
 @analytics_bp.route("/metrics/<metric_id>", methods=["PUT"])
 @require_user_id
 def update_metric(metric_id: str) -> object:
-    """Update an existing metric."""
     try:
         metric = Metric.find_one("id = ? AND user_id = ?", (metric_id, request.user_id))
         if not metric:
@@ -466,7 +444,6 @@ def update_metric(metric_id: str) -> object:
 @analytics_bp.route("/metrics/<metric_id>", methods=["DELETE"])
 @require_user_id
 def delete_metric(metric_id: str) -> object:
-    """Delete a metric."""
     try:
         metric = Metric.find_one("id = ? AND user_id = ?", (metric_id, request.user_id))
         if not metric:
@@ -480,7 +457,6 @@ def delete_metric(metric_id: str) -> object:
 @analytics_bp.route("/metrics/<metric_id>/history", methods=["GET"])
 @require_user_id
 def get_metric_history(metric_id: str) -> object:
-    """Get historical data for a metric."""
     try:
         metric = Metric.find_one("id = ? AND user_id = ?", (metric_id, request.user_id))
         if not metric:
@@ -498,7 +474,6 @@ def get_metric_history(metric_id: str) -> object:
 @analytics_bp.route("/metrics/<metric_id>/calculate", methods=["POST"])
 @require_user_id
 def calculate_metric(metric_id: str) -> object:
-    """Calculate a metric (simulated)."""
     try:
         metric = Metric.find_one("id = ? AND user_id = ?", (metric_id, request.user_id))
         if not metric:

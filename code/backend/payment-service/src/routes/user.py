@@ -1,10 +1,18 @@
 import uuid
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 from typing import Optional
 
 from flask import Blueprint, jsonify, request
+from fraud_screening import (
+    HISTORY_LIMIT,
+    blocked_actions,
+    fail_closed,
+    history_payload,
+    screen_transaction,
+    screening_mode,
+)
 from models.user import (
     PaymentMethod,
     RecurringPayment,
@@ -17,7 +25,6 @@ payment_bp = Blueprint("payment", __name__)
 
 
 def require_user_id(f: object) -> object:
-    """Decorator to extract user_id from request headers"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -33,7 +40,6 @@ def require_user_id(f: object) -> object:
 def calculate_fees(
     amount: Decimal, payment_method_type: str, processor_name: object = "default"
 ) -> Decimal:
-    """Calculate transaction fees based on payment method and processor (simulated)"""
     fee_structures = {
         "card": {"percentage": Decimal("0.029"), "fixed": Decimal("0.30")},
         "bank_account": {"percentage": Decimal("0.008"), "fixed": Decimal("0.00")},
@@ -46,7 +52,6 @@ def calculate_fees(
 
 
 def create_or_update_wallet(user_id: str, currency: object = "USD") -> Wallet:
-    """Create or get existing wallet for user and currency (simulated with custom ORM)"""
     wallet = Wallet.find_one("user_id = ? AND currency = ?", (user_id, currency))
     if not wallet:
         wallet = Wallet(
@@ -72,7 +77,6 @@ def update_wallet_balance(
     description: str,
     transaction_id: Optional[str] = None,
 ) -> object:
-    """Update wallet balance and create history record (simulated with custom ORM)"""
     amount_float = float(amount)
     balance_before = wallet.balance
     if change_type == "credit":
@@ -106,7 +110,6 @@ def update_wallet_balance(
 @payment_bp.route("/payment-methods", methods=["GET"])
 @require_user_id
 def get_payment_methods() -> object:
-    """Get all payment methods for user"""
     try:
         payment_methods = PaymentMethod.find_all(
             "user_id = ? AND is_active = 1 ORDER BY is_default DESC, created_at DESC",
@@ -131,7 +134,6 @@ def get_payment_methods() -> object:
 @payment_bp.route("/payment-methods", methods=["POST"])
 @require_user_id
 def create_payment_method() -> object:
-    """Create new payment method"""
     try:
         data = request.get_json()
         required_fields = ["type", "provider", "details"]
@@ -190,7 +192,6 @@ def create_payment_method() -> object:
 @payment_bp.route("/payment-methods/<method_id>", methods=["GET"])
 @require_user_id
 def get_payment_method(method_id: object) -> object:
-    """Get specific payment method"""
     try:
         payment_method = PaymentMethod.find_one(
             "id = ? AND user_id = ?", (method_id, request.user_id)
@@ -208,7 +209,6 @@ def get_payment_method(method_id: object) -> object:
 @payment_bp.route("/payment-methods/<method_id>", methods=["PUT"])
 @require_user_id
 def update_payment_method(method_id: object) -> object:
-    """Update payment method"""
     try:
         payment_method = PaymentMethod.find_one(
             "id = ? AND user_id = ?", (method_id, request.user_id)
@@ -249,7 +249,6 @@ def update_payment_method(method_id: object) -> object:
 @payment_bp.route("/payment-methods/<method_id>", methods=["DELETE"])
 @require_user_id
 def delete_payment_method(method_id: object) -> object:
-    """Delete payment method (soft delete)"""
     try:
         payment_method = PaymentMethod.find_one(
             "id = ? AND user_id = ?", (method_id, request.user_id)
@@ -270,7 +269,6 @@ def delete_payment_method(method_id: object) -> object:
 @payment_bp.route("/transactions", methods=["GET"])
 @require_user_id
 def get_transactions() -> object:
-    """Get transactions for user"""
     try:
         status = request.args.get("status")
         transaction_type = request.args.get("type")
@@ -290,8 +288,18 @@ def get_transactions() -> object:
         if end_date:
             where_clause += " AND created_at <= ?"
             params.append(end_date)
+        try:
+            per_page = max(1, min(int(request.args.get("per_page", 500)), 1000))
+            page = max(1, int(request.args.get("page", 1)))
+        except ValueError:
+            return (jsonify({"error": "page and per_page must be integers"}), 400)
+        total = Transaction.count(where_clause, tuple(params))
         transactions = Transaction.find_all(
-            where_clause + " ORDER BY created_at DESC", tuple(params)
+            where_clause,
+            tuple(params),
+            order_by="created_at DESC",
+            limit=per_page,
+            offset=(page - 1) * per_page,
         )
         return (
             jsonify(
@@ -299,7 +307,9 @@ def get_transactions() -> object:
                     "transactions": [
                         transaction.to_dict() for transaction in transactions
                     ],
-                    "total": len(transactions),
+                    "total": total,
+                    "page": page,
+                    "per_page": per_page,
                 }
             ),
             200,
@@ -314,15 +324,19 @@ def get_transactions() -> object:
 @payment_bp.route("/transactions", methods=["POST"])
 @require_user_id
 def create_transaction() -> object:
-    """Create new transaction"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return (jsonify({"error": "A JSON object body is required"}), 400)
         required_fields = ["amount", "transaction_type"]
         for field in required_fields:
             if not data.get(field):
                 return (jsonify({"error": f"{field} is required"}), 400)
-        amount = Decimal(str(data["amount"]))
-        if amount <= 0:
+        try:
+            amount = Decimal(str(data["amount"]))
+        except InvalidOperation:
+            return (jsonify({"error": "amount must be a number"}), 400)
+        if not amount.is_finite() or amount <= 0:
             return (jsonify({"error": "Amount must be greater than 0"}), 400)
         payment_method = None
         if data.get("payment_method_id"):
@@ -336,6 +350,49 @@ def create_transaction() -> object:
         if payment_method:
             fees = calculate_fees(amount, payment_method.type, payment_method.provider)
         net_amount = amount - fees
+        risk = None
+        if screening_mode() != "off":
+            recent = Transaction.find_all(
+                "user_id = ?",
+                (request.user_id,),
+                order_by="created_at DESC",
+                limit=HISTORY_LIMIT,
+            )
+            risk = screen_transaction(
+                request.user_id,
+                {
+                    "amount": float(amount),
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "currency": data.get("currency", "USD"),
+                    "merchant": data.get("reference") or data.get("description"),
+                    "category": data["transaction_type"],
+                },
+                history_payload(recent),
+            )
+            blocked = (
+                risk is not None
+                and risk.get("available")
+                and risk.get("recommended_action") in blocked_actions()
+            )
+            unavailable = risk is not None and not risk.get("available")
+            if screening_mode() == "enforce" and (
+                blocked or (unavailable and fail_closed())
+            ):
+                return (
+                    jsonify(
+                        {
+                            "error": "Transaction declined by fraud screening",
+                            "risk": risk,
+                        }
+                    ),
+                    403,
+                )
+        metadata = data.get("metadata")
+        if risk is not None:
+            metadata = {
+                **(metadata if isinstance(metadata, dict) else {}),
+                "risk": risk,
+            }
         transaction = Transaction(
             id=str(uuid.uuid4()),
             user_id=request.user_id,
@@ -348,7 +405,7 @@ def create_transaction() -> object:
             status="pending",
             fees=float(fees),
             net_amount=float(net_amount),
-            metadata=data.get("metadata"),
+            metadata=metadata,
             created_at=datetime.utcnow().isoformat(),
             updated_at=datetime.utcnow().isoformat(),
         )
@@ -405,7 +462,6 @@ def create_transaction() -> object:
 @payment_bp.route("/transactions/<transaction_id>", methods=["GET"])
 @require_user_id
 def get_transaction(transaction_id: object) -> object:
-    """Get specific transaction"""
     try:
         transaction = Transaction.find_one(
             "id = ? AND user_id = ?", (transaction_id, request.user_id)
@@ -420,7 +476,6 @@ def get_transaction(transaction_id: object) -> object:
 @payment_bp.route("/wallets", methods=["GET"])
 @require_user_id
 def get_wallets() -> object:
-    """Get all wallets for user"""
     try:
         wallets = Wallet.find_all("user_id = ? AND is_active = 1", (request.user_id,))
         return (
@@ -439,7 +494,6 @@ def get_wallets() -> object:
 @payment_bp.route("/wallets/<currency>", methods=["GET"])
 @require_user_id
 def get_wallet_by_currency(currency: object) -> object:
-    """Get wallet for specific currency"""
     try:
         wallet = Wallet.find_one(
             "user_id = ? AND currency = ? AND is_active = 1",
@@ -455,7 +509,6 @@ def get_wallet_by_currency(currency: object) -> object:
 @payment_bp.route("/wallets/<currency>/history", methods=["GET"])
 @require_user_id
 def get_wallet_history(currency: object) -> object:
-    """Get wallet balance history"""
     try:
         wallet = Wallet.find_one(
             "user_id = ? AND currency = ? AND is_active = 1",
@@ -486,7 +539,6 @@ def get_wallet_history(currency: object) -> object:
 @payment_bp.route("/recurring-payments", methods=["GET"])
 @require_user_id
 def get_recurring_payments() -> object:
-    """Get recurring payments for user"""
     try:
         recurring_payments = RecurringPayment.find_all(
             "user_id = ? ORDER BY next_payment_date", (request.user_id,)
@@ -512,7 +564,6 @@ def get_recurring_payments() -> object:
 @payment_bp.route("/recurring-payments", methods=["POST"])
 @require_user_id
 def create_recurring_payment() -> object:
-    """Create new recurring payment"""
     try:
         data = request.get_json()
         required_fields = ["payment_method_id", "amount", "frequency", "start_date"]
@@ -564,7 +615,6 @@ def create_recurring_payment() -> object:
 
 @payment_bp.route("/health", methods=["GET"])
 def health_check() -> object:
-    """Health check endpoint"""
     return (
         jsonify(
             {

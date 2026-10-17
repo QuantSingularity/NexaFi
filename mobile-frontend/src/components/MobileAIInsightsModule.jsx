@@ -25,7 +25,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp, useAuth } from "../contexts/MobileContext";
@@ -51,56 +50,58 @@ const MobileAIInsightsModule = () => {
 
   const createNewSession = useCallback(async () => {
     try {
-      const welcomeMessage = {
-        role: "assistant",
-        content:
-          "Hello! I'm your AI financial assistant. I can help you with financial analysis, predictions, and recommendations. How can I assist you today?",
-        timestamp: new Date().toISOString(),
-      };
-      setChatMessages([welcomeMessage]);
+      const session = await mobileApiClient.createChatSession();
+      setActiveSession(session);
+      setChatMessages([
+        {
+          role: "assistant",
+          content:
+            "Hello! I can forecast your cash flow, assess credit, review transactions and surface insights from your activity. What would you like to know?",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch (error) {
       console.error("Failed to create session:", error);
+      setActiveSession(null);
     }
   }, []);
 
   const loadPredictions = useCallback(async () => {
-    try {
-      const cashFlowPrediction = await mobileApiClient
-        .generatePrediction("cash-flow", { period: "30d" })
-        .catch(() => null);
+    const [cashFlow, credit] = await Promise.allSettled([
+      mobileApiClient.generatePrediction("cash-flow", {
+        source: "payments",
+        days_ahead: 30,
+      }),
+      mobileApiClient.getCurrentCreditScore(),
+    ]);
+    const predictionsData = [];
 
-      const revenuePrediction = await mobileApiClient
-        .generatePrediction("revenue", { period: "90d" })
-        .catch(() => null);
-
-      const predictionsData = [];
-
-      if (cashFlowPrediction) {
-        predictionsData.push({
-          type: "cash_flow",
-          title: "Cash Flow Forecast",
-          description: "30-day cash flow prediction",
-          value: cashFlowPrediction.predicted_value,
-          confidence: cashFlowPrediction.confidence,
-          trend: cashFlowPrediction.trend,
-        });
-      }
-
-      if (revenuePrediction) {
-        predictionsData.push({
-          type: "revenue",
-          title: "Revenue Projection",
-          description: "90-day revenue forecast",
-          value: revenuePrediction.predicted_value,
-          confidence: revenuePrediction.confidence,
-          trend: revenuePrediction.trend,
-        });
-      }
-
-      setPredictions(predictionsData);
-    } catch (error) {
-      console.error("Failed to load predictions:", error);
+    if (cashFlow.status === "fulfilled") {
+      const { summary } = cashFlow.value;
+      predictionsData.push({
+        type: "cash_flow",
+        title: "Cash Flow Forecast",
+        description: "Projected net cash flow, next 30 days",
+        value: summary.total_predicted_cash_flow,
+        trend: summary.average_daily_cash_flow >= 0 ? "up" : "down",
+        note: `Based on ${summary.history_days} days of history using the ${summary.method.replace("_", " ")} model.`,
+      });
     }
+
+    if (credit.status === "fulfilled" && credit.value?.score) {
+      const details = credit.value.calculation_details || {};
+      predictionsData.push({
+        type: "credit",
+        title: "Credit Score",
+        description: details.risk_category
+          ? `Risk category: ${details.risk_category.replace("_", " ")}`
+          : "Scored with fallback rules",
+        score: credit.value.score,
+        note: (details.recommendations || [])[0] || "Latest stored score.",
+      });
+    }
+
+    setPredictions(predictionsData);
   }, []);
 
   const loadData = useCallback(async () => {
@@ -117,8 +118,19 @@ const MobileAIInsightsModule = () => {
       if (sessionsData.sessions && sessionsData.sessions.length > 0) {
         const session = sessionsData.sessions[0];
         setActiveSession(session);
-        if (session.messages) {
-          setChatMessages(session.messages);
+        try {
+          const history = await mobileApiClient.request(
+            `/chat/sessions/${session.id}/messages`,
+          );
+          setChatMessages(
+            (history.messages || []).map((item) => ({
+              role: item.message_type === "user" ? "user" : "assistant",
+              content: item.content,
+              timestamp: item.created_at,
+            })),
+          );
+        } catch (error) {
+          console.error("Failed to load chat history:", error);
         }
       } else {
         await createNewSession();
@@ -164,18 +176,22 @@ const MobileAIInsightsModule = () => {
     setSendingMessage(true);
 
     try {
-      const sessionId = activeSession?.id || "default";
+      let session = activeSession;
+      if (!session) {
+        session = await mobileApiClient.createChatSession();
+        setActiveSession(session);
+      }
       const response = await mobileApiClient.sendChatMessage(
-        sessionId,
-        currentMessage.trim(),
+        session.id,
+        userMessage.content,
       );
 
       const assistantMessage = {
         role: "assistant",
         content:
-          response.message ||
-          response.response ||
-          "I understand. Let me help you with that.",
+          response.assistant_message?.content ||
+          response.reply?.content ||
+          "No response was returned.",
         timestamp: new Date().toISOString(),
       };
 
@@ -185,8 +201,7 @@ const MobileAIInsightsModule = () => {
 
       const errorMessage = {
         role: "assistant",
-        content:
-          "I apologize, but I'm having trouble connecting right now. Please try again in a moment.",
+        content: `The advisor is unavailable right now: ${error.message}`,
         timestamp: new Date().toISOString(),
         error: true,
       };
@@ -428,7 +443,9 @@ const MobileAIInsightsModule = () => {
                       <CardContent className="space-y-4">
                         <div className="flex items-baseline gap-2">
                           <span className="text-3xl font-bold">
-                            {formatCurrency(prediction.value)}
+                            {prediction.score !== undefined
+                              ? prediction.score
+                              : formatCurrency(prediction.value)}
                           </span>
                           {prediction.trend && (
                             <Badge
@@ -448,23 +465,9 @@ const MobileAIInsightsModule = () => {
                           )}
                         </div>
 
-                        {prediction.confidence && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Confidence</span>
-                              <span className="font-medium">
-                                {prediction.confidence}%
-                              </span>
-                            </div>
-                            <Progress value={prediction.confidence} />
-                          </div>
-                        )}
-
                         <div className="bg-blue-50 rounded-lg p-3">
                           <p className="text-sm text-blue-900">
-                            Based on historical data and current trends, this
-                            prediction has a {prediction.confidence}% confidence
-                            level.
+                            {prediction.note}
                           </p>
                         </div>
                       </CardContent>

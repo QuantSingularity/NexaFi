@@ -1,55 +1,43 @@
-# NexaFi Backend Requirements
-# Core Web Frameworks
 Flask==3.0.0
 Flask-Cors==4.0.0
 Flask-SQLAlchemy==3.1.1
 Werkzeug==3.0.1
 
-# FastAPI (if needed)
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 pydantic==2.5.3
 
-# Database
 SQLAlchemy==2.0.25
 alembic==1.13.1
 
-# Authentication & Security
 bcrypt==4.1.2
 PyJWT==2.8.0
 cryptography==42.0.0
 pyotp==2.9.0
 oauthlib==3.2.2
 
-# Data Processing
 pandas==2.1.4
 numpy==1.26.3
 scipy==1.11.4
 scikit-learn==1.4.0
 statsmodels==0.14.1
 
-# HTTP & APIs
 requests==2.31.0
 urllib3==2.1.0
 
-# Validation & Serialization
 marshmallow==3.20.1
 validators==0.22.0
 bleach==6.1.0
 
-# Caching & Queue
 redis==5.0.1
 pymemcache==4.0.0
 cachetools==5.3.2
 pika==1.3.2
 
-# Image Processing
 Pillow==10.2.0
 
-# Cloud & Infrastructure
 boto3==1.34.27
 
-# Utilities
 python-dotenv==1.0.0
 structlog==24.1.0
 python-json-logger==2.0.7
@@ -57,52 +45,17 @@ tenacity==8.2.3
 schedule==1.2.0
 qrcode==7.4.2
 
-# Monitoring & Metrics
 prometheus_client==0.19.0
 psutil==5.9.7
 
-# AI/ML (Optional - comment out if not needed)
-# joblib==1.3.2
-# mlflow==2.9.2
-# lime==0.2.0.1
-# shap==0.44.1
-
-# Testing
 pytest==7.4.4
 
-# Hashing & Compression
 msgpack==1.0.7
 lz4==4.3.3
 zstandard==0.22.0
 cbor2==5.6.0
 orjson==3.9.12
 
-# Distributed Systems (Optional - comment out if not using)
-# pybreaker==1.0.1
-# hash-ring==1.3.1
-# kafka-python==2.0.2
-# kubernetes==28.1.0
-
-# Enterprise Integrations (Optional - comment out if not using)
-# cx_Oracle==8.3.0
-# pyrfc==3.2.2
-# twilio==8.11.1
-# slack_sdk==3.26.2
-
-# DevOps & Monitoring (Optional)
-# docker==7.0.0
-# GitPython==3.1.41
-# locust==2.20.0
-# geoip2==4.7.0
-
-# OCR (Optional - requires system dependencies)
-# pytesseract==0.3.10
-
-# NLP (Optional - large download)
-# spacy==3.7.2
-
-# Bloom Filters
 pybloom_live==4.0.0
 
-# User Agent Parsing
 user_agents==2.2.0

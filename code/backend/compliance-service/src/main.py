@@ -1,8 +1,3 @@
-"""
-Compliance Service for NexaFi
-Handles AML, KYC, fraud detection, and regulatory compliance
-"""
-
 import json
 import os
 import sys
@@ -11,10 +6,8 @@ from typing import Any, Dict, List
 
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
+from middleware.internal import install_internal_auth
 
-# Add this service's src directory (local packages like "models"/"routes")
-# and the shared library to sys.path so imports work regardless of how the
-# service is launched (python src/main.py, gunicorn, runpy, or any CWD).
 _SERVICE_SRC = os.path.dirname(os.path.abspath(__file__))
 _SHARED_DIR = os.path.abspath(os.path.join(_SERVICE_SRC, "..", "..", "shared"))
 for _p in (_SERVICE_SRC, _SHARED_DIR):
@@ -34,6 +27,7 @@ from validation_schemas.schemas import (
 )
 
 app = Flask(__name__)
+install_internal_auth(app)
 app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
@@ -109,13 +103,11 @@ class SanctionsScreeningSchema(SanitizationMixin, Schema):
 
 
 class RiskScorer:
-    """Risk scoring engine for compliance checks"""
 
     @staticmethod
     def calculate_transaction_risk(
         transaction_data: Dict[str, Any],
     ) -> tuple[int, List[str], str]:
-        """Calculate risk score for a transaction"""
         risk_score = 0
         flags = []
         amount = float(transaction_data.get("amount", 0))
@@ -149,7 +141,6 @@ class RiskScorer:
 
     @staticmethod
     def calculate_customer_risk(customer_data: Dict[str, Any]) -> tuple[int, List[str]]:
-        """Calculate risk score for a customer"""
         risk_score = 0
         flags = []
         if customer_data.get("is_pep", False):
@@ -172,7 +163,6 @@ class RiskScorer:
 
 
 class SanctionsChecker:
-    """Sanctions list screening"""
 
     SANCTIONS_LISTS = {
         "OFAC_SDN": ["John Doe Sanctioned", "Jane Smith Blocked", "Evil Corp Ltd"],
@@ -181,7 +171,6 @@ class SanctionsChecker:
 
     @classmethod
     def screen_entity(cls, entity_name: str) -> tuple[str, int, List[str]]:
-        """Screen entity against sanctions lists"""
         entity_name_lower = entity_name.lower()
         matched_lists = []
         max_score = 0
@@ -201,7 +190,6 @@ class SanctionsChecker:
 
     @staticmethod
     def _calculate_similarity(str1: str, str2: str) -> int:
-        """Simple similarity calculation (Levenshtein distance approximation)"""
         if str1 == str2:
             return 100
         set1 = set(str1.replace(" ", ""))
@@ -215,7 +203,6 @@ class SanctionsChecker:
 
 @app.route("/api/v1/health", methods=["GET"])
 def health_check() -> object:
-    """Health check endpoint"""
     return jsonify(
         {
             "status": "healthy",
@@ -236,8 +223,7 @@ def health_check() -> object:
     severity=AuditSeverity.HIGH,
 )
 def initiate_kyc_verification() -> object:
-    """Initiate KYC verification for a user"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     kyc = KYCVerification(
         user_id=data["user_id"],
         verification_type=data["verification_type"],
@@ -280,7 +266,6 @@ def initiate_kyc_verification() -> object:
     severity=AuditSeverity.HIGH,
 )
 def complete_kyc_verification(verification_id: object) -> object:
-    """Complete KYC verification"""
     data = request.get_json() or {}
     kyc = KYCVerification.find_by_id(verification_id)
     if not kyc:
@@ -321,8 +306,7 @@ def complete_kyc_verification(verification_id: object) -> object:
     severity=AuditSeverity.HIGH,
 )
 def perform_aml_check() -> object:
-    """Perform AML check on a transaction"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     transaction_data = request.get_json().get("transaction_data", {})
     risk_score, flags, risk_level = RiskScorer.calculate_transaction_risk(
         transaction_data
@@ -373,8 +357,7 @@ def perform_aml_check() -> object:
     AuditEventType.USER_UPDATE, "sanctions_screening", severity=AuditSeverity.HIGH
 )
 def screen_sanctions() -> object:
-    """Screen entity against sanctions lists"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     result, match_score, matched_lists = SanctionsChecker.screen_entity(
         data["entity_name"]
     )
@@ -424,7 +407,6 @@ def screen_sanctions() -> object:
     severity=AuditSeverity.MEDIUM,
 )
 def generate_compliance_report() -> object:
-    """Generate compliance report"""
     data = request.get_json() or {}
     report_type = data.get("report_type", "suspicious_activity")
     period_start = datetime.fromisoformat(
@@ -497,7 +479,6 @@ def generate_compliance_report() -> object:
 @require_auth
 @require_permission("compliance:read")
 def compliance_dashboard() -> object:
-    """Get compliance dashboard data"""
     pending_kyc = len(KYCVerification.find_all("status = 'pending'"))
     high_risk_aml = len(
         AMLCheck.find_all("risk_level = 'high' AND status = 'requires_review'")

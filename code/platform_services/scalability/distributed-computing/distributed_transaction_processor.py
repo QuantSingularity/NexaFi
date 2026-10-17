@@ -1,8 +1,3 @@
-"""
-Distributed Transaction Processing System for NexaFi
-High-performance, scalable transaction processing with enterprise-grade reliability
-"""
-
 import hashlib
 import json
 import logging
@@ -21,7 +16,7 @@ import structlog
 
 try:
     from kafka import KafkaConsumer, KafkaProducer
-except ImportError:  # optional queue backend, guarded at point of use
+except ImportError:
     KafkaConsumer = None
     KafkaProducer = None
 from prometheus_client import Counter, Gauge, Histogram
@@ -45,7 +40,6 @@ Base = declarative_base()
 
 
 class TransactionStatus(Enum):
-    """Transaction processing status"""
 
     PENDING = "pending"
     PROCESSING = "processing"
@@ -56,7 +50,6 @@ class TransactionStatus(Enum):
 
 
 class Priority(Enum):
-    """Transaction priority levels"""
 
     CRITICAL = 1
     HIGH = 2
@@ -67,7 +60,6 @@ class Priority(Enum):
 
 @dataclass
 class Transaction:
-    """Transaction data structure"""
 
     transaction_id: str
     user_id: str
@@ -89,7 +81,6 @@ class Transaction:
 
 @dataclass
 class ProcessingResult:
-    """Transaction processing result"""
 
     transaction_id: str
     success: bool
@@ -101,7 +92,6 @@ class ProcessingResult:
 
 
 class TransactionLog(Base):
-    """Transaction log model"""
 
     __tablename__ = "transaction_logs"
     id = Column(Integer, primary_key=True)
@@ -126,7 +116,6 @@ class TransactionLog(Base):
 
 
 class NodeMetrics(Base):
-    """Processing node metrics"""
 
     __tablename__ = "node_metrics"
     id = Column(Integer, primary_key=True)
@@ -152,7 +141,6 @@ Index("idx_node_timestamp", NodeMetrics.timestamp)
 
 
 class MessageQueue:
-    """Distributed message queue abstraction"""
 
     def __init__(
         self, queue_type: str = "redis", config: Optional[Dict[str, Any]] = None
@@ -163,7 +151,6 @@ class MessageQueue:
         self._initialize_queue()
 
     def _initialize_queue(self) -> object:
-        """Initialize message queue based on type"""
         if self.queue_type == "redis":
             self.redis_client = redis.from_url(
                 self.config.get("redis_url", "redis://localhost:6379/0"),
@@ -189,7 +176,6 @@ class MessageQueue:
     def publish(
         self, queue_name: str, message: Dict[str, Any], priority: int = 0
     ) -> object:
-        """Publish message to queue"""
         try:
             if self.queue_type == "redis":
                 score = priority + time.time() / 1000000
@@ -210,7 +196,6 @@ class MessageQueue:
             raise
 
     def consume(self, queue_name: str, timeout: int = 1) -> Optional[Dict[str, Any]]:
-        """Consume message from queue"""
         try:
             if self.queue_type == "redis":
                 result = self.redis_client.zpopmin(queue_name, count=1)
@@ -244,7 +229,6 @@ class MessageQueue:
             return None
 
     def get_queue_size(self, queue_name: str) -> int:
-        """Get queue size"""
         try:
             if self.queue_type == "redis":
                 return self.redis_client.zcard(queue_name)
@@ -258,7 +242,6 @@ class MessageQueue:
 
 
 class LoadBalancer:
-    """Intelligent load balancer for transaction distribution"""
 
     def __init__(self, redis_client: redis.Redis) -> None:
         self.redis_client = redis_client
@@ -269,7 +252,6 @@ class LoadBalancer:
     def register_node(
         self, node_id: str, capacity: int, capabilities: List[str]
     ) -> object:
-        """Register processing node"""
         node_info = {
             "node_id": node_id,
             "capacity": capacity,
@@ -283,7 +265,6 @@ class LoadBalancer:
         self.logger.info(f"Registered processing node: {node_id}")
 
     def update_node_load(self, node_id: str, current_load: int) -> object:
-        """Update node load information"""
         if node_id in self.nodes:
             self.nodes[node_id]["current_load"] = current_load
             self.nodes[node_id]["last_heartbeat"] = time.time()
@@ -292,7 +273,6 @@ class LoadBalancer:
             )
 
     def select_node(self, transaction: Transaction) -> Optional[str]:
-        """Select best node for transaction processing"""
         try:
             available_nodes = self._get_healthy_nodes()
             if not available_nodes:
@@ -312,7 +292,6 @@ class LoadBalancer:
             return None
 
     def _get_healthy_nodes(self) -> List[Dict[str, Any]]:
-        """Get list of healthy nodes"""
         healthy_nodes: List[Any] = []
         current_time = time.time()
         for node_id, node_info in self.nodes.items():
@@ -325,13 +304,11 @@ class LoadBalancer:
         return healthy_nodes
 
     def _round_robin_selection(self, nodes: List[Dict[str, Any]]) -> str:
-        """Round robin node selection"""
         counter = self.redis_client.incr("round_robin_counter")
         selected_node = nodes[(counter - 1) % len(nodes)]
         return selected_node["node_id"]
 
     def _weighted_round_robin_selection(self, nodes: List[Dict[str, Any]]) -> str:
-        """Weighted round robin based on node capacity"""
         weights: List[Any] = []
         for node in nodes:
             available_capacity = node["capacity"] - node["current_load"]
@@ -347,14 +324,12 @@ class LoadBalancer:
         return nodes[0]["node_id"]
 
     def _least_connections_selection(self, nodes: List[Dict[str, Any]]) -> str:
-        """Select node with least current load"""
         min_load_node = min(nodes, key=lambda n: n["current_load"])
         return min_load_node["node_id"]
 
     def _capability_based_selection(
         self, nodes: List[Dict[str, Any]], transaction: Transaction
     ) -> str:
-        """Select node based on transaction requirements and node capabilities"""
         required_capabilities = transaction.metadata.get("required_capabilities", [])
         if required_capabilities:
             capable_nodes = [
@@ -368,7 +343,6 @@ class LoadBalancer:
 
 
 class TransactionProcessor:
-    """Individual transaction processor"""
 
     def __init__(
         self, node_id: str, db_session: object, redis_client: redis.Redis
@@ -397,7 +371,6 @@ class TransactionProcessor:
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
     )
     def process_transaction(self, transaction: Transaction) -> ProcessingResult:
-        """Process a single transaction"""
         start_time = time.time()
         try:
             self.logger.info(f"Processing transaction {transaction.transaction_id}")
@@ -446,7 +419,6 @@ class TransactionProcessor:
                 self.active_transactions.labels(node=self.node_id).dec()
 
     def _validate_transaction(self, transaction: Transaction) -> bool:
-        """Validate transaction data"""
         try:
             if not transaction.transaction_id or not transaction.user_id:
                 return False
@@ -466,12 +438,10 @@ class TransactionProcessor:
             return False
 
     def _calculate_checksum(self, transaction: Transaction) -> str:
-        """Calculate transaction checksum"""
         data = f"{transaction.transaction_id}{transaction.user_id}{transaction.amount}{transaction.currency}{transaction.source_account}{transaction.destination_account}"
         return hashlib.sha256(data.encode()).hexdigest()
 
     def _validate_business_rules(self, transaction: Transaction) -> bool:
-        """Validate business rules"""
         try:
             if not self._check_account_balance(
                 transaction.source_account, transaction.amount
@@ -487,7 +457,6 @@ class TransactionProcessor:
             return False
 
     def _check_account_balance(self, account_id: str, amount: float) -> bool:
-        """Check if account has sufficient balance"""
         try:
             cache_key = f"account_balance:{account_id}"
             balance = self.redis_client.get(cache_key)
@@ -498,7 +467,6 @@ class TransactionProcessor:
             return False
 
     def _check_transaction_limits(self, transaction: Transaction) -> bool:
-        """Check transaction limits"""
         try:
             daily_limit_key = f"daily_limit:{transaction.user_id}:{datetime.now().strftime('%Y-%m-%d')}"
             daily_total = self.redis_client.get(daily_limit_key)
@@ -511,7 +479,6 @@ class TransactionProcessor:
             return False
 
     def _check_compliance_rules(self, transaction: Transaction) -> bool:
-        """Check compliance and regulatory rules"""
         try:
             if transaction.amount > 10000:
                 pass
@@ -520,7 +487,6 @@ class TransactionProcessor:
             return False
 
     def _execute_transaction_logic(self, transaction: Transaction) -> Dict[str, Any]:
-        """Execute transaction-specific logic"""
         try:
             if transaction.transaction_type == "transfer":
                 return self._process_transfer(transaction)
@@ -539,7 +505,6 @@ class TransactionProcessor:
             raise
 
     def _process_transfer(self, transaction: Transaction) -> Dict[str, Any]:
-        """Process money transfer"""
         time.sleep(0.1)
         self._update_account_balance(transaction.source_account, -transaction.amount)
         self._update_account_balance(
@@ -561,7 +526,6 @@ class TransactionProcessor:
         }
 
     def _process_payment(self, transaction: Transaction) -> Dict[str, Any]:
-        """Process payment"""
         time.sleep(0.05)
         self._update_account_balance(transaction.source_account, -transaction.amount)
         return {
@@ -572,7 +536,6 @@ class TransactionProcessor:
         }
 
     def _process_withdrawal(self, transaction: Transaction) -> Dict[str, Any]:
-        """Process withdrawal"""
         time.sleep(0.08)
         self._update_account_balance(transaction.source_account, -transaction.amount)
         return {
@@ -582,7 +545,6 @@ class TransactionProcessor:
         }
 
     def _process_deposit(self, transaction: Transaction) -> Dict[str, Any]:
-        """Process deposit"""
         time.sleep(0.03)
         self._update_account_balance(
             transaction.destination_account, transaction.amount
@@ -596,12 +558,10 @@ class TransactionProcessor:
         }
 
     def _update_account_balance(self, account_id: str, amount: float) -> object:
-        """Update account balance"""
         cache_key = f"account_balance:{account_id}"
         self.redis_client.incrbyfloat(cache_key, amount)
 
     def _get_account_balance(self, account_id: str) -> float:
-        """Get account balance"""
         cache_key = f"account_balance:{account_id}"
         balance = self.redis_client.get(cache_key)
         return float(balance) if balance else 0.0
@@ -613,7 +573,6 @@ class TransactionProcessor:
         processing_time: Optional[float] = None,
         error_message: Optional[str] = None,
     ) -> object:
-        """Update transaction status in database"""
         try:
             tx_log = (
                 self.db_session.query(TransactionLog)
@@ -645,7 +604,6 @@ class TransactionProcessor:
 
 
 class DistributedTransactionManager:
-    """Main distributed transaction management system"""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -683,7 +641,6 @@ class DistributedTransactionManager:
         )
 
     def start_processing(self, num_workers: Optional[int] = None) -> object:
-        """Start distributed transaction processing"""
         if self.is_running:
             return
         self.is_running = True
@@ -708,7 +665,6 @@ class DistributedTransactionManager:
                     self.logger.error(f"Processor failed: {str(e)}")
 
     def _run_processor(self, node_id: str) -> object:
-        """Run individual transaction processor"""
         try:
             processor = TransactionProcessor(
                 node_id, self.db_session, self.redis_client
@@ -734,7 +690,6 @@ class DistributedTransactionManager:
             self.logger.error(f"Processor {node_id} failed: {str(e)}")
 
     def submit_transaction(self, transaction: Transaction) -> str:
-        """Submit transaction for processing"""
         try:
             if not transaction.transaction_id:
                 transaction.transaction_id = str(uuid.uuid4())
@@ -754,12 +709,10 @@ class DistributedTransactionManager:
             raise
 
     def _calculate_checksum(self, transaction: Transaction) -> str:
-        """Calculate transaction checksum"""
         data = f"{transaction.transaction_id}{transaction.user_id}{transaction.amount}{transaction.currency}{transaction.source_account}{transaction.destination_account}"
         return hashlib.sha256(data.encode()).hexdigest()
 
     def _store_transaction(self, transaction: Transaction) -> object:
-        """Store transaction in database"""
         try:
             tx_log = TransactionLog(
                 transaction_id=transaction.transaction_id,
@@ -782,7 +735,6 @@ class DistributedTransactionManager:
             raise
 
     def get_transaction_status(self, transaction_id: str) -> Optional[Dict[str, Any]]:
-        """Get transaction status"""
         try:
             status_key = f"transaction_status:{transaction_id}"
             cached_status = self.redis_client.get(status_key)
@@ -812,7 +764,6 @@ class DistributedTransactionManager:
             return None
 
     def get_system_metrics(self) -> Dict[str, Any]:
-        """Get system performance metrics"""
         try:
             queue_sizes: Dict[str, Any] = {}
             for priority in Priority:
@@ -868,7 +819,6 @@ class DistributedTransactionManager:
             return {"error": str(e)}
 
     def stop_processing(self) -> object:
-        """Stop transaction processing"""
         self.is_running = False
         self.logger.info("Stopping transaction processing")
 
@@ -876,7 +826,6 @@ class DistributedTransactionManager:
 def create_distributed_transaction_manager(
     config: Dict[str, Any],
 ) -> DistributedTransactionManager:
-    """Factory function to create distributed transaction manager"""
     return DistributedTransactionManager(config)
 
 

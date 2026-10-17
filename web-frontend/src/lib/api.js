@@ -326,6 +326,28 @@ class ApiClient {
     });
   }
 
+  async getCurrentCreditScore() {
+    return this.request("/credit/scores/current");
+  }
+
+  async calculateCreditScore(inputFeatures) {
+    return this.request("/credit/scores", {
+      method: "POST",
+      body: { input_features: inputFeatures },
+    });
+  }
+
+  async scoreTransactionRisk(transaction, useHistory = true) {
+    return this.request("/anomalies/score", {
+      method: "POST",
+      body: { transaction, use_history: useHistory },
+    });
+  }
+
+  async getCreditModelCard() {
+    return this.request("/models/credit-scorecard");
+  }
+
   async getChatSessions() {
     return this.request("/chat/sessions");
   }

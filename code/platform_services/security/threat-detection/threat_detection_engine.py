@@ -1,8 +1,3 @@
-"""
-Advanced Threat Detection Engine for NexaFi
-Real-time threat detection, anomaly detection, and automated response system
-"""
-
 import json
 import logging
 import os
@@ -25,7 +20,7 @@ import requests
 
 try:
     import slack_sdk
-except ImportError:  # optional alerting dependency, guarded at point of use
+except ImportError:
     slack_sdk = None
 from prometheus_client import Counter, Histogram
 from scipy import stats
@@ -45,7 +40,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 try:
     from twilio.rest import Client as TwilioClient
-except ImportError:  # optional SMS dependency, guarded at point of use
+except ImportError:
     TwilioClient = None
 
 logger = logging.getLogger(__name__)
@@ -54,7 +49,6 @@ Base = declarative_base()
 
 
 class ThreatType(Enum):
-    """Types of threats"""
 
     MALWARE = "malware"
     PHISHING = "phishing"
@@ -73,7 +67,6 @@ class ThreatType(Enum):
 
 
 class Severity(Enum):
-    """Threat severity levels"""
 
     CRITICAL = 5
     HIGH = 4
@@ -83,7 +76,6 @@ class Severity(Enum):
 
 
 class ResponseAction(Enum):
-    """Automated response actions"""
 
     BLOCK_IP = "block_ip"
     BLOCK_USER = "block_user"
@@ -99,7 +91,6 @@ class ResponseAction(Enum):
 
 @dataclass
 class ThreatEvent:
-    """Threat event data structure"""
 
     event_id: str
     threat_type: ThreatType
@@ -120,7 +111,6 @@ class ThreatEvent:
 
 @dataclass
 class AnomalyDetectionResult:
-    """Anomaly detection result"""
 
     is_anomaly: bool
     anomaly_score: float
@@ -130,7 +120,6 @@ class AnomalyDetectionResult:
 
 
 class ThreatIntelligenceDB(Base):
-    """Threat intelligence database model"""
 
     __tablename__ = "threat_intelligence_db"
     id = Column(Integer, primary_key=True)
@@ -149,7 +138,6 @@ class ThreatIntelligenceDB(Base):
 
 
 class ThreatEventLog(Base):
-    """Threat event log model"""
 
     __tablename__ = "threat_events"
     id = Column(Integer, primary_key=True)
@@ -173,7 +161,6 @@ class ThreatEventLog(Base):
 
 
 class AnomalyModel(Base):
-    """Anomaly detection model metadata"""
 
     __tablename__ = "anomaly_models"
     id = Column(Integer, primary_key=True)
@@ -192,7 +179,6 @@ class AnomalyModel(Base):
 
 
 class ThreatIntelligenceCollector:
-    """Collects threat intelligence from various sources"""
 
     def __init__(self, db_session: object, redis_client: redis.Redis) -> None:
         self.db_session = db_session
@@ -202,7 +188,6 @@ class ThreatIntelligenceCollector:
         self._initialize_sources()
 
     def _initialize_sources(self) -> object:
-        """Initialize threat intelligence sources"""
         self.sources = [
             {
                 "name": "abuse_ch",
@@ -225,7 +210,6 @@ class ThreatIntelligenceCollector:
         ]
 
     def collect_threat_intelligence(self) -> object:
-        """Collect threat intelligence from all sources"""
         try:
             for source in self.sources:
                 self._collect_from_source(source)
@@ -234,7 +218,6 @@ class ThreatIntelligenceCollector:
             self.logger.error(f"Threat intelligence collection failed: {str(e)}")
 
     def _collect_from_source(self, source: Dict[str, Any]) -> object:
-        """Collect threat intelligence from a specific source"""
         try:
             response = requests.get(source["url"], timeout=30)
             response.raise_for_status()
@@ -264,7 +247,6 @@ class ThreatIntelligenceCollector:
         severity: str,
         confidence: float,
     ) -> object:
-        """Store threat indicator in database"""
         try:
             existing = (
                 self.db_session.query(ThreatIntelligenceDB)
@@ -294,7 +276,6 @@ class ThreatIntelligenceCollector:
     def check_indicator(
         self, indicator_type: str, indicator_value: str
     ) -> Optional[Dict[str, Any]]:
-        """Check if indicator is in threat intelligence"""
         try:
             indicator = (
                 self.db_session.query(ThreatIntelligenceDB)
@@ -321,7 +302,6 @@ class ThreatIntelligenceCollector:
 
 
 class AnomalyDetector:
-    """Machine learning-based anomaly detection"""
 
     def __init__(self, db_session: object, redis_client: redis.Redis) -> None:
         self.db_session = db_session
@@ -333,7 +313,6 @@ class AnomalyDetector:
         self._initialize_models()
 
     def _initialize_models(self) -> object:
-        """Initialize anomaly detection models"""
         self.models["user_behavior"] = IsolationForest(
             contamination=0.1, random_state=42, n_estimators=100
         )
@@ -347,7 +326,6 @@ class AnomalyDetector:
             self.scalers[model_name] = StandardScaler()
 
     def train_models(self) -> object:
-        """Train anomaly detection models"""
         try:
             self._train_user_behavior_model()
             self._train_network_traffic_model()
@@ -357,7 +335,6 @@ class AnomalyDetector:
             self.logger.error(f"Model training failed: {str(e)}")
 
     def _train_user_behavior_model(self) -> object:
-        """Train user behavior anomaly detection model"""
         try:
             np.random.seed(42)
             n_samples = 10000
@@ -372,7 +349,6 @@ class AnomalyDetector:
             self.logger.error(f"User behavior model training failed: {str(e)}")
 
     def _train_network_traffic_model(self) -> object:
-        """Train network traffic anomaly detection model"""
         try:
             np.random.seed(42)
             n_samples = 8000
@@ -387,7 +363,6 @@ class AnomalyDetector:
             self.logger.error(f"Network traffic model training failed: {str(e)}")
 
     def _train_api_usage_model(self) -> object:
-        """Train API usage anomaly detection model"""
         try:
             np.random.seed(42)
             n_samples = 12000
@@ -402,7 +377,6 @@ class AnomalyDetector:
             self.logger.error(f"API usage model training failed: {str(e)}")
 
     def _save_model(self, model_name: str) -> object:
-        """Save trained model to disk"""
         try:
             model_dir = f"/tmp/anomaly_models/{model_name}"
             os.makedirs(model_dir, exist_ok=True)
@@ -425,7 +399,6 @@ class AnomalyDetector:
     def detect_anomaly(
         self, model_name: str, features: List[float]
     ) -> AnomalyDetectionResult:
-        """Detect anomaly using specified model"""
         try:
             if model_name not in self.models:
                 raise ValueError(f"Unknown model: {model_name}")
@@ -465,7 +438,6 @@ class AnomalyDetector:
         anomaly_score: float,
         feature_contributions: Dict[str, float],
     ) -> str:
-        """Generate human-readable explanation for anomaly detection"""
         if not is_anomaly:
             return f"Normal behavior detected for {model_name} (score: {anomaly_score:.3f})"
         top_features = sorted(
@@ -476,7 +448,6 @@ class AnomalyDetector:
 
 
 class ThreatDetectionRules:
-    """Rule-based threat detection engine"""
 
     def __init__(self, db_session: object, redis_client: redis.Redis) -> None:
         self.db_session = db_session
@@ -486,7 +457,6 @@ class ThreatDetectionRules:
         self._initialize_rules()
 
     def _initialize_rules(self) -> object:
-        """Initialize threat detection rules"""
         self.rules = [
             {
                 "name": "brute_force_detection",
@@ -527,7 +497,6 @@ class ThreatDetectionRules:
         ]
 
     def evaluate_rules(self, event_data: Dict[str, Any]) -> List[ThreatEvent]:
-        """Evaluate all rules against event data"""
         threats: List[Any] = []
         for rule in self.rules:
             if not rule["enabled"]:
@@ -543,7 +512,6 @@ class ThreatDetectionRules:
         return threats
 
     def _detect_brute_force(self, event_data: Dict[str, Any]) -> Optional[ThreatEvent]:
-        """Detect brute force attacks"""
         try:
             ip_address = event_data.get("ip_address")
             user_id = event_data.get("user_id")
@@ -584,7 +552,6 @@ class ThreatDetectionRules:
     def _detect_sql_injection(
         self, event_data: Dict[str, Any]
     ) -> Optional[ThreatEvent]:
-        """Detect SQL injection attempts"""
         try:
             request_data = event_data.get("request_data", {})
             query_params = request_data.get("query_params", "")
@@ -626,7 +593,6 @@ class ThreatDetectionRules:
             return None
 
     def _detect_xss(self, event_data: Dict[str, Any]) -> Optional[ThreatEvent]:
-        """Detect XSS attempts"""
         try:
             request_data = event_data.get("request_data", {})
             query_params = request_data.get("query_params", "")
@@ -673,7 +639,6 @@ class ThreatDetectionRules:
             return None
 
     def _detect_ddos(self, event_data: Dict[str, Any]) -> Optional[ThreatEvent]:
-        """Detect DDoS attacks"""
         try:
             ip_address = event_data.get("ip_address")
             cache_key = f"request_rate:{ip_address}"
@@ -708,7 +673,6 @@ class ThreatDetectionRules:
     def _detect_data_exfiltration(
         self, event_data: Dict[str, Any]
     ) -> Optional[ThreatEvent]:
-        """Detect data exfiltration attempts"""
         try:
             user_id = event_data.get("user_id")
             resource = event_data.get("resource", "")
@@ -748,7 +712,6 @@ class ThreatDetectionRules:
     def _detect_privilege_escalation(
         self, event_data: Dict[str, Any]
     ) -> Optional[ThreatEvent]:
-        """Detect privilege escalation attempts"""
         try:
             user_id = event_data.get("user_id")
             action = event_data.get("action", "")
@@ -790,7 +753,6 @@ class ThreatDetectionRules:
 
 
 class AutomatedResponseSystem:
-    """Automated threat response system"""
 
     def __init__(self, redis_client: redis.Redis, config: Dict[str, Any]) -> None:
         self.redis_client = redis_client
@@ -810,7 +772,6 @@ class AutomatedResponseSystem:
         }
 
     def execute_response(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Execute automated response actions"""
         results: Dict[str, Any] = {}
         for action in threat_event.response_actions:
             try:
@@ -825,7 +786,6 @@ class AutomatedResponseSystem:
         return results
 
     def _block_ip(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Block IP address"""
         try:
             ip_address = threat_event.source_ip
             self.redis_client.sadd("blocked_ips", ip_address)
@@ -837,7 +797,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _block_user(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Block user account"""
         try:
             user_id = threat_event.user_id
             if not user_id:
@@ -851,7 +810,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _quarantine_device(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Quarantine device"""
         try:
             device_id = threat_event.raw_data.get("device_id")
             if not device_id:
@@ -868,7 +826,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _alert_admin(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Send alert to administrators"""
         try:
             alert_message = f"\n            SECURITY ALERT: {threat_event.threat_type.value.upper()}\n\n            Severity: {threat_event.severity.value}\n            Confidence: {threat_event.confidence}\n            Source IP: {threat_event.source_ip}\n            Target: {threat_event.target_resource}\n            User: {threat_event.user_id or 'Unknown'}\n            Time: {threat_event.timestamp}\n\n            Description: {threat_event.description}\n\n            MITRE ATT&CK:\n            Tactics: {', '.join(threat_event.mitre_tactics)}\n            Techniques: {', '.join(threat_event.mitre_techniques)}\n            "
             if self.config.get("email_alerts_enabled"):
@@ -886,7 +843,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _log_only(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Log threat event only"""
         try:
             self.logger.warning(f"Threat detected: {threat_event.description}")
             return {"success": True, "action": "logged"}
@@ -894,7 +850,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _rate_limit(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Apply rate limiting"""
         try:
             ip_address = threat_event.source_ip
             self.redis_client.setex(f"rate_limit:{ip_address}", 3600, "10")
@@ -905,7 +860,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _challenge_user(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Challenge user with additional authentication"""
         try:
             user_id = threat_event.user_id
             session_id = threat_event.session_id
@@ -921,7 +875,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _force_logout(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Force user logout"""
         try:
             user_id = threat_event.user_id
             session_id = threat_event.session_id
@@ -936,7 +889,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _disable_account(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Disable user account"""
         try:
             user_id = threat_event.user_id
             if not user_id:
@@ -949,7 +901,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _isolate_network(self, threat_event: ThreatEvent) -> Dict[str, Any]:
-        """Isolate network segment"""
         try:
             ip_address = threat_event.source_ip
             self.redis_client.sadd("isolated_networks", ip_address)
@@ -960,7 +911,6 @@ class AutomatedResponseSystem:
             return {"success": False, "error": str(e)}
 
     def _send_email_alert(self, message: str, threat_event: ThreatEvent) -> object:
-        """Send email alert"""
         try:
             smtp_server = self.config.get("smtp_server")
             smtp_port = self.config.get("smtp_port", 587)
@@ -983,7 +933,6 @@ class AutomatedResponseSystem:
             self.logger.error(f"Email alert failed: {str(e)}")
 
     def _send_slack_alert(self, message: str, threat_event: ThreatEvent) -> object:
-        """Send Slack alert"""
         try:
             slack_token = self.config.get("slack_token")
             slack_channel = self.config.get("slack_channel")
@@ -995,7 +944,7 @@ class AutomatedResponseSystem:
             client = slack_sdk.WebClient(token=slack_token)
             client.chat_postMessage(
                 channel=slack_channel,
-                text=f"🚨 Security Alert: {threat_event.threat_type.value.upper()}",
+                text=f"Security Alert: {threat_event.threat_type.value.upper()}",
                 blocks=[
                     {
                         "type": "section",
@@ -1007,7 +956,6 @@ class AutomatedResponseSystem:
             self.logger.error(f"Slack alert failed: {str(e)}")
 
     def _send_sms_alert(self, message: str, threat_event: ThreatEvent) -> object:
-        """Send SMS alert"""
         try:
             twilio_sid = self.config.get("twilio_sid")
             twilio_token = self.config.get("twilio_token")
@@ -1029,7 +977,6 @@ class AutomatedResponseSystem:
 
 
 class ThreatDetectionEngine:
-    """Main threat detection engine"""
 
     def __init__(
         self, db_session: object, redis_client: redis.Redis, config: Dict[str, Any]
@@ -1054,7 +1001,6 @@ class ThreatDetectionEngine:
         )
 
     def analyze_event(self, event_data: Dict[str, Any]) -> List[ThreatEvent]:
-        """Analyze event for threats"""
         start_time = time.time()
         threats: List[Any] = []
         try:
@@ -1074,7 +1020,6 @@ class ThreatDetectionEngine:
             return []
 
     def _detect_anomalies(self, event_data: Dict[str, Any]) -> List[ThreatEvent]:
-        """Detect anomalies in event data"""
         threats: List[Any] = []
         try:
             user_features = self._extract_user_features(event_data)
@@ -1140,7 +1085,6 @@ class ThreatDetectionEngine:
     def _check_threat_intelligence(
         self, event_data: Dict[str, Any]
     ) -> List[ThreatEvent]:
-        """Check event against threat intelligence"""
         threats: List[Any] = []
         try:
             ip_address = event_data.get("ip_address")
@@ -1180,7 +1124,6 @@ class ThreatDetectionEngine:
     def _extract_user_features(
         self, event_data: Dict[str, Any]
     ) -> Optional[List[float]]:
-        """Extract user behavior features"""
         try:
             user_id = event_data.get("user_id")
             if not user_id:
@@ -1205,7 +1148,6 @@ class ThreatDetectionEngine:
     def _extract_network_features(
         self, event_data: Dict[str, Any]
     ) -> Optional[List[float]]:
-        """Extract network traffic features"""
         try:
             ip_address = event_data.get("ip_address")
             if not ip_address:
@@ -1235,7 +1177,6 @@ class ThreatDetectionEngine:
     def _extract_api_features(
         self, event_data: Dict[str, Any]
     ) -> Optional[List[float]]:
-        """Extract API usage features"""
         try:
             features = [
                 len(event_data.get("resource", "")) / 200.0,
@@ -1257,7 +1198,6 @@ class ThreatDetectionEngine:
             return None
 
     def _process_threat(self, threat: ThreatEvent) -> object:
-        """Process detected threat"""
         try:
             threat_log = ThreatEventLog(
                 event_id=threat.event_id,
@@ -1292,7 +1232,6 @@ class ThreatDetectionEngine:
             self.logger.error(f"Threat processing failed: {str(e)}")
 
     def get_threat_statistics(self) -> Dict[str, Any]:
-        """Get threat detection statistics"""
         try:
             recent_threats = (
                 self.db_session.query(ThreatEventLog)
@@ -1322,7 +1261,6 @@ class ThreatDetectionEngine:
     def _get_top_source_ips(
         self, threats: List[ThreatEventLog]
     ) -> List[Dict[str, Any]]:
-        """Get top source IPs from threats"""
         ip_counts = defaultdict(int)
         for threat in threats:
             if threat.source_ip:
@@ -1331,7 +1269,6 @@ class ThreatDetectionEngine:
         return [{"ip": ip, "count": count} for ip, count in top_ips]
 
     def _get_top_targets(self, threats: List[ThreatEventLog]) -> List[Dict[str, Any]]:
-        """Get top target resources from threats"""
         target_counts = defaultdict(int)
         for threat in threats:
             if threat.target_resource:
@@ -1344,7 +1281,6 @@ class ThreatDetectionEngine:
         ]
 
     def train_models(self) -> object:
-        """Train anomaly detection models"""
         try:
             self.anomaly_detector.train_models()
             self.logger.info("Threat detection models trained successfully")
@@ -1352,7 +1288,6 @@ class ThreatDetectionEngine:
             self.logger.error(f"Model training failed: {str(e)}")
 
     def update_threat_intelligence(self) -> object:
-        """Update threat intelligence data"""
         try:
             self.threat_intel.collect_threat_intelligence()
             self.logger.info("Threat intelligence updated successfully")
@@ -1363,7 +1298,6 @@ class ThreatDetectionEngine:
 def create_threat_detection_engine(
     database_url: str, redis_url: str, config: Dict[str, Any]
 ) -> ThreatDetectionEngine:
-    """Factory function to create threat detection engine"""
     engine = create_engine(database_url)
     Session = sessionmaker(bind=engine)
     db_session = Session()

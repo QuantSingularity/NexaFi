@@ -1,26 +1,24 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app/code
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends     gcc     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -u 1001 appuser && mkdir -p /data && chown appuser /data
 
-# Copy shared library first (for layer caching)
-COPY shared/ /app/shared/
+COPY ml_services/ai-service/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Copy service files
-COPY ai-service/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/shared/ /app/code/backend/shared/
+COPY ml_services/ai_models/ /app/code/ml_services/ai_models/
+COPY ml_services/ai-service/src/ /app/code/ml_services/ai-service/src/
 
-COPY ai-service/src/ /app/src/
-
-# Set Python path
-ENV PYTHONPATH=/app:/app/src
-ENV FLASK_APP=src/main.py
-ENV PORT=5004
-
-WORKDIR /app/src
-
+ENV PORT=5004 AI_DB_PATH=/data/ai.db AI_MODEL_DIR=/data/models
+WORKDIR /app/code/ml_services/ai-service/src
+USER appuser
+VOLUME ["/data"]
 EXPOSE 5004
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 2 --timeout 120 --access-logfile - --error-logfile - main:app"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 CMD curl -fs http://localhost:${PORT}/api/v1/health || exit 1
+
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT} --workers 2 --timeout 120 --access-logfile - --error-logfile - main:app"]

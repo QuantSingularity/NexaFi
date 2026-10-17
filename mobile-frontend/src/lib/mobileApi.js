@@ -206,11 +206,29 @@ class MobileApiClient {
     return this.request("/chat/sessions");
   }
 
-  async sendChatMessage(sessionId, message) {
+  async createChatSession(sessionName = "Financial Advisory") {
+    return this.request("/chat/sessions", {
+      method: "POST",
+      body: JSON.stringify({ session_name: sessionName }),
+    });
+  }
+
+  async sendChatMessage(sessionId, message, context = { source: "payments" }) {
     return this.request(`/chat/sessions/${sessionId}/messages`, {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, context }),
     });
+  }
+
+  async generateInsights(params = { source: "payments" }) {
+    return this.request("/insights/generate", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  }
+
+  async getCurrentCreditScore() {
+    return this.request("/credit/scores/current");
   }
 
   async generatePrediction(predictionType, params = {}) {

@@ -1,8 +1,3 @@
-"""
-Zero-Trust Security Framework for NexaFi
-Implements comprehensive zero-trust architecture with never trust, always verify principles
-"""
-
 import hashlib
 import ipaddress
 import json
@@ -16,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import geoip2.database
-except ImportError:  # optional dependency, guarded at point of use
+except ImportError:
     geoip2 = None
 import redis
 import user_agents
@@ -37,7 +32,6 @@ Base = declarative_base()
 
 
 class TrustLevel(Enum):
-    """Trust levels for zero-trust evaluation"""
 
     UNTRUSTED = 0
     LOW = 1
@@ -47,7 +41,6 @@ class TrustLevel(Enum):
 
 
 class RiskLevel(Enum):
-    """Risk levels for security assessment"""
 
     CRITICAL = 5
     HIGH = 4
@@ -57,7 +50,6 @@ class RiskLevel(Enum):
 
 
 class AccessDecision(Enum):
-    """Access control decisions"""
 
     ALLOW = "allow"
     DENY = "deny"
@@ -67,7 +59,6 @@ class AccessDecision(Enum):
 
 @dataclass
 class SecurityContext:
-    """Security context for requests"""
 
     user_id: str
     session_id: str
@@ -87,7 +78,6 @@ class SecurityContext:
 
 @dataclass
 class PolicyRule:
-    """Zero-trust policy rule"""
 
     rule_id: str
     name: str
@@ -102,7 +92,6 @@ class PolicyRule:
 
 
 class SecurityEvent(Base):
-    """Security event model"""
 
     __tablename__ = "security_events"
     id = Column(Integer, primary_key=True)
@@ -124,7 +113,6 @@ class SecurityEvent(Base):
 
 
 class DeviceFingerprint(Base):
-    """Device fingerprint model"""
 
     __tablename__ = "device_fingerprints"
     id = Column(Integer, primary_key=True)
@@ -140,7 +128,6 @@ class DeviceFingerprint(Base):
 
 
 class UserBehavior(Base):
-    """User behavior tracking"""
 
     __tablename__ = "user_behaviors"
     id = Column(Integer, primary_key=True)
@@ -158,7 +145,6 @@ class UserBehavior(Base):
 
 
 class ThreatIntelligence(Base):
-    """Threat intelligence data"""
 
     __tablename__ = "threat_intelligence"
     id = Column(Integer, primary_key=True)
@@ -175,7 +161,6 @@ class ThreatIntelligence(Base):
 
 
 class ContextAnalyzer:
-    """Analyzes security context for zero-trust decisions"""
 
     def __init__(
         self,
@@ -196,7 +181,6 @@ class ContextAnalyzer:
     def analyze_request_context(
         self, user_id: str, request_data: Dict[str, Any]
     ) -> SecurityContext:
-        """Analyze request context and generate security context"""
         try:
             ip_address = request_data.get("ip_address", "")
             user_agent = request_data.get("user_agent", "")
@@ -250,7 +234,6 @@ class ContextAnalyzer:
             )
 
     def _generate_device_fingerprint(self, request_data: Dict[str, Any]) -> str:
-        """Generate device fingerprint from request data"""
         fingerprint_data = {
             "user_agent": request_data.get("user_agent", ""),
             "accept_language": request_data.get("accept_language", ""),
@@ -267,7 +250,6 @@ class ContextAnalyzer:
         return hashlib.sha256(fingerprint_string.encode()).hexdigest()
 
     def _get_location_info(self, ip_address: str) -> Dict[str, Any]:
-        """Get location information from IP address"""
         if not self.geoip_reader or not ip_address:
             return {}
         try:
@@ -296,7 +278,6 @@ class ContextAnalyzer:
             return {}
 
     def _analyze_network(self, ip_address: str) -> Dict[str, Any]:
-        """Analyze network information"""
         network_info = {
             "is_private": False,
             "is_loopback": False,
@@ -327,7 +308,6 @@ class ContextAnalyzer:
     def _calculate_trust_score(
         self, user_id: str, device_id: str, ip_address: str, location: Dict[str, Any]
     ) -> float:
-        """Calculate trust score based on various factors"""
         trust_score = 0.0
         try:
             device_trust = self._get_device_trust(device_id, user_id)
@@ -346,7 +326,6 @@ class ContextAnalyzer:
     def _calculate_risk_score(
         self, user_id: str, ip_address: str, user_agent: str, location: Dict[str, Any]
     ) -> float:
-        """Calculate risk score based on various factors"""
         risk_score = 0.0
         try:
             threat_risk = self._get_threat_risk(ip_address)
@@ -365,7 +344,6 @@ class ContextAnalyzer:
             return 1.0
 
     def _get_device_trust(self, device_id: str, user_id: str) -> float:
-        """Get device trust level"""
         try:
             device = (
                 self.db_session.query(DeviceFingerprint)
@@ -388,7 +366,6 @@ class ContextAnalyzer:
             return 0.0
 
     def _get_location_trust(self, user_id: str, location: Dict[str, Any]) -> float:
-        """Get location trust level"""
         if not location:
             return 0.5
         try:
@@ -407,7 +384,6 @@ class ContextAnalyzer:
             return 0.5
 
     def _get_ip_trust(self, ip_address: str) -> float:
-        """Get IP address trust level"""
         try:
             threat = (
                 self.db_session.query(ThreatIntelligence)
@@ -435,7 +411,6 @@ class ContextAnalyzer:
             return 0.5
 
     def _get_behavior_trust(self, user_id: str) -> float:
-        """Get behavioral trust level"""
         try:
             recent_behaviors = (
                 self.db_session.query(UserBehavior)
@@ -459,7 +434,6 @@ class ContextAnalyzer:
             return 0.5
 
     def _get_threat_risk(self, ip_address: str) -> float:
-        """Get threat risk from IP address"""
         try:
             threat = (
                 self.db_session.query(ThreatIntelligence)
@@ -479,7 +453,6 @@ class ContextAnalyzer:
     def _get_anomaly_risk(
         self, user_id: str, ip_address: str, location: Dict[str, Any]
     ) -> float:
-        """Get anomaly risk score"""
         risk_factors: List[Any] = []
         try:
             if location:
@@ -507,7 +480,6 @@ class ContextAnalyzer:
             return 0.0
 
     def _analyze_user_agent_risk(self, user_agent: str) -> float:
-        """Analyze user agent for risk indicators"""
         if not user_agent:
             return 0.5
         try:
@@ -531,7 +503,6 @@ class ContextAnalyzer:
             return 0.0
 
     def _get_geographic_risk(self, location: Dict[str, Any]) -> float:
-        """Get geographic risk score"""
         if not location:
             return 0.3
         try:
@@ -550,7 +521,6 @@ class ContextAnalyzer:
             return 0.3
 
     def _get_time_based_risk(self, user_id: str) -> float:
-        """Get time-based risk score"""
         try:
             current_time = datetime.utcnow()
             current_hour = current_time.hour
@@ -573,7 +543,6 @@ class ContextAnalyzer:
             return 0.0
 
     def _get_authentication_factors(self, user_id: str, session_id: str) -> List[str]:
-        """Get authentication factors for the session"""
         try:
             cache_key = f"session_auth_factors:{session_id}"
             factors = self.redis_client.get(cache_key)
@@ -587,7 +556,6 @@ class ContextAnalyzer:
     def _calculate_behavioral_score(
         self, user_id: str, request_data: Dict[str, Any]
     ) -> float:
-        """Calculate behavioral score based on user patterns"""
         try:
             recent_behaviors = (
                 self.db_session.query(UserBehavior)
@@ -618,7 +586,6 @@ class ContextAnalyzer:
             return 0.5
 
     def _get_compliance_status(self, user_id: str, device_id: str) -> Dict[str, Any]:
-        """Get compliance status for user and device"""
         try:
             compliance_status = {
                 "gdpr_compliant": True,
@@ -643,7 +610,6 @@ class ContextAnalyzer:
             return {"compliant": False, "error": str(e)}
 
     def _check_threat_intelligence(self, ip_address: str) -> Optional[Dict[str, Any]]:
-        """Check IP against threat intelligence"""
         try:
             threat = (
                 self.db_session.query(ThreatIntelligence)
@@ -668,7 +634,6 @@ class ContextAnalyzer:
 
 
 class PolicyEngine:
-    """Zero-trust policy engine"""
 
     def __init__(self, redis_client: redis.Redis, db_session: object) -> None:
         self.redis_client = redis_client
@@ -678,7 +643,6 @@ class PolicyEngine:
         self._load_policies()
 
     def _load_policies(self) -> object:
-        """Load policies from configuration"""
         default_policies = [
             PolicyRule(
                 rule_id="high_risk_deny",
@@ -735,7 +699,6 @@ class PolicyEngine:
     def evaluate_access(
         self, context: SecurityContext, resource: str, action: str
     ) -> Tuple[AccessDecision, str]:
-        """Evaluate access decision based on context and policies"""
         try:
             sorted_policies = sorted(self.policies, key=lambda p: p.priority)
             for policy in sorted_policies:
@@ -760,7 +723,6 @@ class PolicyEngine:
         resource: str,
         action: str,
     ) -> bool:
-        """Evaluate policy conditions against context"""
         try:
             for field, condition in conditions.items():
                 if not self._evaluate_condition(
@@ -780,7 +742,6 @@ class PolicyEngine:
         resource: str,
         action: str,
     ) -> bool:
-        """Evaluate single condition"""
         operator = condition.get("operator")
         value = condition.get("value")
         if field == "risk_score":
@@ -819,18 +780,15 @@ class PolicyEngine:
             return False
 
     def add_policy(self, policy: PolicyRule) -> object:
-        """Add new policy"""
         self.policies.append(policy)
         self.policies.sort(key=lambda p: p.priority)
         self.logger.info(f"Added policy: {policy.name}")
 
     def remove_policy(self, rule_id: str) -> object:
-        """Remove policy by ID"""
         self.policies = [p for p in self.policies if p.rule_id != rule_id]
         self.logger.info(f"Removed policy: {rule_id}")
 
     def update_policy(self, rule_id: str, updates: Dict[str, Any]) -> object:
-        """Update existing policy"""
         for policy in self.policies:
             if policy.rule_id == rule_id:
                 for key, value in updates.items():
@@ -842,7 +800,6 @@ class PolicyEngine:
 
 
 class ZeroTrustFramework:
-    """Main zero-trust framework"""
 
     def __init__(
         self,
@@ -860,7 +817,6 @@ class ZeroTrustFramework:
     def evaluate_request(
         self, user_id: str, resource: str, action: str, request_data: Dict[str, Any]
     ) -> Tuple[AccessDecision, SecurityContext, str]:
-        """Evaluate request and return access decision"""
         try:
             context = self.context_analyzer.analyze_request_context(
                 user_id, request_data
@@ -886,7 +842,6 @@ class ZeroTrustFramework:
         decision: AccessDecision,
         policy_name: str,
     ) -> object:
-        """Log security event"""
         try:
             event = SecurityEvent(
                 event_id=str(uuid.uuid4()),
@@ -918,7 +873,6 @@ class ZeroTrustFramework:
     def _track_user_behavior(
         self, context: SecurityContext, resource: str, action: str, success: bool
     ) -> object:
-        """Track user behavior"""
         try:
             behavior = UserBehavior(
                 user_id=context.user_id,
@@ -943,7 +897,6 @@ class ZeroTrustFramework:
             self.logger.error(f"Behavior tracking failed: {str(e)}")
 
     def _update_device_fingerprint(self, context: SecurityContext) -> object:
-        """Update device fingerprint information"""
         try:
             device = (
                 self.db_session.query(DeviceFingerprint)
@@ -974,7 +927,6 @@ class ZeroTrustFramework:
             self.logger.error(f"Device fingerprint update failed: {str(e)}")
 
     def get_security_metrics(self) -> Dict[str, Any]:
-        """Get security metrics"""
         try:
             recent_events = (
                 self.db_session.query(SecurityEvent)
@@ -1025,7 +977,6 @@ class ZeroTrustFramework:
 def create_zero_trust_framework(
     database_url: str, redis_url: str, geoip_db_path: Optional[str] = None
 ) -> ZeroTrustFramework:
-    """Factory function to create zero-trust framework"""
     engine = create_engine(database_url)
     Session = sessionmaker(bind=engine)
     db_session = Session()

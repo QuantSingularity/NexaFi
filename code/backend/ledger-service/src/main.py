@@ -7,10 +7,8 @@ from typing import Optional
 
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
+from middleware.internal import install_internal_auth
 
-# Add this service's src directory (local packages like "models"/"routes")
-# and the shared library to sys.path so imports work regardless of how the
-# service is launched (python src/main.py, gunicorn, runpy, or any CWD).
 _SERVICE_SRC = os.path.dirname(os.path.abspath(__file__))
 _SHARED_DIR = os.path.abspath(os.path.join(_SERVICE_SRC, "..", "..", "shared"))
 for _p in (_SERVICE_SRC, _SHARED_DIR):
@@ -39,6 +37,7 @@ from validation_schemas.schemas import (
 )
 
 app = Flask(__name__)
+install_internal_auth(app)
 app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
@@ -76,8 +75,6 @@ for version, migration in LEDGER_MIGRATIONS.items():
         version, migration["description"], migration["sql"]
     )
 BaseModel.set_db_manager(db_manager)
-# Note: Account, JournalEntry, JournalEntryLine, ExchangeRate, and Reconciliation
-# classes are imported from models.user - no redefinition needed
 
 
 class LedgerAccountSchema(Schema):
@@ -243,7 +240,6 @@ DEFAULT_CHART_OF_ACCOUNTS = {
 
 
 def initialize_chart_of_accounts() -> object:
-    """Initialize default chart of accounts"""
     for account_code, account_data in DEFAULT_CHART_OF_ACCOUNTS.items():
         existing = Account.find_one("account_code = ?", (account_code,))
         if not existing:
@@ -267,7 +263,6 @@ def initialize_chart_of_accounts() -> object:
 
 @app.route("/api/v1/health", methods=["GET"])
 def health_check() -> object:
-    """Health check endpoint"""
     return jsonify(
         {
             "status": "healthy",
@@ -282,7 +277,6 @@ def health_check() -> object:
 @require_auth
 @require_permission("account:read")
 def list_accounts() -> object:
-    """List all accounts"""
     account_type = request.args.get("type")
     currency = request.args.get("currency")
     active_only = request.args.get("active_only", "true").lower() == "true"
@@ -314,8 +308,7 @@ def list_accounts() -> object:
     AuditEventType.ACCOUNT_CREATE, "account_created", severity=AuditSeverity.MEDIUM
 )
 def create_account() -> object:
-    """Create a new account"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     existing = Account.find_one("account_code = ?", (data["account_code"],))
     if existing:
         return (jsonify({"error": "Account code already exists"}), 409)
@@ -356,7 +349,6 @@ def create_account() -> object:
 @require_auth
 @require_permission("account:read")
 def get_account_balance(account_id: object) -> object:
-    """Get account balance as of a specific date"""
     as_of_date_str = request.args.get("as_of_date")
     as_of_date: Optional[datetime] = None
     account = Account.find_by_id(account_id)
@@ -394,8 +386,7 @@ def get_account_balance(account_id: object) -> object:
     severity=AuditSeverity.HIGH,
 )
 def create_journal_entry() -> object:
-    """Create a new journal entry"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     lines_data = request.get_json().get("lines", [])
     if not lines_data:
         return (jsonify({"error": "Journal entry must have at least one line"}), 400)
@@ -494,7 +485,6 @@ def create_journal_entry() -> object:
     severity=AuditSeverity.HIGH,
 )
 def post_journal_entry(entry_id: object) -> object:
-    """Post a journal entry"""
     entry = JournalEntry.find_by_id(entry_id)
     if not entry:
         return (jsonify({"error": "Journal entry not found"}), 404)
@@ -523,8 +513,7 @@ def post_journal_entry(entry_id: object) -> object:
     severity=AuditSeverity.MEDIUM,
 )
 def update_exchange_rate() -> object:
-    """Update exchange rate"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     existing_rates = ExchangeRate.find_all(
         "from_currency = ? AND to_currency = ? AND rate_date = ?",
         (
@@ -578,8 +567,7 @@ def update_exchange_rate() -> object:
     severity=AuditSeverity.MEDIUM,
 )
 def create_reconciliation() -> object:
-    """Create account reconciliation"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     account = Account.find_by_id(data["account_id"])
     if not account:
         return (jsonify({"error": "Account not found"}), 404)
@@ -631,7 +619,6 @@ def create_reconciliation() -> object:
 @require_auth
 @require_permission("report:read")
 def trial_balance() -> object:
-    """Generate trial balance report"""
     as_of_date_str = request.args.get("as_of_date")
     as_of_date: Optional[datetime] = None
     currency = request.args.get("currency", "USD")
@@ -692,7 +679,6 @@ def trial_balance() -> object:
 @require_auth
 @require_permission("report:read")
 def balance_sheet() -> object:
-    """Generate balance sheet report"""
     as_of_date_str = request.args.get("as_of_date")
     as_of_date: Optional[datetime] = None
     currency = request.args.get("currency", "USD")

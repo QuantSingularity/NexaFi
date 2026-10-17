@@ -1,19 +1,13 @@
 #!/bin/bash
 
-# NexaFi Backend Infrastructure Setup
-# This script sets up the infrastructure components for the backend
+echo "Setting up NexaFi Backend Infrastructure..."
 
-echo "🚀 Setting up NexaFi Backend Infrastructure..."
-
-# Create infrastructure directory
 mkdir -p infrastructure/redis
 mkdir -p infrastructure/monitoring
 mkdir -p infrastructure/logging
 mkdir -p infrastructure/message-queue
 
-# Create Redis configuration
 cat > infrastructure/redis/redis.conf << 'EOF'
-# Redis configuration for NexaFi
 port 6379
 bind 0.0.0.0
 protected-mode no
@@ -30,7 +24,6 @@ appendonly yes
 appendfsync everysec
 EOF
 
-# Create Docker Compose for infrastructure services
 cat > infrastructure/docker-compose.yml << 'EOF'
 version: '3.8'
 
@@ -101,76 +94,63 @@ networks:
     driver: bridge
 EOF
 
-# Create infrastructure startup script
 cat > infrastructure/start-infrastructure.sh << 'EOF'
-#!/bin/bash
 
-echo "🚀 Starting NexaFi Infrastructure Services..."
+echo "Starting NexaFi Infrastructure Services..."
 
-# Start infrastructure services
 docker-compose up -d
 
 echo "⏳ Waiting for services to be ready..."
 sleep 30
 
-# Check service health
-echo "🔍 Checking service health..."
+echo "Checking service health..."
 
-# Check Redis
 if redis-cli -h localhost -p 6379 ping | grep -q PONG; then
-    echo "✅ Redis is running"
+    echo "Redis is running"
 else
-    echo "❌ Redis is not responding"
+    echo "Redis is not responding"
 fi
 
-# Check RabbitMQ
 if curl -s http://localhost:15672 > /dev/null; then
-    echo "✅ RabbitMQ is running"
+    echo "RabbitMQ is running"
 else
-    echo "❌ RabbitMQ is not responding"
+    echo "RabbitMQ is not responding"
 fi
 
-# Check Elasticsearch
 if curl -s http://localhost:9200 > /dev/null; then
-    echo "✅ Elasticsearch is running"
+    echo "Elasticsearch is running"
 else
-    echo "❌ Elasticsearch is not responding"
+    echo "Elasticsearch is not responding"
 fi
 
-# Check Kibana
 if curl -s http://localhost:5601 > /dev/null; then
-    echo "✅ Kibana is running"
+    echo "Kibana is running"
 else
-    echo "❌ Kibana is not responding"
+    echo "Kibana is not responding"
 fi
 
-echo "🎉 Infrastructure setup complete!"
-echo "📊 Access Kibana at: http://localhost:5601"
-echo "🐰 Access RabbitMQ Management at: http://localhost:15672 (nexafi/nexafi123)"
+echo "Infrastructure setup complete!"
+echo "Access Kibana at: http://localhost:5601"
+echo "Access RabbitMQ Management at: http://localhost:15672 (nexafi/nexafi123)"
 EOF
 
 chmod +x infrastructure/start-infrastructure.sh
 
-# Create infrastructure stop script
 cat > infrastructure/stop-infrastructure.sh << 'EOF'
-#!/bin/bash
 
-echo "🛑 Stopping NexaFi Infrastructure Services..."
+echo "Stopping NexaFi Infrastructure Services..."
 
-# Stop infrastructure services
 docker-compose down
 
-echo "🎉 Infrastructure services stopped!"
+echo "Infrastructure services stopped!"
 EOF
 
 chmod +x infrastructure/stop-infrastructure.sh
 
-# Create shared utilities for all services
 mkdir -p shared/utils
 mkdir -p shared/middleware
 mkdir -p shared/config
 
-# Create shared configuration
 cat > shared/config/infrastructure.py << 'EOF'
 """
 Shared infrastructure configuration for NexaFi services
@@ -181,14 +161,12 @@ from typing import Dict, Any
 class InfrastructureConfig:
     """Infrastructure configuration settings"""
 
-    # Redis Configuration
     REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
     REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
     REDIS_DB = int(os.getenv('REDIS_DB', 0))
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
     REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
-    # RabbitMQ Configuration
     RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
     RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', 5672))
     RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'nexafi')
@@ -196,24 +174,19 @@ class InfrastructureConfig:
     RABBITMQ_VHOST = os.getenv('RABBITMQ_VHOST', '/')
     RABBITMQ_URL = f"amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:{RABBITMQ_PORT}{RABBITMQ_VHOST}"
 
-    # Elasticsearch Configuration
     ELASTICSEARCH_HOST = os.getenv('ELASTICSEARCH_HOST', 'localhost')
     ELASTICSEARCH_PORT = int(os.getenv('ELASTICSEARCH_PORT', 9200))
     ELASTICSEARCH_URL = f"http://{ELASTICSEARCH_HOST}:{ELASTICSEARCH_PORT}"
 
-    # Logging Configuration
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-    # Cache Configuration
     CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 300))
     CACHE_KEY_PREFIX = os.getenv('CACHE_KEY_PREFIX', 'nexafi:')
 
-    # Rate Limiting Configuration
     RATE_LIMIT_STORAGE_URL = REDIS_URL
     RATE_LIMIT_DEFAULT = os.getenv('RATE_LIMIT_DEFAULT', '100 per hour')
 
-    # Circuit Breaker Configuration
     CIRCUIT_BREAKER_FAILURE_THRESHOLD = int(os.getenv('CIRCUIT_BREAKER_FAILURE_THRESHOLD', 5))
     CIRCUIT_BREAKER_RECOVERY_TIMEOUT = int(os.getenv('CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 60))
 
@@ -254,7 +227,6 @@ class InfrastructureConfig:
         }
 EOF
 
-# Create shared cache utility
 cat > shared/utils/cache.py << 'EOF'
 """
 Shared caching utilities for NexaFi services
@@ -339,7 +311,6 @@ class CacheManager:
         except Exception:
             return False
 
-# Global cache instance
 cache = CacheManager()
 
 def cached(timeout: Optional[int] = None, key_func: Optional[callable] = None):
@@ -347,22 +318,18 @@ def cached(timeout: Optional[int] = None, key_func: Optional[callable] = None):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Generate cache key
             if key_func:
                 cache_key = key_func(*args, **kwargs)
             else:
-                # Default key generation
                 key_parts = [func.__name__]
                 key_parts.extend(str(arg) for arg in args)
                 key_parts.extend(f"{k}:{v}" for k, v in sorted(kwargs.items()))
                 cache_key = hashlib.md5(":".join(key_parts).encode()).hexdigest()
 
-            # Try to get from cache
             cached_result = cache.get(cache_key)
             if cached_result is not None:
                 return cached_result
 
-            # Execute function and cache result
             result = func(*args, **kwargs)
             cache.set(cache_key, result, timeout)
             return result
@@ -378,7 +345,6 @@ def cache_key_for_user(user_id: str, *args, **kwargs) -> str:
     return hashlib.md5(":".join(key_parts).encode()).hexdigest()
 EOF
 
-# Create shared message queue utility
 cat > shared/utils/message_queue.py << 'EOF'
 """
 Shared message queue utilities for NexaFi services
@@ -486,10 +452,8 @@ class MessageQueue:
         logger.info(f"Started consuming from {queue_name}")
         self.channel.start_consuming()
 
-# Global message queue instance
 mq = MessageQueue()
 
-# Queue names
 class Queues:
     REPORT_GENERATION = 'report_generation'
     EMAIL_NOTIFICATIONS = 'email_notifications'
@@ -531,7 +495,6 @@ def setup_queues():
         mq.disconnect()
 EOF
 
-# Create shared circuit breaker utility
 cat > shared/utils/circuit_breaker.py << 'EOF'
 """
 Circuit breaker pattern implementation for NexaFi services
@@ -607,7 +570,6 @@ def circuit_breaker(failure_threshold: int = None, recovery_timeout: int = None)
     return decorator
 EOF
 
-# Create shared logging utility
 cat > shared/utils/logging.py << 'EOF'
 """
 Shared logging utilities for NexaFi services
@@ -626,15 +588,12 @@ class StructuredLogger:
         self.logger = logging.getLogger(service_name)
         self.logger.setLevel(getattr(logging, InfrastructureConfig.LOG_LEVEL))
 
-        # Create formatter
         formatter = logging.Formatter(InfrastructureConfig.LOG_FORMAT)
 
-        # Create console handler
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)
 
-        # Create file handler
         file_handler = logging.FileHandler(f'logs/{service_name}.log')
         file_handler.setFormatter(formatter)
         self.logger.addHandler(file_handler)
@@ -684,16 +643,16 @@ def get_logger(service_name: str) -> StructuredLogger:
     return StructuredLogger(service_name)
 EOF
 
-echo "✅ Infrastructure setup files created successfully!"
+echo "Infrastructure setup files created successfully!"
 echo ""
-echo "📁 Created infrastructure components:"
+echo "Created infrastructure components:"
 echo "   - Redis configuration"
 echo "   - Docker Compose for infrastructure services"
 echo "   - Shared utilities (cache, message queue, circuit breaker, logging)"
 echo "   - Configuration management"
 echo ""
-echo "🚀 To start infrastructure services:"
+echo "To start infrastructure services:"
 echo "   cd infrastructure && ./start-infrastructure.sh"
 echo ""
-echo "🛑 To stop infrastructure services:"
+echo "To stop infrastructure services:"
 echo "   cd infrastructure && ./stop-infrastructure.sh"

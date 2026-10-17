@@ -1,8 +1,3 @@
-"""
-Enterprise Integration Manager for NexaFi
-Centralized management of all enterprise system integrations
-"""
-
 import json
 import logging
 import os
@@ -33,7 +28,6 @@ except ImportError:
 
 @dataclass
 class IntegrationRegistry:
-    """Registry of available integrations"""
 
     name: str
     integration_class: Type[BaseIntegration]
@@ -44,7 +38,6 @@ class IntegrationRegistry:
 
 
 class EnterpriseIntegrationManager:
-    """Centralized manager for all enterprise integrations"""
 
     def __init__(
         self,
@@ -88,7 +81,6 @@ class EnterpriseIntegrationManager:
         )
 
     def _load_config(self, config_file: str) -> object:
-        """Load configuration from file"""
         try:
             with open(config_file, "r") as f:
                 self.config = json.load(f)
@@ -97,7 +89,6 @@ class EnterpriseIntegrationManager:
             self.logger.error(f"Failed to load configuration: {str(e)}")
 
     def _register_integrations(self) -> object:
-        """Register available integrations"""
         if SAPIntegration:
             self.registry["sap"] = IntegrationRegistry(
                 name="SAP",
@@ -131,7 +122,6 @@ class EnterpriseIntegrationManager:
     def create_integration(
         self, system_name: str, integration_type: str, config: Dict[str, Any]
     ) -> bool:
-        """Create and register a new integration"""
         try:
             if integration_type not in self.registry:
                 raise ValueError(f"Unknown integration type: {integration_type}")
@@ -162,7 +152,6 @@ class EnterpriseIntegrationManager:
             return False
 
     def remove_integration(self, system_name: str) -> bool:
-        """Remove an integration"""
         try:
             if system_name in self.integrations:
                 del self.integrations[system_name]
@@ -179,7 +168,6 @@ class EnterpriseIntegrationManager:
     def sync_integration(
         self, system_name: str, entity_type: str, **kwargs
     ) -> Optional[SyncResult]:
-        """Sync specific integration"""
         if system_name not in self.integrations:
             self.logger.error(f"Integration not found: {system_name}")
             return None
@@ -207,7 +195,6 @@ class EnterpriseIntegrationManager:
             return None
 
     def sync_all(self, entity_type: Optional[str] = None) -> Dict[str, SyncResult]:
-        """Sync all integrations"""
         results: Dict[str, Any] = {}
         with ThreadPoolExecutor(max_workers=5) as executor:
             future_to_system: Dict[str, Any] = {}
@@ -234,7 +221,6 @@ class EnterpriseIntegrationManager:
     def schedule_sync(
         self, system_name: str, entity_type: str, interval_minutes: int, **kwargs
     ) -> object:
-        """Schedule periodic sync for an integration"""
 
         def sync_job():
             try:
@@ -253,7 +239,6 @@ class EnterpriseIntegrationManager:
         )
 
     def start_scheduler(self) -> object:
-        """Start the integration scheduler"""
         if self.is_running:
             return
         self.is_running = True
@@ -268,7 +253,6 @@ class EnterpriseIntegrationManager:
         self.logger.info("Integration scheduler started")
 
     def stop_scheduler(self) -> object:
-        """Stop the integration scheduler"""
         self.is_running = False
         if self.scheduler_thread:
             self.scheduler_thread.join()
@@ -277,7 +261,6 @@ class EnterpriseIntegrationManager:
     def get_integration_status(
         self, system_name: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Get status of integrations"""
         if system_name:
             if system_name in self.integrations:
                 return self.integrations[system_name].get_integration_status()
@@ -290,7 +273,6 @@ class EnterpriseIntegrationManager:
             return status
 
     def health_check(self) -> Dict[str, Any]:
-        """Perform health check on all integrations"""
         healthy_count = 0
         total_count = len(self.integrations)
         system_status: Dict[str, Any] = {}
@@ -316,7 +298,6 @@ class EnterpriseIntegrationManager:
         }
 
     def _setup_routes(self) -> object:
-        """Setup Flask routes for API and webhooks"""
 
         @self.app.route("/health", methods=["GET"])
         def health():
@@ -428,12 +409,10 @@ class EnterpriseIntegrationManager:
     def run_api_server(
         self, host: str = "0.0.0.0", port: int = 5000, debug: bool = False
     ) -> object:
-        """Run the Flask API server"""
         self.logger.info(f"Starting API server on {host}:{port}")
         self.app.run(host=host, port=port, debug=debug)
 
     def load_integrations_from_config(self) -> object:
-        """Load integrations from configuration file"""
         if not self.config.get("integrations"):
             return
         for integration_config in self.config["integrations"]:
@@ -451,7 +430,6 @@ class EnterpriseIntegrationManager:
                     )
 
     def export_configuration(self) -> Dict[str, Any]:
-        """Export current configuration"""
         config = {
             "integrations": [],
             "metadata": {
@@ -474,7 +452,6 @@ class EnterpriseIntegrationManager:
         return config
 
     def backup_integration_data(self, backup_path: str) -> object:
-        """Backup integration data and configuration"""
         try:
             backup_data = {
                 "configuration": self.export_configuration(),
@@ -488,7 +465,6 @@ class EnterpriseIntegrationManager:
             self.logger.error(f"Backup failed: {str(e)}")
 
     def restore_integration_data(self, backup_path: str) -> object:
-        """Restore integration data from backup"""
         try:
             with open(backup_path, "r") as f:
                 backup_data = json.load(f)
@@ -502,7 +478,6 @@ class EnterpriseIntegrationManager:
 def create_enterprise_integration_manager(
     config_file: Optional[str] = None,
 ) -> EnterpriseIntegrationManager:
-    """Factory function to create enterprise integration manager"""
     database_url = os.getenv("INTEGRATION_DATABASE_URL", "sqlite:///integrations.db")
     redis_url = os.getenv("INTEGRATION_REDIS_URL", "redis://localhost:6379/0")
     manager = EnterpriseIntegrationManager(

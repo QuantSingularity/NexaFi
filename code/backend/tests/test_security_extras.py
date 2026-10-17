@@ -1,8 +1,3 @@
-"""
-Additional tests for security module components:
-CircuitBreaker, RobustEncryption, SecurityManager session management
-"""
-
 import json
 import os
 import sys
@@ -12,9 +7,7 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)  # backend root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared.security import (
     AdvancedEncryption,

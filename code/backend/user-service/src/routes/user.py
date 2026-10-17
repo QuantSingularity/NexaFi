@@ -1,8 +1,3 @@
-"""
-User service routes - additional/extended endpoints as a Blueprint.
-Core auth and user routes are handled directly in main.py.
-"""
-
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -14,7 +9,6 @@ user_bp = Blueprint("user", __name__)
 
 
 def generate_token(user_id: str, expires_hours: object = 24) -> object:
-    """Generate JWT token"""
     payload = {
         "user_id": user_id,
         "exp": datetime.utcnow() + timedelta(hours=expires_hours),
@@ -26,7 +20,6 @@ def generate_token(user_id: str, expires_hours: object = 24) -> object:
 
 
 def verify_token(token: object) -> object:
-    """Verify JWT token"""
     try:
         payload = jwt.decode(
             token,
@@ -41,7 +34,6 @@ def verify_token(token: object) -> object:
 
 
 def require_auth(f: object) -> object:
-    """Authentication decorator for blueprint routes"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -75,7 +67,6 @@ def require_auth(f: object) -> object:
 @user_bp.route("/api/v1/users/sessions", methods=["GET"])
 @require_auth
 def get_sessions() -> object:
-    """Get active sessions for current user"""
     user_id = g.current_user["user_id"]
     sessions = UserSession.find_all("user_id = ? AND is_active = 1", (user_id,))
     return (
@@ -100,7 +91,6 @@ def get_sessions() -> object:
 @user_bp.route("/api/v1/users/sessions/<int:session_id>", methods=["DELETE"])
 @require_auth
 def revoke_session(session_id: int) -> object:
-    """Revoke a specific session"""
     user_id = g.current_user["user_id"]
     session = UserSession.find_one("id = ? AND user_id = ?", (session_id, user_id))
     if not session:
@@ -113,7 +103,6 @@ def revoke_session(session_id: int) -> object:
 @user_bp.route("/api/v1/users/change-password", methods=["POST"])
 @require_auth
 def change_password() -> object:
-    """Change user password"""
     data = request.get_json() or {}
     user_id = g.current_user["user_id"]
 

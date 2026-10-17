@@ -13,7 +13,6 @@ DOCUMENT_STORAGE_PATH = os.path.join(
 
 
 def require_user_id(f: object) -> object:
-    """Decorator to extract user_id from request headers"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -29,7 +28,6 @@ def require_user_id(f: object) -> object:
 @document_bp.route("/documents", methods=["GET"])
 @require_user_id
 def get_documents() -> object:
-    """Get all documents for the current user."""
     try:
         documents = Document.find_all("user_id = ?", (request.user_id,))
         return (jsonify([d.to_dict() for d in documents]), 200)
@@ -40,7 +38,6 @@ def get_documents() -> object:
 @document_bp.route("/documents", methods=["POST"])
 @require_user_id
 def upload_document() -> object:
-    """Upload a new document (simulated file handling)."""
     try:
         os.makedirs(DOCUMENT_STORAGE_PATH, exist_ok=True)
         data = request.get_json()
@@ -86,7 +83,6 @@ def upload_document() -> object:
 @document_bp.route("/documents/<document_id>", methods=["GET"])
 @require_user_id
 def get_document(document_id: object) -> object:
-    """Get a specific document by ID."""
     document = Document.find_one(
         "id = ? AND user_id = ?", (document_id, request.user_id)
     )
@@ -98,7 +94,6 @@ def get_document(document_id: object) -> object:
 @document_bp.route("/documents/<document_id>/download", methods=["GET"])
 @require_user_id
 def download_document(document_id: object) -> object:
-    """Download the latest version of a document."""
     document = Document.find_one(
         "id = ? AND user_id = ?", (document_id, request.user_id)
     )
@@ -118,7 +113,6 @@ def download_document(document_id: object) -> object:
 @document_bp.route("/documents/<document_id>", methods=["DELETE"])
 @require_user_id
 def delete_document(document_id: object) -> object:
-    """Delete a document and all its versions."""
     try:
         document = Document.find_one(
             "id = ? AND user_id = ?", (document_id, request.user_id)
@@ -141,7 +135,6 @@ def delete_document(document_id: object) -> object:
 
 @document_bp.route("/templates", methods=["GET"])
 def get_templates() -> object:
-    """Get all document templates."""
     try:
         templates = DocumentTemplate.find_all()
         return (jsonify([t.to_dict() for t in templates]), 200)
@@ -151,7 +144,6 @@ def get_templates() -> object:
 
 @document_bp.route("/templates", methods=["POST"])
 def create_template() -> object:
-    """Create a new document template."""
     try:
         data = request.get_json()
         new_template = DocumentTemplate(
@@ -173,7 +165,6 @@ def create_template() -> object:
 
 @document_bp.route("/templates/<template_id>", methods=["GET"])
 def get_template(template_id: object) -> object:
-    """Get a specific document template by ID."""
     template = DocumentTemplate.find_by_id(template_id)
     if not template:
         return (jsonify({"error": "Template not found"}), 404)
@@ -183,7 +174,6 @@ def get_template(template_id: object) -> object:
 @document_bp.route("/documents/<document_id>/share", methods=["POST"])
 @require_user_id
 def share_document(document_id: object) -> object:
-    """Share a document with another user or email."""
     try:
         document = Document.find_one(
             "id = ? AND user_id = ?", (document_id, request.user_id)
@@ -210,7 +200,6 @@ def share_document(document_id: object) -> object:
 @document_bp.route("/documents/<document_id>/shares", methods=["GET"])
 @require_user_id
 def get_document_shares(document_id: object) -> object:
-    """Get all share records for a document."""
     document = Document.find_one(
         "id = ? AND user_id = ?", (document_id, request.user_id)
     )

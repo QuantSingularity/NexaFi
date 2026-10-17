@@ -1,8 +1,3 @@
-"""
-Open Banking API Gateway
-Implements PSD2 compliant API gateway with FAPI 2.0 security
-"""
-
 import os
 import sys
 import time
@@ -13,20 +8,12 @@ from typing import Any, Dict
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
 
-# -------------------------------------------------------------------------
-# Path Configuration
-# -------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Add shared directory to path
 sys.path.append(os.path.join(BASE_DIR, "..", "..", "shared"))
 
 from audit.audit_logger import AuditEventType, AuditSeverity, audit_action, audit_logger
 from database.manager import initialize_database
 from middleware.auth import require_auth, require_permission
-
-# -------------------------------------------------------------------------
-# Imports
-# -------------------------------------------------------------------------
 from nexafi_logging.logger import get_logger, setup_request_logging
 from open_banking_compliance import (
     AuthenticationMethod,
@@ -54,15 +41,11 @@ from validation_schemas.schemas import (
     validate_json_request,
 )
 
-# -------------------------------------------------------------------------
-# App Configuration & Initialization
-# -------------------------------------------------------------------------
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
 
-# Strict CORS policy for FAPI compliance
 CORS(
     app,
     origins=os.environ.get("ALLOWED_ORIGINS", "*"),
@@ -83,21 +66,18 @@ CORS(
 setup_request_logging(app)
 logger = get_logger("open_banking_gateway")
 
-# Database Setup
 DB_PATH = os.environ.get(
     "DB_PATH", os.path.join(BASE_DIR, "database", "open_banking.db")
 )
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 db_manager, migration_manager = initialize_database(DB_PATH)
 
-# Security Components
 KEY_DIR = os.environ.get("KEY_DIR", os.path.join(BASE_DIR, "keys"))
 encryption = AdvancedEncryption()
 security_monitor = SecurityMonitor(db_manager)
 fraud_engine = FraudDetectionEngine(db_manager)
 mfa_manager = MultiFactorAuthentication(db_manager)
 
-# FAPI Profile Setup with dynamic paths
 fapi_security = FAPI2SecurityProfile(
     private_key_path=os.path.join(KEY_DIR, "private_key.pem"),
     public_key_path=os.path.join(KEY_DIR, "public_key.pem"),
@@ -106,13 +86,8 @@ fapi_security = FAPI2SecurityProfile(
 consent_manager = PSD2ConsentManager(db_manager)
 sca_manager = SCAManager(db_manager)
 
-# -------------------------------------------------------------------------
-# Schemas
-# -------------------------------------------------------------------------
-
 
 class AmountSchema(Schema):
-    """Reusable schema for monetary amounts"""
 
     amount = fields.String(
         required=True,
@@ -127,7 +102,6 @@ class AmountSchema(Schema):
 
 
 class AccountReferenceSchema(Schema):
-    """Reusable schema for account references"""
 
     iban = fields.String(required=False, validate=validate.Length(min=15, max=34))
     bban = fields.String(required=False)
@@ -139,12 +113,12 @@ class AccountReferenceSchema(Schema):
 
 class ConsentRequestSchema(SanitizationMixin, Schema):
     access = fields.Dict(required=True)
-    recurringIndicator = fields.Bool(required=False, default=False)
+    recurringIndicator = fields.Bool(required=False, load_default=False)
     validUntil = fields.DateTime(required=False)
     frequencyPerDay = fields.Int(
-        required=False, default=4, validate=validate.Range(min=1, max=10)
+        required=False, load_default=4, validate=validate.Range(min=1, max=10)
     )
-    combinedServiceIndicator = fields.Bool(required=False, default=False)
+    combinedServiceIndicator = fields.Bool(required=False, load_default=False)
 
 
 class PaymentInitiationSchema(SanitizationMixin, Schema):
@@ -173,13 +147,7 @@ class SCAInitiationSchema(SanitizationMixin, Schema):
     psuMessage = fields.Str(required=False, validate=validate.Length(max=500))
 
 
-# -------------------------------------------------------------------------
-# Decorators
-# -------------------------------------------------------------------------
-
-
 def validate_tpp_certificate(f: object) -> object:
-    """Decorator to validate TPP eIDAS certificate and extract roles"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -209,7 +177,6 @@ def validate_tpp_certificate(f: object) -> object:
                 401,
             )
 
-        # Store TPP context in Flask global
         g.tpp_id = cert_info["organization_id"]
         g.tpp_name = cert_info["organization_name"]
         g.tpp_roles = cert_info["roles"]
@@ -220,7 +187,6 @@ def validate_tpp_certificate(f: object) -> object:
 
 
 def validate_fapi_headers(f: object) -> object:
-    """Decorator to enforce FAPI 2.0 header requirements"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -245,19 +211,16 @@ def validate_fapi_headers(f: object) -> object:
 def log_security_event(
     event_type: SecurityEventType, threat_level: ThreatLevel = ThreatLevel.LOW
 ) -> object:
-    """Decorator for comprehensive security telemetry"""
 
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            # Use perf_counter for high precision timing
             start_time = time.perf_counter()
             user_id = getattr(g, "user_id", request.headers.get("PSU-ID"))
 
             try:
                 result = f(*args, **kwargs)
 
-                # Log successful access
                 duration = time.perf_counter() - start_time
                 event = SecurityEvent(
                     event_type=event_type,
@@ -279,7 +242,6 @@ def log_security_event(
                 return result
 
             except Exception as e:
-                # Log security exception/anomaly
                 duration = time.perf_counter() - start_time
                 event = SecurityEvent(
                     event_type=SecurityEventType.SECURITY_VIOLATION,
@@ -298,21 +260,15 @@ def log_security_event(
                     session_id=getattr(g, "session_id", None),
                 )
                 security_monitor.log_security_event(event)
-                raise  # Re-raise for the global error handler
+                raise
 
         return decorated_function
 
     return decorator
 
 
-# -------------------------------------------------------------------------
-# Routes
-# -------------------------------------------------------------------------
-
-
 @app.route("/api/v1/health", methods=["GET"])
 def health_check() -> object:
-    """Service health and compliance status"""
     return jsonify(
         {
             "status": "healthy",
@@ -335,10 +291,8 @@ def health_check() -> object:
     severity=AuditSeverity.HIGH,
 )
 def create_consent() -> object:
-    """Create PSD2 consent (Account Information Service)"""
     data = request.validated_data
 
-    # Check TPP Roles
     if "PSP_AI" not in g.tpp_roles:
         return (
             jsonify(
@@ -362,10 +316,8 @@ def create_consent() -> object:
             400,
         )
 
-    # Handle Date Parsing
     valid_until = data.get("validUntil")
     if valid_until and isinstance(valid_until, str):
-        # Marshmallow usually returns datetime objects, but ensuring safety
         valid_until = datetime.fromisoformat(valid_until.replace("Z", "+00:00"))
 
     consent = consent_manager.create_consent(
@@ -420,7 +372,6 @@ def create_consent() -> object:
 @validate_fapi_headers
 @log_security_event(SecurityEventType.DATA_ACCESS)
 def get_consent(consent_id: str) -> object:
-    """Get consent details"""
     consent = consent_manager.get_consent(consent_id)
     if not consent:
         return (
@@ -458,7 +409,6 @@ def get_consent(consent_id: str) -> object:
 @validate_json_request(SCAInitiationSchema)
 @log_security_event(SecurityEventType.LOGIN_ATTEMPT, ThreatLevel.MODERATE)
 def initiate_consent_authorisation(consent_id: str) -> object:
-    """Initiate Strong Customer Authentication for consent"""
     data = request.validated_data
 
     is_valid, message = consent_manager.validate_consent(consent_id, g.tpp_id)
@@ -512,7 +462,6 @@ def initiate_consent_authorisation(consent_id: str) -> object:
 @validate_fapi_headers
 @log_security_event(SecurityEventType.LOGIN_ATTEMPT, ThreatLevel.HIGH)
 def update_consent_authorisation(consent_id: str, authorisation_id: str) -> object:
-    """Update SCA authorisation with authentication data"""
     data = request.get_json() or {}
     auth_response = data.get("scaAuthenticationData")
 
@@ -560,7 +509,6 @@ def update_consent_authorisation(consent_id: str, authorisation_id: str) -> obje
     severity=AuditSeverity.CRITICAL,
 )
 def initiate_payment() -> object:
-    """Initiate SEPA Credit Transfer (Payment Initiation Service)"""
     data = request.validated_data
 
     if "PSP_PI" not in g.tpp_roles:
@@ -586,7 +534,6 @@ def initiate_payment() -> object:
             400,
         )
 
-    # Data Preparation
     amount_val = float(data["instructedAmount"]["amount"])
     currency_val = data["instructedAmount"]["currency"]
 
@@ -594,11 +541,10 @@ def initiate_payment() -> object:
         "amount": amount_val,
         "currency": currency_val,
         "merchant_category": "bank_transfer",
-        "country": "DE",  # In prod, extract from IBAN/Context
+        "country": "DE",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Fraud Detection Analysis
     risk_score, risk_factors = fraud_engine.analyze_transaction_behavior(
         psu_id,
         transaction_data["amount"],
@@ -613,7 +559,6 @@ def initiate_payment() -> object:
 
     payment_id = f"payment_{int(time.time())}_{psu_id[:8]}"
 
-    # Logic: SCA is required if risk is high OR not eligible for exemption
     sca_required = not exemption_eligible or risk_score > 30
 
     response_data: Dict[str, Any] = {}
@@ -636,7 +581,6 @@ def initiate_payment() -> object:
             },
         }
 
-        # Create fraud alert if risk is critical
         if risk_score > 50:
             fraud_engine.create_fraud_alert(
                 psu_id,
@@ -645,7 +589,6 @@ def initiate_payment() -> object:
                 {"payment_id": payment_id, "risk_factors": risk_factors},
             )
     else:
-        # Exemption applied
         response_data = {
             "paymentId": payment_id,
             "transactionStatus": "ACCP",
@@ -682,7 +625,6 @@ def initiate_payment() -> object:
 @validate_fapi_headers
 @log_security_event(SecurityEventType.DATA_ACCESS)
 def get_accounts() -> object:
-    """Get account list (Account Information Service)"""
     consent_id = request.headers.get("Consent-ID")
     if not consent_id:
         return (
@@ -711,7 +653,6 @@ def get_accounts() -> object:
             403,
         )
 
-    # In a real app, fetch from Core Banking System
     accounts = [
         {
             "resourceId": "account_001",
@@ -734,7 +675,6 @@ def get_accounts() -> object:
 @validate_fapi_headers
 @log_security_event(SecurityEventType.DATA_ACCESS)
 def get_account_balances(account_id: str) -> object:
-    """Get account balances"""
     consent_id = request.headers.get("Consent-ID")
     if not consent_id:
         return (
@@ -771,7 +711,6 @@ def get_account_balances(account_id: str) -> object:
 @require_auth
 @require_permission("security:read")
 def get_threat_summary() -> object:
-    """Get security threat summary"""
     try:
         hours = int(request.args.get("hours", 24))
     except ValueError:
@@ -779,11 +718,6 @@ def get_threat_summary() -> object:
 
     summary = security_monitor.get_threat_summary(hours)
     return jsonify(summary)
-
-
-# -------------------------------------------------------------------------
-# Error Handlers
-# -------------------------------------------------------------------------
 
 
 @app.errorhandler(400)
@@ -845,11 +779,9 @@ def internal_error(error: Exception) -> object:
 
 
 if __name__ == "__main__":
-    # Ensure critical directories exist
     os.makedirs(os.path.join(BASE_DIR, "database"), exist_ok=True)
     os.makedirs(os.path.join(BASE_DIR, "keys"), exist_ok=True)
 
-    # Run app (Debug should be False in production)
     debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     port = int(os.environ.get("PORT", 5010))
 

@@ -1,8 +1,3 @@
-"""
-Rate limiting middleware for NexaFi API Gateway
-Implements industry-standard rate limiting for financial services
-"""
-
 import time
 from functools import wraps
 from typing import Dict
@@ -19,7 +14,6 @@ class RateLimiter:
         )
 
     def get_client_id(self) -> str:
-        """Get unique client identifier"""
         user_id = request.headers.get("X-User-ID")
         if user_id:
             return f"user:{user_id}"
@@ -27,13 +21,11 @@ class RateLimiter:
         return f"ip:{client_ip}"
 
     def get_rate_limit_key(self, client_id: str, endpoint: str, window: str) -> str:
-        """Generate Redis key for rate limiting"""
         return f"rate_limit:{client_id}:{endpoint}:{window}"
 
     def is_rate_limited(
         self, client_id: str, endpoint: str, limit: int, window: int
     ) -> tuple[bool, Dict]:
-        """Check if client is rate limited"""
         current_time = int(time.time())
         window_start = current_time - current_time % window
         key = self.get_rate_limit_key(client_id, endpoint, str(window_start))
@@ -93,7 +85,6 @@ RATE_LIMITS = {
 
 
 def get_endpoint_rate_limit(path: str) -> Dict:
-    """Get rate limit configuration for endpoint"""
     if path in RATE_LIMITS:
         return RATE_LIMITS[path]
     for endpoint_pattern, config in RATE_LIMITS.items():
@@ -103,7 +94,6 @@ def get_endpoint_rate_limit(path: str) -> Dict:
 
 
 def rate_limit(f: object) -> object:
-    """Rate limiting decorator"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -134,7 +124,6 @@ def rate_limit(f: object) -> object:
 
 
 def add_rate_limit_headers(response: object) -> object:
-    """Add rate limit headers to response"""
     if hasattr(g, "rate_limit_info"):
         info = g.rate_limit_info
         response.headers["X-RateLimit-Limit"] = str(info.get("limit", 0))

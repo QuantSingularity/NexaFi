@@ -1,8 +1,3 @@
-"""
-Enterprise Caching System for NexaFi
-Multi-tier, high-performance caching with intelligent cache management
-"""
-
 import hashlib
 import json
 import logging
@@ -23,17 +18,16 @@ import structlog
 from sqlalchemy import Column, DateTime, Float, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base
 
-# ── Optional serialisation / compression libs with stdlib fallbacks ──────────
 try:
-    import cbor2 as _cbor2
+    pass
 except ImportError:
-    import json as _cbor2  # type: ignore[no-redef]
+    pass
 
 try:
     import lz4.frame as _lz4
 except ImportError:
 
-    class _lz4:  # type: ignore[no-redef]
+    class _lz4:
         @staticmethod
         def compress(data: bytes, **k) -> bytes:
             return data
@@ -44,14 +38,14 @@ except ImportError:
 
 
 try:
-    import msgpack as _msgpack  # type: ignore[assignment]
+    pass
 except ImportError:
-    import json as _msgpack  # type: ignore[no-redef]
+    pass
 
 try:
-    import orjson as _orjson  # type: ignore[assignment]
+    pass
 except ImportError:
-    import json as _orjson  # type: ignore[no-redef]
+    pass
 
 try:
     import zstandard as zstd
@@ -61,25 +55,25 @@ try:
 except ImportError:
 
     def _zstd_compress(data: bytes, **k) -> bytes:
-        return data  # type: ignore[misc]
+        return data
 
     def _zstd_decompress(data: bytes, **k) -> bytes:
-        return data  # type: ignore[misc]
+        return data
 
 
 try:
     from cachetools import LFUCache, LRUCache, TTLCache
 except ImportError:
 
-    class TTLCache(dict):  # type: ignore[no-redef]
+    class TTLCache(dict):
         def __init__(self, maxsize=128, ttl=600):
             super().__init__()
 
-    class LRUCache(dict):  # type: ignore[no-redef]
+    class LRUCache(dict):
         def __init__(self, maxsize=128):
             super().__init__()
 
-    class LFUCache(dict):  # type: ignore[no-redef]
+    class LFUCache(dict):
         def __init__(self, maxsize=128):
             super().__init__()
 
@@ -88,8 +82,7 @@ try:
     from consistent_hash import ConsistentHash as _ConsistentHashLib
 except ImportError:
 
-    class _ConsistentHashLib:  # type: ignore[no-redef]
-        """Pure-Python consistent hashing ring using MD5."""
+    class _ConsistentHashLib:
 
         def __init__(self, replicas: int = 100) -> None:
             self._replicas = replicas
@@ -130,7 +123,7 @@ try:
     from prometheus_client import Counter, Histogram
 except ImportError:
 
-    class Counter:  # type: ignore[no-redef]
+    class Counter:
         def __init__(self, *a, **k):
             pass
 
@@ -140,7 +133,7 @@ except ImportError:
         def labels(self, **k):
             return self
 
-    class Histogram:  # type: ignore[no-redef]
+    class Histogram:
         def __init__(self, *a, **k):
             pass
 
@@ -160,7 +153,7 @@ try:
     from pybloom_live import BloomFilter
 except ImportError:
 
-    class BloomFilter:  # type: ignore[no-redef]
+    class BloomFilter:
         def __init__(self, capacity=100, error_rate=0.001):
             self._s: set = set()
 
@@ -175,7 +168,7 @@ try:
     from pymemcache.client.hash import HashClient as MemcacheHashClient
 except ImportError:
 
-    class MemcacheHashClient:  # type: ignore[no-redef]
+    class MemcacheHashClient:
         def __init__(self, *a, **k):
             pass
 
@@ -196,7 +189,6 @@ Base = declarative_base()
 
 
 class CacheLevel(Enum):
-    """Cache tier levels"""
 
     L1_MEMORY = 1
     L2_REDIS = 2
@@ -206,7 +198,6 @@ class CacheLevel(Enum):
 
 
 class CacheStrategy(Enum):
-    """Cache eviction strategies"""
 
     LRU = "lru"
     LFU = "lfu"
@@ -217,7 +208,6 @@ class CacheStrategy(Enum):
 
 
 class CompressionType(Enum):
-    """Compression algorithms"""
 
     NONE = "none"
     ZLIB = "zlib"
@@ -227,7 +217,6 @@ class CompressionType(Enum):
 
 
 class SerializationType(Enum):
-    """Serialization formats"""
 
     PICKLE = "pickle"
     JSON = "json"
@@ -238,7 +227,6 @@ class SerializationType(Enum):
 
 @dataclass
 class CacheEntry:
-    """Cache entry with metadata"""
 
     key: str
     value: object
@@ -255,7 +243,6 @@ class CacheEntry:
 
 @dataclass
 class CacheStats:
-    """Cache statistics"""
 
     hits: int
     misses: int
@@ -268,7 +255,6 @@ class CacheStats:
 
 
 class CacheMetrics(Base):
-    """Cache metrics model"""
 
     __tablename__ = "cache_metrics"
     id = Column(Integer, primary_key=True)
@@ -288,14 +274,12 @@ class CacheMetrics(Base):
 
 
 class CacheConfiguration:
-    """Cache configuration management"""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
         self.logger = structlog.get_logger(__name__)
 
     def get_cache_config(self, cache_name: str) -> Dict[str, Any]:
-        """Get configuration for specific cache"""
         default_config = {
             "max_size_mb": 1024,
             "ttl_seconds": 3600,
@@ -317,11 +301,9 @@ class CacheConfiguration:
 
 
 class CompressionManager:
-    """Handles data compression and decompression"""
 
     @staticmethod
     def compress(data: bytes, compression_type: CompressionType) -> bytes:
-        """Compress data using specified algorithm"""
         if compression_type == CompressionType.NONE:
             return data
         elif compression_type == CompressionType.ZLIB:
@@ -340,7 +322,6 @@ class CompressionManager:
 
     @staticmethod
     def decompress(data: bytes, compression_type: CompressionType) -> bytes:
-        """Decompress data using specified algorithm"""
         if compression_type == CompressionType.NONE:
             return data
         elif compression_type == CompressionType.ZLIB:
@@ -359,11 +340,9 @@ class CompressionManager:
 
 
 class SerializationManager:
-    """Handles data serialization and deserialization"""
 
     @staticmethod
     def serialize(data: object, serialization_type: SerializationType) -> bytes:
-        """Serialize data using specified format"""
         if serialization_type == SerializationType.PICKLE:
             return pickle.dumps(data)
         elif serialization_type == SerializationType.JSON:
@@ -379,7 +358,6 @@ class SerializationManager:
 
     @staticmethod
     def deserialize(data: bytes, serialization_type: SerializationType) -> object:
-        """Deserialize data using specified format"""
         if serialization_type == SerializationType.PICKLE:
             return pickle.loads(data)
         elif serialization_type == SerializationType.JSON:
@@ -395,7 +373,6 @@ class SerializationManager:
 
 
 class L1MemoryCache:
-    """Level 1 in-process memory cache"""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -415,7 +392,6 @@ class L1MemoryCache:
         self.lock = threading.RLock()
 
     def get(self, key: str) -> Optional[Any]:
-        """Get value from cache"""
         start_time = time.time()
         with self.lock:
             try:
@@ -431,7 +407,6 @@ class L1MemoryCache:
                 return None
 
     def set(self, key: str, value: object, ttl: Optional[int] = None) -> bool:
-        """Set value in cache"""
         with self.lock:
             try:
                 size = len(pickle.dumps(value))
@@ -446,7 +421,6 @@ class L1MemoryCache:
                 return False
 
     def delete(self, key: str) -> bool:
-        """Delete value from cache"""
         with self.lock:
             try:
                 if key in self.cache:
@@ -459,13 +433,11 @@ class L1MemoryCache:
                 return False
 
     def clear(self) -> None:
-        """Clear all cache entries"""
         with self.lock:
             self.cache.clear()
             self.stats = CacheStats(0, 0, 0, 0, 0, 0.0, 0.0, 0.0)
 
     def get_stats(self) -> CacheStats:
-        """Get cache statistics"""
         with self.lock:
             total_requests = self.stats.hits + self.stats.misses
             self.stats.hit_ratio = (
@@ -475,7 +447,6 @@ class L1MemoryCache:
 
 
 class L2RedisCache:
-    """Level 2 Redis cache"""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -509,7 +480,6 @@ class L2RedisCache:
         self.lock = threading.RLock()
 
     def get(self, key: str) -> Optional[Any]:
-        """Get value from Redis cache"""
         start_time = time.time()
         try:
             if self.bloom_filter and key not in self.bloom_filter:
@@ -536,7 +506,6 @@ class L2RedisCache:
             return None
 
     def set(self, key: str, value: object, ttl: Optional[int] = None) -> bool:
-        """Set value in Redis cache"""
         try:
             serialized_data = SerializationManager.serialize(value, self.serialization)
             compressed_data = CompressionManager.compress(
@@ -555,7 +524,6 @@ class L2RedisCache:
             return False
 
     def delete(self, key: str) -> bool:
-        """Delete value from Redis cache"""
         try:
             result = self.redis_client.delete(key)
             with self.lock:
@@ -567,7 +535,6 @@ class L2RedisCache:
             return False
 
     def clear(self) -> None:
-        """Clear all cache entries"""
         try:
             self.redis_client.flushdb()
             with self.lock:
@@ -580,7 +547,6 @@ class L2RedisCache:
             self.logger.error(f"L2 cache clear failed: {str(e)}")
 
     def get_stats(self) -> CacheStats:
-        """Get cache statistics"""
         with self.lock:
             total_requests = self.stats.hits + self.stats.misses
             self.stats.hit_ratio = (
@@ -590,7 +556,6 @@ class L2RedisCache:
 
 
 class L3MemcachedCache:
-    """Level 3 Memcached cache"""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -611,17 +576,14 @@ class L3MemcachedCache:
         self.lock = threading.RLock()
 
     def _serialize(self, key: str, value: object):
-        """Custom serializer for Memcached"""
         serialized_data = SerializationManager.serialize(value, self.serialization)
         return CompressionManager.compress(serialized_data, self.compression), 0
 
     def _deserialize(self, key: str, data: bytes, flags: int) -> object:
-        """Custom deserializer for Memcached"""
         decompressed_data = CompressionManager.decompress(data, self.compression)
         return SerializationManager.deserialize(decompressed_data, self.serialization)
 
     def get(self, key: str) -> Optional[Any]:
-        """Get value from Memcached cache"""
         start_time = time.time()
         try:
             value = self.memcached_client.get(key)
@@ -641,7 +603,6 @@ class L3MemcachedCache:
             return None
 
     def set(self, key: str, value: object, ttl: Optional[int] = None) -> bool:
-        """Set value in Memcached cache"""
         try:
             ttl = ttl or self.default_ttl
             result = self.memcached_client.set(key, value, expire=ttl)
@@ -654,7 +615,6 @@ class L3MemcachedCache:
             return False
 
     def delete(self, key: str) -> bool:
-        """Delete value from Memcached cache"""
         try:
             result = self.memcached_client.delete(key)
             with self.lock:
@@ -666,7 +626,6 @@ class L3MemcachedCache:
             return False
 
     def get_stats(self) -> CacheStats:
-        """Get cache statistics"""
         with self.lock:
             total_requests = self.stats.hits + self.stats.misses
             self.stats.hit_ratio = (
@@ -676,7 +635,6 @@ class L3MemcachedCache:
 
 
 class MultiTierCache:
-    """Multi-tier cache system"""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -706,7 +664,6 @@ class MultiTierCache:
         )
 
     def get(self, key: str) -> Optional[Any]:
-        """Get value from multi-tier cache"""
         time.time()
         for level in sorted(self.caches.keys(), key=lambda x: x.value):
             cache = self.caches[level]
@@ -722,7 +679,6 @@ class MultiTierCache:
         return None
 
     def set(self, key: str, value: object, ttl: Optional[int] = None) -> bool:
-        """Set value in multi-tier cache"""
         success = True
         for level, cache in self.caches.items():
             with self.cache_operations.labels(operation="set", level=level.name).time():
@@ -731,7 +687,6 @@ class MultiTierCache:
         return success
 
     def delete(self, key: str) -> bool:
-        """Delete value from all cache levels"""
         success = True
         for level, cache in self.caches.items():
             with self.cache_operations.labels(
@@ -746,7 +701,6 @@ class MultiTierCache:
     def _promote_to_higher_levels(
         self, key: str, value: object, current_level: CacheLevel
     ) -> None:
-        """Promote frequently accessed items to higher cache levels"""
         access_count = self.access_counts[key]
         if access_count >= self.promotion_threshold:
             for level in sorted(self.caches.keys(), key=lambda x: x.value):
@@ -755,21 +709,18 @@ class MultiTierCache:
                     cache.set(key, value)
 
     def get_stats(self) -> Dict[str, CacheStats]:
-        """Get statistics for all cache levels"""
         stats: Dict[str, Any] = {}
         for level, cache in self.caches.items():
             stats[level.name] = cache.get_stats()
         return stats
 
     def clear_all(self) -> None:
-        """Clear all cache levels"""
         for cache in self.caches.values():
             cache.clear()
         self.access_counts.clear()
 
 
 class CacheManager:
-    """Central cache management system"""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -785,7 +736,6 @@ class CacheManager:
         self.consistent_hash = ConsistentHash()
 
     def get_cache(self, cache_name: str) -> MultiTierCache:
-        """Get or create cache instance"""
         if cache_name not in self.caches:
             cache_config = self.config_manager.get_cache_config(cache_name)
             self.caches[cache_name] = MultiTierCache(cache_config)
@@ -793,31 +743,26 @@ class CacheManager:
         return self.caches[cache_name]
 
     def get(self, cache_name: str, key: str) -> Optional[Any]:
-        """Get value from specified cache"""
         cache = self.get_cache(cache_name)
         return cache.get(key)
 
     def set(
         self, cache_name: str, key: str, value: object, ttl: Optional[int] = None
     ) -> bool:
-        """Set value in specified cache"""
         cache = self.get_cache(cache_name)
         return cache.set(key, value, ttl)
 
     def delete(self, cache_name: str, key: str) -> bool:
-        """Delete value from specified cache"""
         cache = self.get_cache(cache_name)
         return cache.delete(key)
 
     def invalidate_by_tags(self, cache_name: str, tags: List[str]) -> None:
-        """Invalidate cache entries by tags"""
         self.get_cache(cache_name)
         self.logger.info(f"Tag-based invalidation requested for {cache_name}: {tags}")
 
     def warm_cache(
         self, cache_name: str, data_loader: Callable[[str], Any], keys: List[str]
     ) -> None:
-        """Warm cache with data"""
         cache = self.get_cache(cache_name)
 
         def load_and_cache(key):
@@ -839,7 +784,6 @@ class CacheManager:
         )
 
     def get_global_stats(self) -> Dict[str, Any]:
-        """Get global cache statistics"""
         global_stats = {
             "total_caches": len(self.caches),
             "cache_stats": {},
@@ -863,7 +807,6 @@ class CacheManager:
         return global_stats
 
     def start_metrics_collection(self) -> None:
-        """Start background metrics collection"""
         if self.is_running:
             return
         self.is_running = True
@@ -882,14 +825,12 @@ class CacheManager:
         self.logger.info("Started metrics collection")
 
     def stop_metrics_collection(self) -> None:
-        """Stop background metrics collection"""
         self.is_running = False
         if self.metrics_thread:
             self.metrics_thread.join()
         self.logger.info("Stopped metrics collection")
 
     def _collect_and_store_metrics(self) -> None:
-        """Collect and store cache metrics"""
         session = self.Session()
         try:
             for cache_name, cache in self.caches.items():
@@ -919,7 +860,6 @@ class CacheManager:
 def cached(
     cache_name: str = "default", ttl: int = 3600, key_func: Optional[Callable] = None
 ) -> object:
-    """Decorator for caching function results"""
 
     def decorator(func):
 
@@ -948,7 +888,6 @@ def cached(
 def cache_invalidate(
     cache_name: str = "default", key_func: Optional[Callable] = None
 ) -> object:
-    """Decorator for invalidating cache entries"""
 
     def decorator(func):
 
@@ -975,7 +914,6 @@ _global_cache_manager = None
 
 
 def get_global_cache_manager() -> CacheManager:
-    """Get global cache manager instance"""
     global _global_cache_manager
     if _global_cache_manager is None:
         config = {
@@ -992,7 +930,6 @@ def get_global_cache_manager() -> CacheManager:
 
 
 def create_cache_manager(config: Dict[str, Any]) -> CacheManager:
-    """Factory function to create cache manager"""
     return CacheManager(config)
 
 

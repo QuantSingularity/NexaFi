@@ -7,9 +7,6 @@ import requests
 from flask import Flask, Response, g, jsonify, request
 from flask_cors import CORS
 
-# Add this service's src directory (local packages like "models"/"routes")
-# and the shared library to sys.path so imports work regardless of how the
-# service is launched (python src/main.py, gunicorn, runpy, or any CWD).
 _SERVICE_SRC = os.path.dirname(os.path.abspath(__file__))
 _SHARED_DIR = os.path.abspath(os.path.join(_SERVICE_SRC, "..", "..", "shared"))
 for _p in (_SERVICE_SRC, _SHARED_DIR):
@@ -42,7 +39,12 @@ SERVICES = {
     "ledger-service": {
         "url": os.environ.get("LEDGER_SERVICE_URL", "http://ledger-service:5002"),
         "health_endpoint": "/api/v1/health",
-        "routes": ["/api/v1/accounts", "/api/v1/journal-entries", "/api/v1/reports"],
+        "routes": [
+            "/api/v1/ledger",
+            "/api/v1/accounts",
+            "/api/v1/journal-entries",
+            "/api/v1/reports",
+        ],
         "timeout": 30,
         "retry_count": 3,
         "circuit_breaker": {"failure_threshold": 5, "recovery_timeout": 60},
@@ -56,7 +58,6 @@ SERVICES = {
             "/api/v1/wallets",
             "/api/v1/recurring-payments",
             "/api/v1/exchange-rates",
-            "/api/v1/analytics",
         ],
         "timeout": 30,
         "retry_count": 3,
@@ -67,6 +68,7 @@ SERVICES = {
         "health_endpoint": "/api/v1/health",
         "routes": [
             "/api/v1/predictions",
+            "/api/v1/anomalies",
             "/api/v1/insights",
             "/api/v1/chat",
             "/api/v1/models",
@@ -74,6 +76,30 @@ SERVICES = {
         "timeout": 60,
         "retry_count": 2,
         "circuit_breaker": {"failure_threshold": 3, "recovery_timeout": 120},
+    },
+    "credit-service": {
+        "url": os.environ.get("CREDIT_SERVICE_URL", "http://credit-service:5008"),
+        "health_endpoint": "/api/v1/health",
+        "routes": ["/api/v1/credit"],
+        "timeout": 30,
+        "retry_count": 3,
+        "circuit_breaker": {"failure_threshold": 5, "recovery_timeout": 60},
+    },
+    "analytics-service": {
+        "url": os.environ.get("ANALYTICS_SERVICE_URL", "http://analytics-service:5009"),
+        "health_endpoint": "/api/v1/health",
+        "routes": ["/api/v1/analytics"],
+        "timeout": 30,
+        "retry_count": 3,
+        "circuit_breaker": {"failure_threshold": 5, "recovery_timeout": 60},
+    },
+    "document-service": {
+        "url": os.environ.get("DOCUMENT_SERVICE_URL", "http://document-service:5006"),
+        "health_endpoint": "/api/v1/health",
+        "routes": ["/api/v1/documents"],
+        "timeout": 60,
+        "retry_count": 2,
+        "circuit_breaker": {"failure_threshold": 5, "recovery_timeout": 60},
     },
     "notification-service": {
         "url": os.environ.get(
@@ -104,17 +130,35 @@ SERVICES = {
 circuit_breaker_state: Dict[str, Dict[str, Any]] = {}
 
 
+PUBLIC_PREFIXES = tuple(
+    prefix.strip()
+    for prefix in os.environ.get(
+        "GATEWAY_PUBLIC_PREFIXES", "/api/v1/auth,/api/v1/exchange-rates"
+    ).split(",")
+    if prefix.strip()
+)
+INTERNAL_SERVICE_KEY = os.environ.get("INTERNAL_SERVICE_KEY") or None
+IDEMPOTENT_METHODS = ("GET", "HEAD", "DELETE", "PUT")
+
+
+def _prefix_matches(path: str, prefix: str) -> bool:
+    return path == prefix or path.startswith(prefix.rstrip("/") + "/")
+
+
+def is_public_route(path: str) -> bool:
+    return any(_prefix_matches(path, prefix) for prefix in PUBLIC_PREFIXES)
+
+
 def get_service_for_route(path: str) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
-    """Determine which service should handle the request"""
+    best: Tuple[Optional[str], Optional[Dict[str, Any]], int] = (None, None, -1)
     for service_name, config in SERVICES.items():
         for route_prefix in cast(List[str], config["routes"]):
-            if path.startswith(route_prefix):
-                return (service_name, config)
-    return (None, None)
+            if _prefix_matches(path, route_prefix) and len(route_prefix) > best[2]:
+                best = (service_name, config, len(route_prefix))
+    return (best[0], best[1])
 
 
 def is_circuit_breaker_open(service_name: str) -> bool:
-    """Check if circuit breaker is open for service"""
     if service_name not in circuit_breaker_state:
         circuit_breaker_state[service_name] = {
             "failure_count": 0,
@@ -136,7 +180,6 @@ def is_circuit_breaker_open(service_name: str) -> bool:
 
 
 def record_service_failure(service_name: str) -> None:
-    """Record service failure for circuit breaker"""
     if service_name not in circuit_breaker_state:
         circuit_breaker_state[service_name] = {
             "failure_count": 0,
@@ -162,13 +205,12 @@ def record_service_failure(service_name: str) -> None:
 
 
 def record_service_success(service_name: str) -> None:
-    """Record service success for circuit breaker"""
     if service_name in circuit_breaker_state:
         state = circuit_breaker_state[service_name]
         if state["state"] == "half-open":
-            state["failure_count"] = 0
             state["state"] = "closed"
             logger.info(f"Circuit breaker closed for {service_name}")
+        state["failure_count"] = 0
 
 
 def forward_request(
@@ -180,17 +222,24 @@ def forward_request(
     data: Optional[Dict[str, Any]] = None,
     params: Optional[Dict[str, str]] = None,
 ) -> Tuple[Dict[str, Any], int]:
-    """Forward request to appropriate service with retry and circuit breaker"""
     if is_circuit_breaker_open(service_name):
         return ({"error": "Service temporarily unavailable"}, 503)
     url = f"{service_config['url']}{path}"
     timeout = service_config.get("timeout", 30)
     retry_count = service_config.get("retry_count", 3)
+    if method not in IDEMPOTENT_METHODS:
+        retry_count = 1
     forward_headers: Dict[str, Any] = {}
     if headers:
-        for header_name in ["Authorization", "Content-Type", "X-User-ID"]:
+        for header_name in ["Authorization", "Content-Type"]:
             if header_name in headers:
                 forward_headers[header_name] = headers[header_name]
+    current_user = getattr(g, "current_user", None)
+    if current_user:
+        forward_headers["X-User-ID"] = str(current_user["user_id"])
+        forward_headers["X-User-Roles"] = ",".join(current_user.get("roles") or [])
+    if INTERNAL_SERVICE_KEY:
+        forward_headers["X-Internal-Key"] = INTERNAL_SERVICE_KEY
     if hasattr(g, "correlation_id"):
         forward_headers["X-Correlation-ID"] = g.correlation_id
     last_exception = None
@@ -217,6 +266,14 @@ def forward_request(
                     params=params,
                     timeout=timeout,
                 )
+            elif method == "PATCH":
+                response = requests.patch(
+                    url,
+                    headers=forward_headers,
+                    json=data,
+                    params=params,
+                    timeout=timeout,
+                )
             elif method == "DELETE":
                 response = requests.delete(
                     url, headers=forward_headers, params=params, timeout=timeout
@@ -237,7 +294,14 @@ def forward_request(
             )
             if response.status_code < 500:
                 record_service_success(service_name)
-            return (response.json() if response.content else {}, response.status_code)
+            else:
+                record_service_failure(service_name)
+            if not response.content:
+                return ({}, response.status_code)
+            try:
+                return (response.json(), response.status_code)
+            except ValueError:
+                return ({"error": "Upstream returned a non JSON response"}, 502)
         except requests.exceptions.Timeout:
             last_exception = "Service timeout"
             logger.warning(f"Timeout calling {service_name}, attempt {attempt + 1}")
@@ -263,7 +327,6 @@ def forward_request(
 
 @app.before_request
 def before_request() -> None:
-    """Pre-request processing"""
     if request.method == "POST" and (not request.is_json):
         if "multipart/form-data" not in request.content_type:
             log_security_event(
@@ -275,7 +338,6 @@ def before_request() -> None:
 
 @app.after_request
 def after_request(response: Response) -> Response:
-    """Post-request processing"""
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -288,7 +350,6 @@ def after_request(response: Response) -> Response:
 
 @app.route("/health", methods=["GET"])
 def health_check() -> Response:
-    """Gateway health check"""
     return jsonify(
         {
             "status": "healthy",
@@ -302,7 +363,6 @@ def health_check() -> Response:
 @app.route("/api/v1/services", methods=["GET"])
 @optional_auth
 def list_services() -> Response:
-    """List available services and their status"""
     service_status: Dict[str, Any] = {}
     for service_name, config in SERVICES.items():
         try:
@@ -330,12 +390,13 @@ def list_services() -> Response:
     )
 
 
-@app.route("/api/v1/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
+@app.route("/api/v1/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 @rate_limit
 @optional_auth
 def proxy_request(path: str) -> Tuple[Response, int]:
-    """Proxy requests to appropriate microservice"""
     full_path = f"/api/v1/{path}"
+    if not is_public_route(full_path) and not getattr(g, "current_user", None):
+        return (jsonify({"error": "Authentication required"}), 401)
     service_name, service_config = get_service_for_route(full_path)
     if not service_name or not service_config:
         log_security_event(
@@ -346,7 +407,9 @@ def proxy_request(path: str) -> Tuple[Response, int]:
         return (jsonify({"error": "Service not found for this endpoint"}), 404)
     data = None
     if request.is_json:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if data is None and request.get_data():
+            return (jsonify({"error": "Request body is not valid JSON"}), 400)
     user_id = getattr(g, "current_user", {}).get("user_id")
     start_time = time.time()
     result, status_code = forward_request(
@@ -372,7 +435,6 @@ def proxy_request(path: str) -> Tuple[Response, int]:
 
 @app.errorhandler(404)
 def not_found(error: Exception) -> Tuple[Response, int]:
-    """Handle 404 errors"""
     log_security_event(
         "not_found",
         f"404 error for path: {request.path}",
@@ -383,7 +445,6 @@ def not_found(error: Exception) -> Tuple[Response, int]:
 
 @app.errorhandler(500)
 def internal_error(error: Exception) -> Tuple[Response, int]:
-    """Handle 500 errors"""
     logger.error(f"Internal server error: {str(error)}")
     return (jsonify({"error": "Internal server error"}), 500)
 

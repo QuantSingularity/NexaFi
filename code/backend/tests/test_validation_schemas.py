@@ -1,14 +1,8 @@
-"""
-Tests for shared validation schemas and financial validators
-"""
-
 import os
 import sys
 import unittest
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)  # backend root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from marshmallow import ValidationError
 from shared.validation_schemas.schemas import (

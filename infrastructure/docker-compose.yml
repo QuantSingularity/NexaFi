@@ -169,6 +169,10 @@ services:
     ports:
       - "5000:5000"
     environment:
+      - CREDIT_SERVICE_URL=http://credit-service:5006
+      - DOCUMENT_SERVICE_URL=http://document-service:5007
+      - ANALYTICS_SERVICE_URL=http://analytics-service:5005
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:-}
       - FLASK_ENV=development
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -254,6 +258,8 @@ services:
     ports:
       - "5003:5003"
     environment:
+      - AI_SERVICE_URL=http://ai-service:5004
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:-}
       - FLASK_ENV=development
       - DATABASE_URL=${PAYMENT_DB_URL}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
@@ -274,23 +280,24 @@ services:
   ai-service:
     <<: *service-defaults
     build:
-      context: ../code/ml_services
-      dockerfile: ai-service/Dockerfile
+      context: ../code
+      dockerfile: ml_services/ai-service/Dockerfile
     image: nexafi/ai-service:dev
     container_name: nexafi-ai-service
     ports:
       - "5004:5004"
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=${AI_DB_URL}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=5004
+      - SECRET_KEY=${SECRET_KEY:-nexafi-default-secret-change-in-production}
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:-}
+      - PAYMENT_SERVICE_URL=http://payment-service:5003
+      - AI_DB_PATH=/data/ai.db
+      - AI_MODEL_DIR=/data/models
       - REDIS_HOST=redis
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
     volumes:
-      - ai-service-data:/app/data
-      - ai-models-data:/app/models
+      - ai-service-data:/data
     depends_on:
       redis:
         condition: service_healthy
@@ -302,14 +309,16 @@ services:
   analytics-service:
     <<: *service-defaults
     build:
-      context: ../code/ml_services
-      dockerfile: analytics-service/Dockerfile
+      context: ../code
+      dockerfile: ml_services/analytics-service/Dockerfile
     image: nexafi/analytics-service:dev
     container_name: nexafi-analytics-service
     ports:
       - "5005:5005"
     environment:
       - FLASK_ENV=development
+      - PORT=5005
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:-}
       - DATABASE_URL=${ANALYTICS_DB_URL}
       - REDIS_HOST=redis
       - REDIS_PASSWORD=${REDIS_PASSWORD}
@@ -318,7 +327,7 @@ services:
       - ELASTICSEARCH_HOST=elasticsearch
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}
     volumes:
-      - analytics-service-data:/app/data
+      - analytics-service-data:/app/code/ml_services/analytics-service/src/database
     depends_on:
       redis:
         condition: service_healthy
@@ -338,6 +347,9 @@ services:
     ports:
       - "5006:5006"
     environment:
+      - PORT=5006
+      - AI_SERVICE_URL=http://ai-service:5004
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:-}
       - FLASK_ENV=development
       - DATABASE_URL=${CREDIT_DB_URL}
       - REDIS_HOST=redis
@@ -364,6 +376,7 @@ services:
     ports:
       - "5007:5007"
     environment:
+      - PORT=5007
       - FLASK_ENV=development
       - DATABASE_URL=${DOCUMENT_DB_URL}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}

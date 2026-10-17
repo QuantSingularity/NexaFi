@@ -12,10 +12,6 @@ import bcrypt
 from flask import Flask, g, jsonify, redirect, request, url_for
 from flask_cors import CORS
 
-# --- External System Imports (Mocked paths assumed correct based on context) ---
-# Add this service's src directory (local packages like "models"/"routes")
-# and the shared library to sys.path so imports work regardless of how the
-# service is launched (python src/main.py, gunicorn, runpy, or any CWD).
 _SERVICE_SRC = os.path.dirname(os.path.abspath(__file__))
 _SHARED_DIR = os.path.abspath(os.path.join(_SERVICE_SRC, "..", "..", "shared"))
 for _p in (_SERVICE_SRC, _SHARED_DIR):
@@ -25,8 +21,6 @@ for _p in (_SERVICE_SRC, _SHARED_DIR):
 from audit.audit_logger import AuditEventType, AuditSeverity, audit_action, audit_logger
 from database.manager import BaseModel, initialize_database
 from middleware.auth import require_auth
-
-# Assuming User model exists based on SQL references, added import
 from models.user import AccessToken, AuthorizationCode, OAuthClient, User
 from nexafi_logging.logger import get_logger, setup_request_logging
 from open_banking_compliance import FAPI2SecurityProfile
@@ -49,19 +43,15 @@ from validation_schemas.schemas import (
     validate_json_request,
 )
 
-# --- Configuration & Setup ---
-
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY", "nexafi-default-secret-change-in-production"
 )
 
-# Initialize auth manager for require_auth decorator
 from middleware.auth import init_auth_manager
 
 auth_manager = init_auth_manager(app.config["SECRET_KEY"])
 
-# Optimization: Restrict CORS origins in production
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*")
 CORS(
     app,
@@ -80,21 +70,18 @@ CORS(
 setup_request_logging(app)
 logger = get_logger("auth_service")
 
-# --- Database & Security Initialization ---
 
 db_path = os.path.join(os.path.dirname(__file__), "database", "auth.db")
 os.makedirs(os.path.dirname(db_path), exist_ok=True)
 db_manager, migration_manager = initialize_database(db_path)
 BaseModel.set_db_manager(db_manager)
 
-# Initialize Security Components
 encryption = AdvancedEncryption()
 security_monitor = SecurityMonitor(db_manager)
 fraud_engine = FraudDetectionEngine(db_manager)
 mfa_manager = MultiFactorAuthentication(db_manager)
 session_manager = SecureSessionManager(db_manager, encryption)
 
-# Load keys safely
 PRIVATE_KEY_PATH = os.environ.get(
     "FAPI_PRIVATE_KEY", os.path.expanduser("~/.nexafi/keys/private_key.pem")
 )
@@ -107,11 +94,8 @@ fapi_security = FAPI2SecurityProfile(
     public_key_path=PUBLIC_KEY_PATH,
 )
 
-# --- Migrations ---
-
 
 def run_migrations():
-    """Execute database migrations on startup."""
     auth_migrations = {
         "008_create_oauth_clients_table": {
             "description": "Create OAuth 2.1 clients table",
@@ -200,17 +184,13 @@ def run_migrations():
             )
         except Exception as e:
             logger.error(f"Migration failed for {version}: {str(e)}")
-            # In production, you might want to exit here
-
-
-# --- Schemas ---
 
 
 class LoginSchema(SanitizationMixin, Schema):
     username = fields.Str(required=True, validate=validate.Length(min=3, max=50))
     password = fields.Str(required=True, validate=validate.Length(min=8, max=128))
     device_fingerprint = fields.Str(required=False)
-    remember_me = fields.Bool(required=False, default=False)
+    remember_me = fields.Bool(required=False, load_default=False)
 
 
 class MFASetupSchema(SanitizationMixin, Schema):
@@ -231,7 +211,7 @@ class OAuth2AuthorizeSchema(SanitizationMixin, Schema):
     response_type = fields.Str(required=True, validate=validate.OneOf(["code"]))
     client_id = fields.Str(required=True)
     redirect_uri = fields.Str(required=True, validate=validate.URL())
-    scope = fields.Str(required=False, default="openid profile")
+    scope = fields.Str(required=False, load_default="openid profile")
     state = fields.Str(required=False)
     code_challenge = fields.Str(required=False)
     code_challenge_method = fields.Str(
@@ -251,23 +231,17 @@ class OAuth2TokenSchema(SanitizationMixin, Schema):
     refresh_token = fields.Str(required=False)
 
 
-# --- Helper Functions ---
-
-
 def generate_secure_token(length: int = 32) -> str:
-    """Generate cryptographically secure token"""
     return secrets.token_urlsafe(length)
 
 
 def hash_token(token: str) -> str:
-    """Hash token for storage"""
     return hashlib.sha256(token.encode()).hexdigest()
 
 
 def verify_client_authentication(
     client_id: str, client_secret: Optional[str] = None
 ) -> bool:
-    """Verify OAuth client authentication"""
     try:
         client = OAuthClient.find_by_field("client_id", client_id)
         if not client or not client.is_active:
@@ -288,14 +262,9 @@ def verify_client_authentication(
 
 
 def authenticate_user_credentials(username: str, password: str) -> Optional[object]:
-    """
-    Authenticate user against the database.
-    Replaces hardcoded check.
-    """
     try:
-        user = User.find_by_field("email", username)  # Assuming username is email
+        user = User.find_by_field("email", username)
         if not user:
-            # Timing attack mitigation
             bcrypt.checkpw(password.encode(), b"$2b$12$......................")
             return None
 
@@ -307,12 +276,8 @@ def authenticate_user_credentials(username: str, password: str) -> Optional[obje
         return None
 
 
-# --- Routes ---
-
-
 @app.route("/api/v1/health", methods=["GET"])
 def health_check() -> object:
-    """Health check endpoint"""
     return jsonify(
         {
             "status": "healthy",
@@ -334,10 +299,8 @@ def health_check() -> object:
 @validate_json_request(LoginSchema)
 @audit_action(AuditEventType.USER_LOGIN, "login_attempt", severity=AuditSeverity.MEDIUM)
 def login() -> object:
-    """Login with fraud detection"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
 
-    # 1. Fraud Detection Analysis
     risk_score, risk_factors = fraud_engine.analyze_login_behavior(
         data["username"],
         request.remote_addr,
@@ -345,7 +308,6 @@ def login() -> object:
         data.get("device_fingerprint"),
     )
 
-    # 2. Log Security Event
     event = SecurityEvent(
         event_type=SecurityEventType.LOGIN_ATTEMPT,
         user_id=data["username"],
@@ -365,7 +327,6 @@ def login() -> object:
     )
     security_monitor.log_security_event(event)
 
-    # 3. Block High Risk
     if risk_score > 80:
         return (
             jsonify(
@@ -378,13 +339,11 @@ def login() -> object:
             423,
         )
 
-    # 4. Credential Verification
     user = authenticate_user_credentials(data["username"], data["password"])
 
     if user:
         user_id = str(user.id)
 
-        # Determine Security Level based on Risk
         if risk_score > 50:
             security_level = SecurityLevel.HIGH
         elif risk_score > 30:
@@ -455,11 +414,9 @@ def login() -> object:
 @validate_json_request(MFASetupSchema)
 @audit_action(AuditEventType.USER_UPDATE, "mfa_setup", severity=AuditSeverity.HIGH)
 def setup_mfa() -> object:
-    """Setup Multi-Factor Authentication"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     user_id = g.current_user["user_id"]
 
-    # Retrieve user email for TOTP issuer (optimization)
     user = User.find_by_field("id", user_id)
     user_email = user.email if user else f"{user_id}@nexafi.com"
 
@@ -489,9 +446,6 @@ def setup_mfa() -> object:
                 400,
             )
 
-        # Trigger SMS sending logic here (Mocked)
-        # sms_service.send_verification(phone_number)
-
         return jsonify(
             {
                 "method": "sms",
@@ -508,8 +462,7 @@ def setup_mfa() -> object:
     AuditEventType.USER_LOGIN, "mfa_verification", severity=AuditSeverity.HIGH
 )
 def verify_mfa() -> object:
-    """Verify Multi-Factor Authentication"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     user_id = g.current_user["user_id"]
     session_id = g.current_user.get("session_id", "")
     is_verified = False
@@ -529,7 +482,6 @@ def verify_mfa() -> object:
                 request.remote_addr,
                 request.headers.get("User-Agent"),
             )
-        # Added SMS verification logic branch
         elif data["method"] == "sms":
             is_verified = mfa_manager.verify_sms(user_id, data["token"])
     except Exception as e:
@@ -568,7 +520,6 @@ def verify_mfa() -> object:
 
 @app.route("/oauth2/authorize", methods=["GET", "POST"])
 def oauth2_authorize() -> object:
-    """OAuth 2.1 Authorization Endpoint with FAPI 2.0 compliance"""
     if request.method == "GET":
         data = {
             "response_type": request.args.get("response_type"),
@@ -580,7 +531,7 @@ def oauth2_authorize() -> object:
             "code_challenge_method": request.args.get("code_challenge_method", "S256"),
         }
     else:
-        data = request.validated_data  # type: ignore[attr-defined]
+        data = request.validated_data
 
     client = OAuthClient.find_by_field("client_id", data["client_id"])
     if not client or not client.is_active:
@@ -611,11 +562,9 @@ def oauth2_authorize() -> object:
             400,
         )
 
-    # Optimization: Check for existing valid session before redirecting to login
     auth_header = request.headers.get("Authorization")
     user_id = None
 
-    # Simple Bearer check (Real implementation would validate the session token against SecureSessionManager)
     if auth_header and auth_header.startswith("Bearer "):
         session_token = auth_header.split(" ")[1]
         session = session_manager.validate_session(session_token)
@@ -623,7 +572,6 @@ def oauth2_authorize() -> object:
             user_id = session.user_id
 
     if not user_id:
-        # Redirect to login with original params preserved
         login_url = url_for(
             "login",
             client_id=data["client_id"],
@@ -634,7 +582,6 @@ def oauth2_authorize() -> object:
         )
         return redirect(login_url)
 
-    # User is authenticated, generate code
     auth_code = generate_secure_token(32)
     expires_at = datetime.utcnow() + timedelta(minutes=10)
 
@@ -662,8 +609,7 @@ def oauth2_authorize() -> object:
 @app.route("/oauth2/token", methods=["POST"])
 @validate_json_request(OAuth2TokenSchema)
 def oauth2_token() -> object:
-    """OAuth 2.1 Token Endpoint with FAPI 2.0 compliance"""
-    data = request.validated_data  # type: ignore[attr-defined]
+    data = request.validated_data
     client_secret = data.get("client_secret")
 
     if not verify_client_authentication(data["client_id"], client_secret):
@@ -680,7 +626,6 @@ def oauth2_token() -> object:
     if data["grant_type"] == "authorization_code":
         code_record = AuthorizationCode.find_by_field("code", data["code"])
 
-        # Security: Invalidate used codes immediately (done later via .used=True)
         if not code_record or code_record.used:
             return (
                 jsonify(
@@ -692,7 +637,6 @@ def oauth2_token() -> object:
                 400,
             )
 
-        # Timezone aware comparison
         code_expiry = datetime.fromisoformat(str(code_record.expires_at))
         if datetime.utcnow() > code_expiry:
             return (
@@ -705,7 +649,6 @@ def oauth2_token() -> object:
                 400,
             )
 
-        # PKCE Verification
         if code_record.code_challenge:
             code_verifier = data.get("code_verifier")
             if not code_verifier:
@@ -727,7 +670,7 @@ def oauth2_token() -> object:
                     .decode()
                     .rstrip("=")
                 )
-            else:  # plain
+            else:
                 challenge = code_verifier
 
             if challenge != code_record.code_challenge:
@@ -741,11 +684,9 @@ def oauth2_token() -> object:
                     400,
                 )
 
-        # Mark code as used
         code_record.used = True
         code_record.save()
 
-        # Generate Tokens
         access_token = generate_secure_token(32)
         refresh_token = generate_secure_token(32)
 
@@ -761,7 +702,6 @@ def oauth2_token() -> object:
         )
         token_record.save()
 
-        # Generate ID Token (JWT)
         id_token_payload = {
             "sub": code_record.user_id,
             "aud": data["client_id"],
@@ -769,7 +709,6 @@ def oauth2_token() -> object:
             "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp()),
             "iat": int(datetime.utcnow().timestamp()),
             "auth_time": int(datetime.utcnow().timestamp()),
-            # Add nonce if present in initial request (requires storing nonce in auth code)
         }
 
         id_token = fapi_security.create_signed_jwt(
@@ -827,16 +766,11 @@ def oauth2_token() -> object:
                 400,
             )
 
-        # Refresh Rotation: Issue new Access Token AND new Refresh Token
         new_access_token = generate_secure_token(32)
-        new_refresh_token = generate_secure_token(
-            32
-        )  # Optional but recommended for high security
+        new_refresh_token = generate_secure_token(32)
 
         token_record.access_token_hash = hash_token(new_access_token)
-        token_record.refresh_token_hash = hash_token(
-            new_refresh_token
-        )  # Rotate refresh token
+        token_record.refresh_token_hash = hash_token(new_refresh_token)
         token_record.expires_at = datetime.utcnow() + timedelta(hours=1)
         token_record.save()
 
@@ -845,7 +779,7 @@ def oauth2_token() -> object:
                 "access_token": new_access_token,
                 "token_type": "Bearer",
                 "expires_in": 3600,
-                "refresh_token": new_refresh_token,  # Return the rotated token
+                "refresh_token": new_refresh_token,
                 "scope": token_record.scope,
             }
         )
@@ -853,7 +787,6 @@ def oauth2_token() -> object:
 
 @app.route("/oauth2/userinfo", methods=["GET"])
 def oauth2_userinfo() -> object:
-    """OAuth 2.1 UserInfo Endpoint"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return (
@@ -888,7 +821,6 @@ def oauth2_userinfo() -> object:
             401,
         )
 
-    # Fetch real user data
     user = User.find_by_field("id", token_record.user_id)
     if not user:
         return (
@@ -899,9 +831,9 @@ def oauth2_userinfo() -> object:
     return jsonify(
         {
             "sub": user.id,
-            "name": user.full_name,  # Assumed field
+            "name": user.full_name,
             "email": user.email,
-            "email_verified": user.email_verified,  # Assumed field
+            "email_verified": user.email_verified,
             "preferred_username": user.username,
         }
     )
@@ -911,13 +843,10 @@ def oauth2_userinfo() -> object:
 @require_auth
 @audit_action(AuditEventType.USER_LOGOUT, "logout", severity=AuditSeverity.LOW)
 def logout() -> object:
-    """Secure logout"""
     user_id = g.current_user["user_id"]
     session_id = g.current_user.get("session_id", "")
 
     session_manager.invalidate_session(session_id)
-
-    # Optional: Revoke OAuth tokens associated with this session if applicable
 
     audit_logger.log_event(
         AuditEventType.USER_LOGOUT,
@@ -930,13 +859,10 @@ def logout() -> object:
 
 
 if __name__ == "__main__":
-    # Ensure directories exist
     os.makedirs(os.path.join(os.path.dirname(__file__), "database"), exist_ok=True)
     os.makedirs(os.path.join(os.path.dirname(__file__), "keys"), exist_ok=True)
 
-    # Run migrations
     run_migrations()
 
-    # Run App (Debug disabled for safety unless explicitly requested)
     debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     app.run(host="0.0.0.0", port=5011, debug=debug_mode)

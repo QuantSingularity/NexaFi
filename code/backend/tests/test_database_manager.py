@@ -1,15 +1,9 @@
-"""
-Tests for DatabaseManager - fetch_one, fetch_all, execute_query
-"""
-
 import os
 import sys
 import tempfile
 import unittest
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)  # backend root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.database.manager import (
     DatabaseManager,
     MigrationManager,

@@ -1,12 +1,5 @@
-"""
-Oracle Enterprise Integration for NexaFi
-Comprehensive integration with Oracle ERP Cloud, Oracle Database, Oracle HCM, and other Oracle systems
-"""
-
 import base64
 import csv
-
-# Resolve base_integration via importlib (parent dir has a hyphen - not importable as package)
 import importlib.util as _ilu
 import io
 import logging
@@ -21,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 try:
     import cx_Oracle
-except ImportError:  # optional Oracle DB driver, guarded at point of use
+except ImportError:
     cx_Oracle = None
 import jwt
 import pandas as pd
@@ -53,7 +46,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class OracleConfig:
-    """Oracle-specific configuration"""
 
     oracle_system: str
     database_service: Optional[str] = None
@@ -74,7 +66,6 @@ class OracleConfig:
 
 
 class OracleAuthenticator:
-    """Oracle authentication handler"""
 
     def __init__(self, config: IntegrationConfig, oracle_config: OracleConfig) -> None:
         self.config = config
@@ -85,7 +76,6 @@ class OracleAuthenticator:
         self.session_id = None
 
     def authenticate(self) -> bool:
-        """Authenticate with Oracle system"""
         try:
             if self.config.auth_method == AuthMethod.OAUTH2:
                 return self._oauth2_authenticate()
@@ -103,7 +93,6 @@ class OracleAuthenticator:
             return False
 
     def _oauth2_authenticate(self) -> bool:
-        """OAuth2 authentication for Oracle Cloud"""
         try:
             token_url = f"{self.config.base_url}/oauth2/v1/token"
             client_credentials = base64.b64encode(
@@ -132,7 +121,6 @@ class OracleAuthenticator:
             return False
 
     def _basic_authenticate(self) -> bool:
-        """Basic authentication for Oracle systems"""
         try:
             test_url = f"{self.config.base_url}/fscmRestApi/resources/latest/users"
             auth = HTTPBasicAuth(
@@ -145,7 +133,6 @@ class OracleAuthenticator:
             return False
 
     def _jwt_authenticate(self) -> bool:
-        """JWT authentication for Oracle Cloud"""
         try:
             now = datetime.utcnow()
             payload = {
@@ -178,7 +165,6 @@ class OracleAuthenticator:
             return False
 
     def _certificate_authenticate(self) -> bool:
-        """Certificate-based authentication"""
         try:
             cert_file = self.config.credentials.get("cert_file")
             key_file = self.config.credentials.get("key_file")
@@ -194,7 +180,6 @@ class OracleAuthenticator:
             return False
 
     def get_auth_headers(self) -> Dict[str, str]:
-        """Get authentication headers"""
         headers: Dict[str, Any] = {}
         if self.config.auth_method == AuthMethod.OAUTH2:
             if self.access_token:
@@ -210,7 +195,6 @@ class OracleAuthenticator:
         return headers
 
     def is_token_valid(self) -> bool:
-        """Check if current token is valid"""
         if not self.access_token:
             return False
         if self.token_expires_at and datetime.utcnow() >= self.token_expires_at:
@@ -219,7 +203,6 @@ class OracleAuthenticator:
 
 
 class OracleDatabaseConnector:
-    """Oracle Database connector"""
 
     def __init__(self, config: IntegrationConfig, oracle_config: OracleConfig) -> None:
         self.config = config
@@ -229,7 +212,6 @@ class OracleDatabaseConnector:
         self.engine = None
 
     def connect(self) -> bool:
-        """Connect to Oracle Database"""
         try:
             if cx_Oracle is None:
                 raise RuntimeError(
@@ -261,7 +243,6 @@ class OracleDatabaseConnector:
             return False
 
     def disconnect(self) -> object:
-        """Disconnect from Oracle Database"""
         if self.connection:
             self.connection.close()
             self.connection = None
@@ -272,7 +253,6 @@ class OracleDatabaseConnector:
     def execute_query(
         self, query: str, params: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
-        """Execute SQL query"""
         if not self.connection:
             raise Exception("Not connected to Oracle Database")
         try:
@@ -295,7 +275,6 @@ class OracleDatabaseConnector:
     def execute_query_pandas(
         self, query: str, params: Optional[Dict[str, Any]] = None
     ) -> pd.DataFrame:
-        """Execute SQL query and return pandas DataFrame"""
         if not self.engine:
             raise Exception("SQLAlchemy engine not available")
         try:
@@ -310,7 +289,6 @@ class OracleDatabaseConnector:
     def execute_procedure(
         self, procedure_name: str, params: Optional[Dict[str, Any]] = None
     ) -> object:
-        """Execute stored procedure"""
         if not self.connection:
             raise Exception("Not connected to Oracle Database")
         try:
@@ -327,7 +305,6 @@ class OracleDatabaseConnector:
 
 
 class OracleRestAPIConnector:
-    """Oracle REST API connector"""
 
     def __init__(
         self,
@@ -348,7 +325,6 @@ class OracleRestAPIConnector:
         expand: Optional[List[str]] = None,
         fields: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
-        """Get resource from Oracle REST API"""
         try:
             url = f"{self.config.base_url}/fscmRestApi/resources/{self.oracle_config.rest_api_version}/{resource_path}"
             query_params = params or {}
@@ -368,7 +344,6 @@ class OracleRestAPIConnector:
     def create_resource(
         self, resource_path: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Create resource via Oracle REST API"""
         try:
             url = f"{self.config.base_url}/fscmRestApi/resources/{self.oracle_config.rest_api_version}/{resource_path}"
             headers = self.authenticator.get_auth_headers()
@@ -384,7 +359,6 @@ class OracleRestAPIConnector:
     def update_resource(
         self, resource_path: str, resource_id: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Update resource via Oracle REST API"""
         try:
             url = f"{self.config.base_url}/fscmRestApi/resources/{self.oracle_config.rest_api_version}/{resource_path}/{resource_id}"
             headers = self.authenticator.get_auth_headers()
@@ -398,7 +372,6 @@ class OracleRestAPIConnector:
             raise
 
     def delete_resource(self, resource_path: str, resource_id: str) -> bool:
-        """Delete resource via Oracle REST API"""
         try:
             url = f"{self.config.base_url}/fscmRestApi/resources/{self.oracle_config.rest_api_version}/{resource_path}/{resource_id}"
             headers = self.authenticator.get_auth_headers()
@@ -410,7 +383,6 @@ class OracleRestAPIConnector:
             return False
 
     def bulk_import(self, import_type: str, data: List[Dict[str, Any]]) -> str:
-        """Perform bulk import operation"""
         try:
             csv_buffer = io.StringIO()
             if data:
@@ -437,7 +409,6 @@ class OracleRestAPIConnector:
             raise
 
     def get_import_status(self, import_id: str) -> Dict[str, Any]:
-        """Get bulk import status"""
         try:
             url = f"{self.config.base_url}/fscmRestApi/resources/{self.oracle_config.rest_api_version}/importBulkData/{import_id}"
             headers = self.authenticator.get_auth_headers()
@@ -451,7 +422,6 @@ class OracleRestAPIConnector:
 
 
 class OracleSupplierSync:
-    """Oracle Supplier synchronization"""
 
     def __init__(
         self, rest_connector: OracleRestAPIConnector, data_transformer: DataTransformer
@@ -461,7 +431,6 @@ class OracleSupplierSync:
         self.logger = logging.getLogger(__name__)
 
     def sync_suppliers(self, filters: Optional[Dict[str, Any]] = None) -> SyncResult:
-        """Sync suppliers from Oracle"""
         start_time = datetime.utcnow()
         records_processed = 0
         records_failed = 0
@@ -522,7 +491,6 @@ class OracleSupplierSync:
             )
 
     def _transform_supplier(self, supplier: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform Oracle supplier data"""
         return {
             "external_id": supplier["SupplierId"],
             "supplier_name": supplier["Supplier"],
@@ -534,12 +502,10 @@ class OracleSupplierSync:
         }
 
     def _process_supplier(self, supplier: Dict[str, Any]) -> object:
-        """Process supplier (implement based on your system)"""
         self.logger.info(f"Processing supplier: {supplier['external_id']}")
 
 
 class OracleFinancialSync:
-    """Oracle Financial data synchronization"""
 
     def __init__(
         self,
@@ -555,7 +521,6 @@ class OracleFinancialSync:
     def sync_invoices(
         self, date_from: Optional[str] = None, date_to: Optional[str] = None
     ) -> SyncResult:
-        """Sync invoices from Oracle"""
         start_time = datetime.utcnow()
         records_processed = 0
         records_failed = 0
@@ -622,7 +587,6 @@ class OracleFinancialSync:
             )
 
     def sync_general_ledger(self, ledger_id: str, period_name: str) -> SyncResult:
-        """Sync General Ledger data from Oracle Database"""
         start_time = datetime.utcnow()
         records_processed = 0
         records_failed = 0
@@ -668,7 +632,6 @@ class OracleFinancialSync:
             )
 
     def _transform_invoice(self, invoice: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform Oracle invoice data"""
         return {
             "external_id": invoice["InvoiceId"],
             "invoice_number": invoice["InvoiceNumber"],
@@ -683,7 +646,6 @@ class OracleFinancialSync:
         }
 
     def _transform_gl_entry(self, entry: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform Oracle GL entry"""
         return {
             "journal_entry_id": entry["JE_HEADER_ID"],
             "line_number": entry["JE_LINE_NUM"],
@@ -704,16 +666,13 @@ class OracleFinancialSync:
         }
 
     def _process_invoice(self, invoice: Dict[str, Any]) -> object:
-        """Process invoice (implement based on your system)"""
         self.logger.info(f"Processing invoice: {invoice['external_id']}")
 
     def _process_gl_entry(self, entry: Dict[str, Any]) -> object:
-        """Process GL entry (implement based on your system)"""
         self.logger.info(f"Processing GL entry: {entry['journal_entry_id']}")
 
 
 class OracleIntegration(BaseIntegration):
-    """Main Oracle integration class"""
 
     def __init__(
         self,
@@ -744,11 +703,9 @@ class OracleIntegration(BaseIntegration):
             )
 
     def authenticate(self) -> bool:
-        """Authenticate with Oracle system"""
         return self.authenticator.authenticate()
 
     def test_connection(self) -> bool:
-        """Test connection to Oracle system"""
         try:
             if self.rest_connector:
                 self.rest_connector.get_resource("users", params={"limit": 1})
@@ -762,7 +719,6 @@ class OracleIntegration(BaseIntegration):
             return False
 
     def sync_data(self, entity_type: str, **kwargs) -> SyncResult:
-        """Sync data with Oracle system"""
         try:
             if entity_type == "suppliers":
                 return self.supplier_sync.sync_suppliers(kwargs.get("filters"))
@@ -795,11 +751,9 @@ class OracleIntegration(BaseIntegration):
             )
 
     def _get_auth_headers(self) -> Dict[str, str]:
-        """Get authentication headers"""
         return self.authenticator.get_auth_headers()
 
     def _process_webhook_data(self, payload: Dict[str, Any]) -> object:
-        """Process Oracle webhook data"""
         try:
             event_type = payload.get("eventType")
             if event_type == "Supplier.Created":
@@ -814,21 +768,18 @@ class OracleIntegration(BaseIntegration):
             self.logger.error(f"Oracle webhook processing failed: {str(e)}")
 
     def _handle_supplier_created(self, payload: Dict[str, Any]) -> object:
-        """Handle supplier created event"""
         supplier_id = payload.get("supplierId")
         self.logger.info(f"Supplier created: {supplier_id}")
         if self.supplier_sync:
             self.supplier_sync.sync_suppliers({"SupplierId": supplier_id})
 
     def _handle_supplier_updated(self, payload: Dict[str, Any]) -> object:
-        """Handle supplier updated event"""
         supplier_id = payload.get("supplierId")
         self.logger.info(f"Supplier updated: {supplier_id}")
         if self.supplier_sync:
             self.supplier_sync.sync_suppliers({"SupplierId": supplier_id})
 
     def _handle_invoice_created(self, payload: Dict[str, Any]) -> object:
-        """Handle invoice created event"""
         invoice_id = payload.get("invoiceId")
         self.logger.info(f"Invoice created: {invoice_id}")
         if self.financial_sync:
@@ -838,7 +789,6 @@ class OracleIntegration(BaseIntegration):
             )
 
     def get_supplier(self, supplier_id: str) -> Optional[Dict[str, Any]]:
-        """Get specific supplier"""
         if not self.rest_connector:
             return None
         try:
@@ -852,7 +802,6 @@ class OracleIntegration(BaseIntegration):
             return None
 
     def create_supplier(self, supplier_data: Dict[str, Any]) -> Optional[str]:
-        """Create new supplier in Oracle"""
         if not self.rest_connector:
             return None
         try:
@@ -863,7 +812,6 @@ class OracleIntegration(BaseIntegration):
             return None
 
     def bulk_import_suppliers(self, suppliers: List[Dict[str, Any]]) -> Optional[str]:
-        """Bulk import suppliers"""
         if not self.rest_connector:
             return None
         try:
@@ -874,7 +822,6 @@ class OracleIntegration(BaseIntegration):
             return None
 
     def get_financial_data(self, ledger_id: str, period_name: str) -> pd.DataFrame:
-        """Get financial data as pandas DataFrame"""
         if not self.db_connector:
             return pd.DataFrame()
         try:
@@ -887,7 +834,6 @@ class OracleIntegration(BaseIntegration):
 
 
 def create_oracle_integration(system_type: str = "ERP_CLOUD") -> OracleIntegration:
-    """Factory function to create Oracle integration"""
     config = IntegrationConfig(
         system_name="Oracle",
         base_url=os.getenv("ORACLE_BASE_URL"),

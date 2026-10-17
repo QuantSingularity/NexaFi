@@ -1,8 +1,4 @@
 import json
-
-# Use the real shared BaseModel (working __init__/save/find_one and shared
-# db_manager). The previous local BaseModel had no-op or broken-delegation
-# persistence methods.
 import os
 import sys
 from typing import Optional

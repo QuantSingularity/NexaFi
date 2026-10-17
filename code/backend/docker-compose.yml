@@ -5,6 +5,9 @@ x-common-env: &common-env
   REDIS_HOST: redis
   REDIS_PORT: "6379"
   REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+  INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-}
+  AI_SERVICE_URL: http://ai-service:5004
+  PAYMENT_SERVICE_URL: http://payment-service:5003
 
 x-service-defaults: &service-defaults
   restart: unless-stopped
@@ -15,8 +18,6 @@ x-service-defaults: &service-defaults
       condition: service_healthy
 
 services:
-  # ─── Infrastructure ───────────────────────────────────────────────────────
-
   redis:
     image: redis:7-alpine
     container_name: nexafi-redis
@@ -54,8 +55,6 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-
-  # ─── Core Services ────────────────────────────────────────────────────────
 
   api-gateway:
     build:
@@ -170,8 +169,8 @@ services:
 
   ai-service:
     build:
-      context: .
-      dockerfile: ai-service/Dockerfile
+      context: ..
+      dockerfile: ml_services/ai-service/Dockerfile
     container_name: nexafi-ai-service
     ports:
       - "5004:5004"
@@ -180,7 +179,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
       PORT: "5004"
     volumes:
-      - ai_data:/app/src/database
+      - ai_data:/data
     <<: *service-defaults
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5004/api/v1/health"]
@@ -275,8 +274,8 @@ services:
 
   analytics-service:
     build:
-      context: .
-      dockerfile: analytics-service/Dockerfile
+      context: ..
+      dockerfile: ml_services/analytics-service/Dockerfile
     container_name: nexafi-analytics-service
     ports:
       - "5009:5009"
@@ -285,7 +284,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-nexafi-change-this-in-production}
       PORT: "5009"
     volumes:
-      - analytics_data:/app/src/database
+      - analytics_data:/app/code/ml_services/analytics-service/src/database
     <<: *service-defaults
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5009/api/v1/health"]
@@ -311,8 +310,6 @@ services:
       timeout: 10s
       retries: 3
 
-# ─── Volumes ─────────────────────────────────────────────────────────────────
-
 volumes:
   redis_data:
   rabbitmq_data:
@@ -328,8 +325,6 @@ volumes:
   notification_data:
   credit_data:
   analytics_data:
-
-# ─── Networks ────────────────────────────────────────────────────────────────
 
 networks:
   nexafi-network:

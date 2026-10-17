@@ -1,7 +1,9 @@
+import logging
 import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 
+from ai_scoring import rule_based_score, score_with_ai
 from flask import Blueprint, jsonify, request
 from models.user import (
     CreditScore,
@@ -13,10 +15,10 @@ from models.user import (
 )
 
 credit_bp = Blueprint("credit", __name__)
+logger = logging.getLogger(__name__)
 
 
 def require_user_id(f: object) -> object:
-    """Decorator to extract user_id from request headers"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -30,7 +32,6 @@ def require_user_id(f: object) -> object:
 
 
 def get_default_credit_model() -> object:
-    """Fetches the default credit scoring model or creates a placeholder."""
     model = CreditScoreModel.find_one("is_default = ?", (1,))
     if not model:
         model = CreditScoreModel(
@@ -55,7 +56,6 @@ def log_application_history(
     notes: object = None,
     changed_by: object = None,
 ) -> object:
-    """Logs an action in the loan application history."""
     history = LoanApplicationHistory(
         id=str(uuid.uuid4()),
         application_id=application_id,
@@ -72,24 +72,38 @@ def log_application_history(
 @credit_bp.route("/scores", methods=["POST"])
 @require_user_id
 def calculate_credit_score() -> object:
-    """Calculates and stores a new credit score for the user."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return (jsonify({"error": "A JSON object body is required"}), 400)
+    input_features = data.get("input_features", {})
+    if not isinstance(input_features, dict) or not input_features:
+        return (jsonify({"error": "input_features must be a non empty object"}), 400)
     try:
-        data = request.get_json()
         model = get_default_credit_model()
-        input_features = data.get("input_features", {})
-        base_score = 650
-        score_adjustment = 0
-        income = input_features.get("annual_income", 0)
-        if income > 100000:
-            score_adjustment += 50
-        elif income < 50000:
-            score_adjustment -= 30
-        debt = input_features.get("total_debt", 0)
-        if debt > 50000:
-            score_adjustment -= 40
-        elif debt < 10000:
-            score_adjustment += 20
-        final_score = max(300, min(850, base_score + score_adjustment))
+        assessment = score_with_ai(request.user_id, input_features)
+        if assessment is not None:
+            final_score = int(assessment["credit_score"])
+            confidence = float(assessment.get("data_completeness", 0.0))
+            details = {
+                "method": "ai_scorecard",
+                "model": assessment.get("model"),
+                "risk_category": assessment.get("risk_category"),
+                "decision": assessment.get("decision"),
+                "probability_of_default": assessment.get("probability_of_default"),
+                "factors": assessment.get("factors"),
+                "recommendations": assessment.get("recommendations"),
+                "prediction_id": assessment.get("prediction_id"),
+            }
+        else:
+            try:
+                final_score = rule_based_score(input_features)
+            except (TypeError, ValueError):
+                return (
+                    jsonify({"error": "input_features contain non numeric values"}),
+                    400,
+                )
+            confidence = 0.5
+            details = {"method": "rule_based_fallback"}
         previous_scores = CreditScore.find_all(
             "user_id = ? AND is_current = ?", (request.user_id, 1)
         )
@@ -102,24 +116,22 @@ def calculate_credit_score() -> object:
             model_id=model.id,
             score=final_score,
             input_features=input_features,
-            confidence_score=0.95,
+            calculation_details=details,
+            confidence_score=confidence,
             expires_at=(datetime.utcnow() + timedelta(days=90)).isoformat(),
             is_current=True,
             created_at=datetime.utcnow().isoformat(),
         )
         new_score.save()
         return (jsonify(new_score.to_dict()), 201)
-    except Exception as e:
-        return (
-            jsonify({"error": "Failed to calculate credit score", "details": str(e)}),
-            500,
-        )
+    except Exception:
+        logger.exception("Credit score calculation failed")
+        return (jsonify({"error": "Failed to calculate credit score"}), 500)
 
 
 @credit_bp.route("/scores/current", methods=["GET"])
 @require_user_id
 def get_current_credit_score() -> object:
-    """Gets the current, non-expired credit score for the user."""
     score = CreditScore.find_one("user_id = ? AND is_current = ?", (request.user_id, 1))
     if not score:
         return (jsonify({"error": "No current credit score found"}), 404)
@@ -133,7 +145,6 @@ def get_current_credit_score() -> object:
 @credit_bp.route("/applications", methods=["POST"])
 @require_user_id
 def create_loan_application() -> object:
-    """Creates a new loan application."""
     try:
         data = request.get_json()
         current_score = CreditScore.find_one(
@@ -177,7 +188,6 @@ def create_loan_application() -> object:
 @credit_bp.route("/applications", methods=["GET"])
 @require_user_id
 def get_loan_applications() -> object:
-    """Gets all loan applications for the user."""
     applications = LoanApplication.find_all("user_id = ?", (request.user_id,))
     applications.sort(key=lambda x: x.created_at, reverse=True)
     return (jsonify([app.to_dict() for app in applications]), 200)
@@ -186,7 +196,6 @@ def get_loan_applications() -> object:
 @credit_bp.route("/applications/<application_id>", methods=["GET"])
 @require_user_id
 def get_loan_application(application_id: object) -> object:
-    """Gets a specific loan application."""
     application = LoanApplication.find_one(
         "id = ? AND user_id = ?", (application_id, request.user_id)
     )
@@ -198,7 +207,6 @@ def get_loan_application(application_id: object) -> object:
 @credit_bp.route("/applications/<application_id>/status", methods=["PUT"])
 @require_user_id
 def update_loan_application_status(application_id: object) -> object:
-    """Updates the status of a loan application (e.g., approve/reject)."""
     try:
         application = LoanApplication.find_one(
             "id = ? AND user_id = ?", (application_id, request.user_id)
@@ -242,7 +250,6 @@ def update_loan_application_status(application_id: object) -> object:
 @credit_bp.route("/applications/<application_id>/history", methods=["GET"])
 @require_user_id
 def get_application_history(application_id: object) -> object:
-    """Gets the history of a loan application."""
     application = LoanApplication.find_one(
         "id = ? AND user_id = ?", (application_id, request.user_id)
     )
@@ -256,7 +263,6 @@ def get_application_history(application_id: object) -> object:
 @credit_bp.route("/loans", methods=["GET"])
 @require_user_id
 def get_loans() -> object:
-    """Gets all active loans for the user."""
     loans = Loan.find_all("user_id = ? AND status = ?", (request.user_id, "active"))
     loans.sort(key=lambda x: x.created_at, reverse=True)
     return (jsonify([loan.to_dict() for loan in loans]), 200)
@@ -265,7 +271,6 @@ def get_loans() -> object:
 @credit_bp.route("/loans/<loan_id>", methods=["GET"])
 @require_user_id
 def get_loan(loan_id: object) -> object:
-    """Gets a specific loan."""
     loan = Loan.find_one("id = ? AND user_id = ?", (loan_id, request.user_id))
     if not loan:
         return (jsonify({"error": "Loan not found"}), 404)
@@ -275,7 +280,6 @@ def get_loan(loan_id: object) -> object:
 @credit_bp.route("/risk-assessments", methods=["POST"])
 @require_user_id
 def create_risk_assessment() -> object:
-    """Creates a new risk assessment."""
     try:
         data = request.get_json()
         overall_risk_score = data.get("overall_risk_score", 0.5)
@@ -314,7 +318,6 @@ def create_risk_assessment() -> object:
 @credit_bp.route("/risk-assessments", methods=["GET"])
 @require_user_id
 def get_risk_assessments() -> object:
-    """Gets all risk assessments for the user."""
     assessments = RiskAssessment.find_all("user_id = ?", (request.user_id,))
     assessments.sort(key=lambda x: x.created_at, reverse=True)
     return (jsonify([a.to_dict() for a in assessments]), 200)
@@ -323,7 +326,6 @@ def get_risk_assessments() -> object:
 @credit_bp.route("/risk-assessments/<assessment_id>", methods=["GET"])
 @require_user_id
 def get_risk_assessment(assessment_id: object) -> object:
-    """Gets a specific risk assessment."""
     assessment = RiskAssessment.find_one(
         "id = ? AND user_id = ?", (assessment_id, request.user_id)
     )

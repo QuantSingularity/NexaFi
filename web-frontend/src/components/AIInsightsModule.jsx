@@ -51,6 +51,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp, useAuth } from "../contexts/AppContext";
 import apiClient from "../lib/api";
 
+const toCashFlowView = (result) => ({
+  total: result.summary.total_predicted_cash_flow,
+  average: result.summary.average_daily_cash_flow,
+  method: result.summary.method,
+  historyDays: result.summary.history_days,
+  confidenceLevel: result.summary.confidence_level,
+  skill: result.metrics.skill_vs_seasonal_naive,
+  warnings: result.warnings || [],
+  series: result.forecast.map((point) => ({
+    date: point.date.slice(5),
+    predicted: point.predicted_cash_flow,
+    lower: point.confidence_interval.lower,
+    upper: point.confidence_interval.upper,
+  })),
+});
+
+const toCreditView = (score) => {
+  const details = score.calculation_details || {};
+  return {
+    score: score.score,
+    riskCategory: details.risk_category,
+    method: details.method,
+    decision: details.decision,
+    factors: details.recommendations || [],
+    inputs: score.input_features || {},
+  };
+};
+
+const severityLabel = (severity) =>
+  ({ critical: "high", warning: "medium" })[severity] || "low";
+
+const money = (value) =>
+  Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
 const AIInsightsModule = () => {
   const { addNotification } = useApp();
   // eslint-disable-next-line no-unused-vars -- surfaced during UI modernization
@@ -64,42 +98,33 @@ const AIInsightsModule = () => {
   const [activeChatSession, setActiveChatSession] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [horizonDays, setHorizonDays] = useState("30");
 
   const loadAIData = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Load insights
-      const insightsResponse = await apiClient.getInsights({ per_page: 10 });
+      const [insightsResponse, sessionsResponse] = await Promise.all([
+        apiClient.getInsights({ per_page: 10 }),
+        apiClient.getChatSessions(),
+      ]);
       setInsights(insightsResponse.insights || []);
-
-      // Load chat sessions
-      const sessionsResponse = await apiClient.getChatSessions();
       setChatSessions(sessionsResponse.sessions || []);
 
-      // Generate mock predictions
-      const mockPredictions = {
-        cashFlow: {
-          prediction: 15000,
-          confidence: 0.85,
-          trend: "positive",
-          factors: [
-            "Seasonal increase",
-            "New client contracts",
-            "Reduced expenses",
-          ],
-        },
-        creditScore: {
-          score: 750,
-          change: +15,
-          factors: [
-            "Improved payment history",
-            "Lower credit utilization",
-            "Account age",
-          ],
-        },
-      };
-      setPredictions(mockPredictions);
+      const [cashFlow, credit] = await Promise.allSettled([
+        apiClient.predictCashFlow({ source: "payments", days_ahead: 30 }),
+        apiClient.getCurrentCreditScore(),
+      ]);
+      const next = {};
+      if (cashFlow.status === "fulfilled") {
+        next.cashFlow = toCashFlowView(cashFlow.value);
+      } else {
+        next.cashFlowError = cashFlow.reason?.message || "Forecast unavailable";
+      }
+      if (credit.status === "fulfilled") {
+        next.creditScore = toCreditView(credit.value);
+      }
+      setPredictions(next);
     } catch (error) {
       console.error("Failed to load AI data:", error);
       addNotification({
@@ -119,57 +144,80 @@ const AIInsightsModule = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const runCashFlow = async (days) => {
+    try {
+      const result = await apiClient.predictCashFlow({
+        source: "payments",
+        days_ahead: days,
+      });
+      setPredictions((prev) => ({
+        ...prev,
+        cashFlow: toCashFlowView(result),
+        cashFlowError: null,
+      }));
+    } catch (error) {
+      setPredictions((prev) => ({ ...prev, cashFlowError: error.message }));
+      addNotification({
+        type: "error",
+        title: "Forecast failed",
+        message: error.message,
+      });
+    }
+  };
+
+  const refreshCredit = async () => {
+    const inputs = predictions.creditScore?.inputs;
+    if (!inputs || Object.keys(inputs).length === 0) {
+      addNotification({
+        type: "info",
+        title: "Business details needed",
+        message: "Submit business details in Credit to generate a score",
+      });
+      return;
+    }
+    try {
+      const score = await apiClient.calculateCreditScore(inputs);
+      setPredictions((prev) => ({ ...prev, creditScore: toCreditView(score) }));
+    } catch (error) {
+      addNotification({
+        type: "error",
+        title: "Credit analysis failed",
+        message: error.message,
+      });
+    }
+  };
+
+  const generateInsights = async () => {
+    try {
+      const result = await apiClient.generateInsights({ source: "payments" });
+      const fresh = result.insights || [];
+      setInsights((prev) => [...fresh, ...prev]);
+      addNotification({
+        type: "success",
+        title: "Insights updated",
+        message: fresh.length
+          ? `${fresh.length} new insights`
+          : "Nothing notable found in your recent activity",
+      });
+    } catch (error) {
+      addNotification({
+        type: "error",
+        title: "Could not generate insights",
+        message: error.message,
+      });
+    }
+  };
+
   const InsightsOverview = () => {
-    const mockInsights = [
-      {
-        id: 1,
-        title: "Cash Flow Optimization",
-        description:
-          "Your cash flow could improve by 15% by adjusting payment terms with 3 key clients.",
-        type: "opportunity",
-        severity: "medium",
-        impact: "high",
-        confidence: 0.87,
-        created_at: "2024-06-10T10:00:00Z",
-        is_read: false,
-      },
-      {
-        id: 2,
-        title: "Expense Anomaly Detected",
-        description:
-          "Marketing expenses are 40% higher than usual this month. Review recent campaigns.",
-        type: "alert",
-        severity: "high",
-        impact: "medium",
-        confidence: 0.92,
-        created_at: "2024-06-09T15:30:00Z",
-        is_read: false,
-      },
-      {
-        id: 3,
-        title: "Revenue Growth Opportunity",
-        description:
-          "Based on seasonal patterns, consider launching a promotion in the next 2 weeks.",
-        type: "recommendation",
-        severity: "low",
-        impact: "high",
-        confidence: 0.78,
-        created_at: "2024-06-08T09:15:00Z",
-        is_read: true,
-      },
-      {
-        id: 4,
-        title: "Payment Risk Assessment",
-        description:
-          "Client ABC Corp has delayed payments. Consider adjusting credit terms.",
-        type: "risk",
-        severity: "medium",
-        impact: "medium",
-        confidence: 0.83,
-        created_at: "2024-06-07T14:20:00Z",
-        is_read: true,
-      },
-    ];
+    const displayInsights = insights.map((item) => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      type: item.insight_type,
+      severity: severityLabel(item.severity),
+      created_at: item.created_at,
+      is_read: item.is_read,
+    }));
 
     const getInsightIcon = (type) => {
       switch (type) {
@@ -277,7 +325,15 @@ const AIInsightsModule = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockInsights.map((insight) => (
+              {displayInsights.length === 0 && (
+                <div className="text-sm text-gray-600 py-6 text-center">
+                  No insights yet.
+                  <Button className="ml-3" size="sm" onClick={generateInsights}>
+                    Analyze my activity
+                  </Button>
+                </div>
+              )}
+              {displayInsights.map((insight) => (
                 <motion.div
                   key={insight.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -304,9 +360,6 @@ const AIInsightsModule = () => {
                           {insight.description}
                         </p>
                         <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <span>
-                            Confidence: {(insight.confidence * 100).toFixed(0)}%
-                          </span>
                           <Badge className={getSeverityColor(insight.severity)}>
                             {insight.severity} priority
                           </Badge>
@@ -338,14 +391,8 @@ const AIInsightsModule = () => {
   };
 
   const PredictionsTab = () => {
-    const mockCashFlowData = [
-      { month: "Jul", predicted: 18000, actual: null },
-      { month: "Aug", predicted: 22000, actual: null },
-      { month: "Sep", predicted: 19000, actual: null },
-      { month: "Oct", predicted: 25000, actual: null },
-      { month: "Nov", predicted: 21000, actual: null },
-      { month: "Dec", predicted: 28000, actual: null },
-    ];
+    const cashFlow = predictions.cashFlow;
+    const cashFlowData = cashFlow?.series || [];
 
     return (
       <div className="space-y-6">
@@ -366,29 +413,32 @@ const AIInsightsModule = () => {
                 <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
-                      Next Month Prediction
+                      Projected net cash flow, next 30 days
                     </p>
                     <p className="text-2xl font-bold text-blue-600">
-                      $
-                      {predictions.cashFlow?.prediction?.toLocaleString() ||
-                        "15,000"}
+                      {cashFlow ? `$${money(cashFlow.total)}` : "No forecast"}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-600">Confidence</p>
+                    <p className="text-sm text-gray-600">Interval</p>
                     <p className="text-lg font-bold text-green-600">
-                      {(
-                        (predictions.cashFlow?.confidence || 0.85) * 100
-                      ).toFixed(0)}
-                      %
+                      {cashFlow
+                        ? `${(cashFlow.confidenceLevel * 100).toFixed(0)}%`
+                        : "n/a"}
                     </p>
                   </div>
                 </div>
+                {!cashFlow && (
+                  <p className="text-sm text-gray-600">
+                    {predictions.cashFlowError ||
+                      "Not enough transaction history to forecast yet."}
+                  </p>
+                )}
 
                 <ResponsiveContainer width="100%" height={200}>
-                  <RechartsLineChart data={mockCashFlowData}>
+                  <RechartsLineChart data={cashFlowData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
+                    <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip
                       formatter={(value) => [
@@ -408,19 +458,24 @@ const AIInsightsModule = () => {
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-700">
-                    Key Factors:
+                    Model details:
                   </p>
-                  {(predictions.cashFlow?.factors || []).map(
-                    (factor, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center space-x-2 text-sm text-gray-600"
-                      >
-                        <CheckCircle className="w-3 h-3 text-green-500" />
-                        <span>{factor}</span>
-                      </div>
-                    ),
-                  )}
+                  {(cashFlow
+                    ? [
+                        `Method: ${cashFlow.method.replace("_", " ")}`,
+                        `Based on ${cashFlow.historyDays} days of history`,
+                        ...cashFlow.warnings,
+                      ]
+                    : []
+                  ).map((factor, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center space-x-2 text-sm text-gray-600"
+                    >
+                      <CheckCircle className="w-3 h-3 text-green-500" />
+                      <span>{factor}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </CardContent>
@@ -456,13 +511,13 @@ const AIInsightsModule = () => {
                         fill="none"
                         stroke="#3b82f6"
                         strokeWidth="2"
-                        strokeDasharray={`${((predictions.creditScore?.score || 750) / 850) * 100}, 100`}
+                        strokeDasharray={`${((predictions.creditScore?.score || 0) / 850) * 100}, 100`}
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-center">
                         <div className="text-2xl font-bold text-gray-900">
-                          {predictions.creditScore?.score || 750}
+                          {predictions.creditScore?.score ?? "n/a"}
                         </div>
                         <div className="text-xs text-gray-500">
                           Credit Score
@@ -472,10 +527,18 @@ const AIInsightsModule = () => {
                   </div>
 
                   <div className="mt-4">
-                    <Badge className="bg-green-100 text-green-800">
-                      <TrendingUp className="w-3 h-3 mr-1" />+
-                      {predictions.creditScore?.change || 15} this month
-                    </Badge>
+                    {predictions.creditScore?.riskCategory ? (
+                      <Badge className="bg-blue-100 text-blue-800">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        {predictions.creditScore.riskCategory.replace("_", " ")}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-gray-500">
+                        {predictions.creditScore
+                          ? "Scored with fallback rules"
+                          : "No credit score yet"}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -496,7 +559,9 @@ const AIInsightsModule = () => {
                   )}
                 </div>
 
-                <Button className="w-full">Generate Detailed Report</Button>
+                <Button className="w-full" onClick={refreshCredit}>
+                  Recalculate Score
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -517,18 +582,21 @@ const AIInsightsModule = () => {
                 <div className="space-y-3">
                   <div>
                     <Label htmlFor="timeframe">Prediction Timeframe</Label>
-                    <Select>
+                    <Select value={horizonDays} onValueChange={setHorizonDays}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select timeframe" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="3months">3 Months</SelectItem>
-                        <SelectItem value="6months">6 Months</SelectItem>
-                        <SelectItem value="12months">12 Months</SelectItem>
+                        <SelectItem value="30">30 days</SelectItem>
+                        <SelectItem value="90">90 days</SelectItem>
+                        <SelectItem value="180">180 days</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button className="w-full">
+                  <Button
+                    className="w-full"
+                    onClick={() => runCashFlow(Number(horizonDays))}
+                  >
                     <BarChart3 className="w-4 h-4 mr-2" />
                     Generate Cash Flow Forecast
                   </Button>
@@ -538,26 +606,7 @@ const AIInsightsModule = () => {
               <div className="space-y-4">
                 <h4 className="font-medium">Credit Score Analysis</h4>
                 <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="scenario">Scenario Type</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select scenario" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="current">
-                          Current Trajectory
-                        </SelectItem>
-                        <SelectItem value="optimistic">
-                          Optimistic Scenario
-                        </SelectItem>
-                        <SelectItem value="conservative">
-                          Conservative Scenario
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button className="w-full">
+                  <Button className="w-full" onClick={refreshCredit}>
                     <Star className="w-4 h-4 mr-2" />
                     Analyze Credit Score
                   </Button>
@@ -616,18 +665,19 @@ const AIInsightsModule = () => {
         let sessionId = activeChatSession;
         if (!sessionId) {
           const sessionRes = await apiClient.createChatSession({
-            title: "Financial Advisory",
+            session_name: "Financial Advisory",
           });
           sessionId = sessionRes.session?.id || sessionRes.id;
           setActiveChatSession(sessionId);
         }
         const res = await apiClient.sendChatMessage(sessionId, {
-          content: messageText,
+          message: messageText,
+          context: { source: "payments" },
         });
         const aiContent =
-          res.message?.content ||
-          res.content ||
-          "I've analyzed your query. Could you provide more context about your financial situation?";
+          res.assistant_message?.content ||
+          res.reply?.content ||
+          "No response was returned.";
         setChatMessages((prev) => [
           ...prev,
           {
@@ -637,13 +687,12 @@ const AIInsightsModule = () => {
             timestamp: new Date().toISOString(),
           },
         ]);
-      } catch {
+      } catch (error) {
         setChatMessages((prev) => [
           ...prev,
           {
             id: Date.now() + 1,
-            content:
-              "I'm here to help with your financial questions. Let me analyze your data and provide personalized insights.",
+            content: `The advisor is unavailable right now: ${error.message}`,
             sender: "ai",
             timestamp: new Date().toISOString(),
           },

@@ -1,20 +1,19 @@
-"""
-Database utilities and connection management for NexaFi
-Implements connection pooling, transaction management, and database migrations
-"""
-
+import json
 import logging
 import os
+import re
 import sqlite3
 import threading
+import uuid
 from contextlib import contextmanager
-from typing import Any, Dict, List, Tuple
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """Database connection and transaction manager"""
 
     def __init__(self, db_path: str, pool_size: int = 10) -> None:
         self.db_path = db_path
@@ -25,13 +24,11 @@ class DatabaseManager:
         self._initialize_pool()
 
     def _initialize_pool(self) -> object:
-        """Initialize connection pool"""
         for _ in range(self.pool_size):
             conn = self._create_connection()
             self.connections.append(conn)
 
     def _create_connection(self) -> sqlite3.Connection:
-        """Create a new database connection"""
         conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("PRAGMA journal_mode = WAL")
@@ -40,7 +37,6 @@ class DatabaseManager:
 
     @contextmanager
     def get_connection(self) -> object:
-        """Get connection from pool"""
         conn = None
         try:
             with self.lock:
@@ -59,7 +55,6 @@ class DatabaseManager:
 
     @contextmanager
     def transaction(self) -> object:
-        """Database transaction context manager"""
         with self.get_connection() as conn:
             try:
                 conn.execute("BEGIN")
@@ -70,7 +65,6 @@ class DatabaseManager:
                 raise
 
     def execute_query(self, query: str, params: Tuple = ()) -> object:
-        """Execute query (SELECT or DML). Returns cursor for DML, rows list for SELECT."""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
             q = query.strip().upper()
@@ -80,35 +74,30 @@ class DatabaseManager:
             return cursor
 
     def fetch_all(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
-        """Execute SELECT query and return all rows as dicts."""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
 
     def fetch_one(self, query: str, params: Tuple = ()) -> object:
-        """Execute SELECT query and return first row as dict or None."""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
             row = cursor.fetchone()
             return dict(row) if row else None
 
     def execute_update(self, query: str, params: Tuple = ()) -> int:
-        """Execute INSERT/UPDATE/DELETE query"""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
             conn.commit()
             return cursor.rowcount
 
     def execute_insert(self, query: str, params: Tuple = ()) -> int:
-        """Execute INSERT query and return last row ID"""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
             conn.commit()
             return cursor.lastrowid
 
     def close_all_connections(self) -> object:
-        """Close all connections in pool"""
         with self.lock:
             for conn in self.connections:
                 conn.close()
@@ -116,7 +105,6 @@ class DatabaseManager:
 
 
 class MigrationManager:
-    """Database migration management"""
 
     def __init__(self, db_manager: DatabaseManager) -> None:
         self.db_manager = db_manager
@@ -124,18 +112,15 @@ class MigrationManager:
         self._ensure_migrations_table()
 
     def _ensure_migrations_table(self) -> object:
-        """Create migrations tracking table"""
         query = f"\n        CREATE TABLE IF NOT EXISTS {self.migrations_table} (\n            version TEXT PRIMARY KEY,\n            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            description TEXT\n        )\n        "
         self.db_manager.execute_update(query)
 
     def get_applied_migrations(self) -> List[str]:
-        """Get list of applied migration versions"""
         query = f"SELECT version FROM {self.migrations_table} ORDER BY version"
         rows = self.db_manager.execute_query(query)
         return [row["version"] for row in rows]
 
     def apply_migration(self, version: str, description: str, sql: str) -> object:
-        """Apply a database migration"""
         applied_migrations = self.get_applied_migrations()
         if version in applied_migrations:
             logger.info(f"Migration {version} already applied")
@@ -153,7 +138,6 @@ class MigrationManager:
         logger.info(f"Migration {version} applied successfully")
 
     def rollback_migration(self, version: str, rollback_sql: str) -> object:
-        """Rollback a database migration"""
         applied_migrations = self.get_applied_migrations()
         if version not in applied_migrations:
             logger.info(f"Migration {version} not applied")
@@ -171,23 +155,67 @@ class MigrationManager:
 
 
 class BaseModel:
-    """Base model class with common database operations"""
 
     table_name = None
     db_manager = None
+    _schema_cache: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    _ORDER_PATTERN = re.compile(
+        r"^[A-Za-z_][A-Za-z0-9_\.]*(\s+(ASC|DESC))?(\s*,\s*[A-Za-z_][A-Za-z0-9_\.]*(\s+(ASC|DESC))?)*$",
+        re.IGNORECASE,
+    )
 
     def __init__(self, **kwargs) -> None:
         for key, value in kwargs.items():
             setattr(self, key, value)
+        for column in self._column_names():
+            if not hasattr(self, column):
+                setattr(self, column, None)
 
     @classmethod
     def set_db_manager(cls, db_manager: DatabaseManager) -> object:
-        """Set database manager for all models"""
         cls.db_manager = db_manager
+        BaseModel._schema_cache = {}
+
+    @classmethod
+    def _table_info(cls) -> List[Dict[str, Any]]:
+        if not cls.table_name or cls.db_manager is None:
+            return []
+        key = (cls.db_manager.db_path, cls.table_name)
+        cached = BaseModel._schema_cache.get(key)
+        if cached is not None:
+            return cached
+        try:
+            rows = cls.db_manager.fetch_all(f"PRAGMA table_info({cls.table_name})")
+        except Exception:
+            rows = []
+        if rows:
+            BaseModel._schema_cache[key] = rows
+        return rows
+
+    @classmethod
+    def _column_names(cls) -> List[str]:
+        return [row["name"] for row in cls._table_info()]
+
+    @staticmethod
+    def _adapt(value: Any) -> Any:
+        if isinstance(value, (dict, list, tuple)):
+            return json.dumps(value, default=str)
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        return value
+
+    @classmethod
+    def _validate_order(cls, order_by: str) -> str:
+        if not cls._ORDER_PATTERN.match(order_by.strip()):
+            raise ValueError(f"Invalid order_by clause: {order_by}")
+        return order_by.strip()
 
     @classmethod
     def find_by_id(cls, id_value: object) -> object:
-        """Find record by ID"""
         query = f"SELECT * FROM {cls.table_name} WHERE id = ?"
         rows = cls.db_manager.execute_query(query, (id_value,))
         if rows:
@@ -195,58 +223,126 @@ class BaseModel:
         return None
 
     @classmethod
-    def find_all(cls, where_clause: str = "", params: Tuple = ()) -> object:
-        """Find all records matching criteria"""
+    def find_all(
+        cls,
+        where_clause: str = "",
+        params: Tuple = (),
+        order_by: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> object:
         query = f"SELECT * FROM {cls.table_name}"
         if where_clause:
             query += f" WHERE {where_clause}"
-        rows = cls.db_manager.execute_query(query, params)
+        if order_by:
+            query += f" ORDER BY {cls._validate_order(order_by)}"
+        values = list(params)
+        if limit is not None:
+            query += " LIMIT ?"
+            values.append(int(limit))
+            if offset:
+                query += " OFFSET ?"
+                values.append(int(offset))
+        rows = cls.db_manager.execute_query(query, tuple(values))
         return [cls(**dict(row)) for row in rows]
 
     @classmethod
     def find_one(cls, where_clause: str, params: Tuple = ()) -> object:
-        """Find one record matching criteria"""
         query = f"SELECT * FROM {cls.table_name} WHERE {where_clause} LIMIT 1"
         rows = cls.db_manager.execute_query(query, params)
         if rows:
             return cls(**dict(rows[0]))
         return None
 
+    @classmethod
+    def count(cls, where_clause: str = "", params: Tuple = ()) -> int:
+        query = f"SELECT COUNT(*) AS total FROM {cls.table_name}"
+        if where_clause:
+            query += f" WHERE {where_clause}"
+        rows = cls.db_manager.execute_query(query, params)
+        return int(rows[0]["total"]) if rows else 0
+
+    def _exists(self) -> bool:
+        row = self.db_manager.fetch_one(
+            f"SELECT 1 AS present FROM {self.table_name} WHERE id = ?", (self.id,)
+        )
+        return row is not None
+
     def save(self) -> object:
-        """Save record to database"""
-        if hasattr(self, "id") and self.id:
+        if getattr(self, "id", None) and self._exists():
             return self._update()
+        return self._insert()
+
+    def _persisted_fields(self, skip_none: bool) -> List[str]:
+        columns = self._column_names()
+        if columns:
+            names = [c for c in columns if c != "id" and hasattr(self, c)]
         else:
-            return self._insert()
+            names = [
+                k for k in self.__dict__.keys() if k != "id" and not k.startswith("_")
+            ]
+        if skip_none:
+            names = [n for n in names if getattr(self, n) is not None]
+        return names
+
+    def _text_primary_key(self) -> bool:
+        for row in self._table_info():
+            if row["name"] == "id":
+                return "INT" not in str(row["type"]).upper()
+        return False
 
     def _insert(self) -> object:
-        """Insert new record"""
-        fields = [k for k in self.__dict__.keys() if k != "id"]
-        values = [getattr(self, k) for k in fields]
+        fields = self._persisted_fields(skip_none=True)
+        generated = None
+        if getattr(self, "id", None):
+            fields = ["id"] + fields
+            generated = self.id
+        elif self._text_primary_key():
+            generated = str(uuid.uuid4())
+            fields = ["id"] + fields
+            self.id = generated
+        values = [self._adapt(getattr(self, k)) for k in fields]
         placeholders = ", ".join(["?" for _ in fields])
         field_names = ", ".join(fields)
         query = f"INSERT INTO {self.table_name} ({field_names}) VALUES ({placeholders})"
-        self.id = self.db_manager.execute_insert(query, tuple(values))
+        row_id = self.db_manager.execute_insert(query, tuple(values))
+        if generated is None:
+            self.id = row_id
+        self._store_adapted(fields, values)
+        self._refresh()
         return self
 
+    def _refresh(self) -> None:
+        row = self.db_manager.fetch_one(
+            f"SELECT * FROM {self.table_name} WHERE id = ?", (self.id,)
+        )
+        if not row:
+            return
+        for key, value in row.items():
+            if getattr(self, key, None) is None:
+                setattr(self, key, value)
+
     def _update(self) -> object:
-        """Update existing record"""
-        fields = [k for k in self.__dict__.keys() if k != "id"]
-        values = [getattr(self, k) for k in fields]
+        fields = self._persisted_fields(skip_none=False)
+        values = [self._adapt(getattr(self, k)) for k in fields]
         set_clause = ", ".join([f"{field} = ?" for field in fields])
         query = f"UPDATE {self.table_name} SET {set_clause} WHERE id = ?"
         values.append(self.id)
         self.db_manager.execute_update(query, tuple(values))
+        self._store_adapted(fields, values[:-1])
         return self
 
+    def _store_adapted(self, fields: List[str], values: List[Any]) -> None:
+        for name, adapted in zip(fields, values):
+            if isinstance(getattr(self, name, None), (dict, list, tuple)):
+                setattr(self, name, adapted)
+
     def delete(self) -> object:
-        """Delete record from database"""
-        if hasattr(self, "id") and self.id:
+        if getattr(self, "id", None):
             query = f"DELETE FROM {self.table_name} WHERE id = ?"
             self.db_manager.execute_update(query, (self.id,))
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert model to dictionary"""
         return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
 
 
@@ -267,7 +363,6 @@ INITIAL_MIGRATIONS = {
 
 
 def initialize_database(db_path: str) -> Tuple[DatabaseManager, MigrationManager]:
-    """Initialize database with migrations"""
     db_manager = DatabaseManager(db_path)
     migration_manager = MigrationManager(db_manager)
     for version, migration in INITIAL_MIGRATIONS.items():

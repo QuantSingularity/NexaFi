@@ -25,18 +25,15 @@ class AuthManager:
         self.refresh_token_expiry = 86400 * 7
 
     def hash_password(self, password: str) -> str:
-        """Hash password using bcrypt"""
         salt = bcrypt.gensalt()
         return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
     def verify_password(self, password: str, hashed: str) -> bool:
-        """Verify password against hash"""
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
     def generate_tokens(
         self, user_id: str, email: str, roles: List[str]
     ) -> Tuple[str, str]:
-        """Generate access and refresh tokens"""
         now = datetime.utcnow()
         access_payload = {
             "user_id": user_id,
@@ -67,7 +64,6 @@ class AuthManager:
         return (access_token, refresh_token)
 
     def verify_token(self, token: str, token_type: str = "access") -> Optional[Dict]:
-        """Verify and decode JWT token"""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
             if payload.get("type") != token_type:
@@ -82,7 +78,6 @@ class AuthManager:
             return None
 
     def revoke_token(self, token: str) -> bool:
-        """Revoke a token"""
         try:
             payload = jwt.decode(
                 token,
@@ -100,14 +95,12 @@ class AuthManager:
         return False
 
     def refresh_access_token(self, refresh_token: str) -> Optional[Tuple[str, str]]:
-        """Generate new access token using refresh token"""
         payload = self.verify_token(refresh_token, "refresh")
         if not payload:
             return None
         user_id = payload["user_id"]
         email = payload.get("email", f"{user_id}@nexafi.com")
         roles = payload.get("roles", ["user"])
-        # Revoke old refresh token before issuing new one (rotation)
         old_jti = payload.get("jti")
         if old_jti:
             self.redis_client.delete(f"refresh_token:{old_jti}")
@@ -118,12 +111,6 @@ auth_manager = None
 
 
 def init_auth_manager(secret_key: str) -> object:
-    """Initialize global auth manager and return it.
-
-    Callers that imported ``auth_manager`` by value (``from middleware.auth
-    import auth_manager``) must capture this return value, otherwise their local
-    name keeps pointing at the pre-init ``None``.
-    """
     global auth_manager
     auth_manager = AuthManager(secret_key)
     return auth_manager
@@ -167,7 +154,6 @@ ROLE_PERMISSIONS = {
 
 
 def get_user_permissions(roles: List[str]) -> List[str]:
-    """Get all permissions for user roles"""
     permissions = set()
     for role in roles:
         if role in ROLE_PERMISSIONS:
@@ -176,13 +162,11 @@ def get_user_permissions(roles: List[str]) -> List[str]:
 
 
 def has_permission(user_roles: List[str], required_permission: str) -> bool:
-    """Check if user has required permission"""
     user_permissions = get_user_permissions(user_roles)
     return required_permission in user_permissions
 
 
 def require_auth(f: object) -> object:
-    """Authentication decorator"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -206,7 +190,6 @@ def require_auth(f: object) -> object:
 
 
 def require_permission(permission: str) -> object:
-    """Permission-based authorization decorator"""
 
     def decorator(f):
 
@@ -225,7 +208,6 @@ def require_permission(permission: str) -> object:
 
 
 def require_role(required_roles: List[str]) -> object:
-    """Role-based authorization decorator"""
 
     def decorator(f):
 
@@ -244,7 +226,6 @@ def require_role(required_roles: List[str]) -> object:
 
 
 def optional_auth(f: object) -> object:
-    """Optional authentication decorator - sets user info if token is valid"""
 
     @wraps(f)
     def decorated_function(*args, **kwargs):

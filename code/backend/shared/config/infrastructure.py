@@ -1,13 +1,8 @@
-"""
-Shared infrastructure configuration for NexaFi services
-"""
-
 import os
 from typing import Any, Dict
 
 
 class InfrastructureConfig:
-    """Infrastructure configuration settings"""
 
     REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
@@ -38,7 +33,6 @@ class InfrastructureConfig:
 
     @classmethod
     def get_redis_config(cls) -> Dict[str, Any]:
-        """Get Redis connection configuration"""
         config = {
             "host": cls.REDIS_HOST,
             "port": cls.REDIS_PORT,
@@ -51,7 +45,6 @@ class InfrastructureConfig:
 
     @classmethod
     def get_rabbitmq_config(cls) -> Dict[str, Any]:
-        """Get RabbitMQ connection configuration"""
         return {
             "host": cls.RABBITMQ_HOST,
             "port": cls.RABBITMQ_PORT,
@@ -64,7 +57,6 @@ class InfrastructureConfig:
 
     @classmethod
     def get_elasticsearch_config(cls) -> Dict[str, Any]:
-        """Get Elasticsearch connection configuration"""
         return {
             "hosts": [cls.ELASTICSEARCH_URL],
             "timeout": 30,

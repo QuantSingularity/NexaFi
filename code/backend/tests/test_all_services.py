@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""
-Comprehensive service testing script
-Tests each service's ability to start and respond to health checks.
-
-These tests are designed to be run when the services are actually running.
-They are skipped automatically when services are not available.
-"""
 
 import os
 import subprocess
@@ -16,11 +9,10 @@ from typing import Any, Dict, List
 import pytest
 import requests
 
-# Add shared to path
 sys.path.insert(
     0,
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "shared"),
-)  # backend/shared
+)
 
 SERVICES = [
     {
@@ -77,15 +69,7 @@ SERVICES = [
 running_processes: List[Any] = []
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers (prefixed with _ so pytest does NOT collect them as tests)
-# ---------------------------------------------------------------------------
-
-
 def _start_service(service: Dict[str, Any]) -> object:
-    """Start a service and return the process."""
-    # Service paths (e.g. "user-service/src") are relative to the backend
-    # root, which is the parent of this tests/ directory.
     backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     service_path = os.path.join(backend_root, service["path"])
 
@@ -98,8 +82,6 @@ def _start_service(service: Dict[str, Any]) -> object:
         os.path.join(backend_root, "shared") + ":" + env.get("PYTHONPATH", "")
     )
     env["PORT"] = str(service["port"])
-    # Inject the environment each service requires to boot. Tests must not
-    # depend on a developer's shell already exporting these.
     env.setdefault("SECRET_KEY", "test-secret-key-for-service-health-checks")
     env.setdefault("DATABASE_URL", f"sqlite:////tmp/nexafi_test_{service['name']}.db")
 
@@ -121,7 +103,6 @@ def _start_service(service: Dict[str, Any]) -> object:
 
 
 def _check_health(service: Dict[str, Any], timeout: int = 10):
-    """Check if service responds to health check."""
     url = f"http://localhost:{service['port']}{service['health']}"
     start_time = time.time()
 
@@ -138,7 +119,6 @@ def _check_health(service: Dict[str, Any], timeout: int = 10):
 
 
 def _is_port_open(port: int) -> bool:
-    """Return True if something is already listening on *port*."""
     try:
         r = requests.get(f"http://localhost:{port}", timeout=1)
         return True
@@ -149,7 +129,6 @@ def _is_port_open(port: int) -> bool:
 
 
 def _run_service(service: Dict[str, Any]):
-    """Start, health-check, and return (success, process) for one service."""
     print(f"\n{'='*60}")
     print(f"Testing {service['name']}")
     print(f"{'='*60}")
@@ -160,26 +139,23 @@ def _run_service(service: Dict[str, Any]):
 
     running_processes.append(process)
 
-    # Wait for service to start
     time.sleep(3)
 
-    # Check if process is still running
     if process.poll() is not None:
         stdout, stderr = process.communicate()
-        print(f"✗ {service['name']} crashed during startup")
+        print(f"{service['name']} crashed during startup")
         print(f"STDOUT: {stdout[:500]}")
         print(f"STDERR: {stderr[:500]}")
         return False, process
 
-    # Check health
     healthy, response = _check_health(service)
 
     if healthy:
-        print(f"✓ {service['name']} is healthy")
+        print(f"{service['name']} is healthy")
         print(f"  Response: {response}")
         return True, process
     else:
-        print(f"✗ {service['name']} failed health check")
+        print(f"{service['name']} failed health check")
         try:
             stdout_data = process.stdout.read(500) if process.stdout else ""
             stderr_data = process.stderr.read(500) if process.stderr else ""
@@ -193,7 +169,6 @@ def _run_service(service: Dict[str, Any]):
 
 
 def _cleanup():
-    """Stop all running processes."""
     print("\nCleaning up processes...")
     for process in running_processes:
         try:
@@ -206,22 +181,8 @@ def _cleanup():
                 pass
 
 
-# ---------------------------------------------------------------------------
-# Pytest parametrized test
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize("service", SERVICES, ids=[s["name"] for s in SERVICES])
 def test_service_health(service: Dict[str, Any]):
-    """
-    Test that each NexaFi service starts and passes its health check.
-
-    Skipped automatically when the required port is already occupied (i.e.
-    the service is not managed by this test run) or when the service binary
-    cannot be launched.
-    """
-    # Skip if the service is already running externally on this port -
-    # we do not want to fight over ports in CI.
     if _is_port_open(service["port"]):
         pytest.skip(
             f"Port {service['port']} already in use; "
@@ -234,7 +195,6 @@ def test_service_health(service: Dict[str, Any]):
 
     running_processes.append(process)
     try:
-        # Give the service a moment to start
         time.sleep(3)
 
         if process.poll() is not None:
@@ -260,11 +220,6 @@ def test_service_health(service: Dict[str, Any]):
             running_processes.remove(process)
 
 
-# ---------------------------------------------------------------------------
-# Standalone runner (python test_all_services.py)
-# ---------------------------------------------------------------------------
-
-
 def main():
     results: Dict[str, Any] = {}
     try:
@@ -286,7 +241,7 @@ def main():
         print(f"{'='*60}")
 
         for service_name, success in results.items():
-            status = "✓ PASS" if success else "✗ FAIL"
+            status = "PASS" if success else "FAIL"
             print(f"{status:12} {service_name}")
 
         passed = sum(1 for s in results.values() if s)

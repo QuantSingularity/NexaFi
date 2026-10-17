@@ -1,8 +1,4 @@
 import json
-
-# Use the real shared BaseModel (working __init__/save/find_one and shared
-# db_manager). The previous local BaseModel had no-op or broken-delegation
-# persistence methods.
 import os
 import sys
 from datetime import datetime
@@ -67,7 +63,6 @@ class CreditScore(BaseModel):
         return False
 
     def calculate_grade(self) -> object:
-        """Calculate letter grade based on score"""
         score = self.score if self.score is not None else 0
         if score >= 800:
             return "A+"
@@ -87,7 +82,6 @@ class CreditScore(BaseModel):
             return "F"
 
     def calculate_risk_level(self) -> object:
-        """Calculate risk level based on score"""
         score = self.score if self.score is not None else 0
         if score >= 750:
             return "very_low"
@@ -146,7 +140,6 @@ class LoanApplication(BaseModel):
         self.risk_assessment = json.dumps(assessment)
 
     def calculate_monthly_payment(self) -> object:
-        """Calculate monthly payment based on approved terms"""
         if self.approved_amount and self.interest_rate and self.term_months:
             monthly_rate = self.interest_rate / 100 / 12
             if monthly_rate == 0:
@@ -160,7 +153,6 @@ class LoanApplication(BaseModel):
         return None
 
     def calculate_total_interest(self) -> object:
-        """Calculate total interest over loan term"""
         if self.monthly_payment and self.term_months and self.approved_amount:
             total_payments = self.monthly_payment * self.term_months
             return round(total_payments - self.approved_amount, 2)
@@ -189,7 +181,6 @@ class Loan(BaseModel):
     table_name: Optional[str] = "loans"
 
     def calculate_remaining_balance(self) -> object:
-        """Calculate remaining loan balance"""
         return (
             (self.principal_balance or 0)
             + (self.interest_balance or 0)
@@ -197,11 +188,9 @@ class Loan(BaseModel):
         )
 
     def calculate_payoff_amount(self) -> object:
-        """Calculate amount needed to pay off loan"""
         return self.calculate_remaining_balance()
 
     def update_delinquency_status(self) -> object:
-        """Update delinquency status based on payment history"""
         if self.next_payment_date:
             next_payment_dt = (
                 datetime.fromisoformat(self.next_payment_date)

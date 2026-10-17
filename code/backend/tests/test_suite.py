@@ -43,17 +43,16 @@ class _TestRunner:
 
     def success(self, message: object) -> object:
         self.passed += 1
-        logger.info(f"{Colors.GREEN}✓ {message}{Colors.ENDC}")
+        logger.info(f"{Colors.GREEN}{message}{Colors.ENDC}")
 
     def error(self, message: object) -> object:
         self.failed += 1
-        logger.info(f"{Colors.RED}✗ {message}{Colors.ENDC}")
+        logger.info(f"{Colors.RED}{message}{Colors.ENDC}")
 
     def warning(self, message: object) -> object:
-        logger.info(f"{Colors.YELLOW}⚠ {message}{Colors.ENDC}")
+        logger.info(f"{Colors.YELLOW}{message}{Colors.ENDC}")
 
     def test_health_checks(self) -> None:
-        """Test health endpoints for all services"""
         self.log("\n=== Testing Health Checks ===", Colors.BOLD)
         for service_name, port in SERVICES.items():
             try:
@@ -73,7 +72,6 @@ class _TestRunner:
                 self.error(f"{service_name} health check failed - {str(e)}")
 
     def test_api_gateway(self) -> None:
-        """Test API Gateway functionality"""
         self.log("\n=== Testing API Gateway ===", Colors.BOLD)
         try:
             response = requests.get(f"{BASE_URL}/health")
@@ -234,7 +232,6 @@ class _TestRunner:
             self.error(f"Ledger service test failed - {str(e)}")
 
     def test_compliance_service(self) -> None:
-        """Test Compliance Service (AML, KYC, Sanctions)"""
         self.log("\n=== Testing Compliance Service ===", Colors.BOLD)
         if not self.access_token or not self.user_id:
             self.error("No access token or user ID available for compliance tests")
@@ -306,7 +303,6 @@ class _TestRunner:
             self.error(f"Compliance service test failed - {str(e)}")
 
     def test_notification_service(self) -> None:
-        """Test Notification Service"""
         self.log("\n=== Testing Notification Service ===", Colors.BOLD)
         if not self.access_token or not self.user_id:
             self.error("No access token or user ID available for notification tests")
@@ -360,7 +356,6 @@ class _TestRunner:
             self.error(f"Notification service test failed - {str(e)}")
 
     def test_rate_limiting(self) -> None:
-        """Test rate limiting functionality"""
         self.log("\n=== Testing Rate Limiting ===", Colors.BOLD)
         try:
             login_data = {
@@ -383,7 +378,6 @@ class _TestRunner:
             self.error(f"Rate limiting test failed - {str(e)}")
 
     def test_security_features(self) -> None:
-        """Test security features"""
         self.log("\n=== Testing Security Features ===", Colors.BOLD)
         try:
             response = requests.get(f"{BASE_URL}/api/v1/users/profile")
@@ -412,7 +406,6 @@ class _TestRunner:
             self.error(f"Security test failed - {str(e)}")
 
     def test_audit_logging(self) -> None:
-        """Test audit logging functionality"""
         self.log("\n=== Testing Audit Logging ===", Colors.BOLD)
         audit_log_dir = "/backend/logs/audit"
         if os.path.exists(audit_log_dir):
@@ -438,7 +431,6 @@ class _TestRunner:
             self.warning("Log directory not found")
 
     def run_all_tests(self) -> object:
-        """Run all tests"""
         self.log(f"\n{Colors.BOLD}=== NexaFi Backend Test Suite ==={Colors.ENDC}")
         self.log(f"Testing against: {BASE_URL}")
         self.log(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
@@ -462,12 +454,12 @@ class _TestRunner:
         self.log(f"Success rate: {success_rate:.1f}%")
         if self.failed == 0:
             self.log(
-                f"\n{Colors.GREEN}{Colors.BOLD}🎉 All tests passed! NexaFi Backend is working correctly.{Colors.ENDC}"
+                f"\n{Colors.GREEN}{Colors.BOLD}All tests passed! NexaFi Backend is working correctly.{Colors.ENDC}"
             )
             return True
         else:
             self.log(
-                f"\n{Colors.RED}{Colors.BOLD}❌ Some tests failed. Please check the logs and fix the issues.{Colors.ENDC}"
+                f"\n{Colors.RED}{Colors.BOLD}Some tests failed. Please check the logs and fix the issues.{Colors.ENDC}"
             )
             return False
 

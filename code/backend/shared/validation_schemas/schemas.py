@@ -1,8 +1,3 @@
-"""
-Input validation and sanitization for NexaFi
-Implements comprehensive validation for financial data
-"""
-
 import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict
@@ -12,18 +7,15 @@ from marshmallow import Schema, ValidationError, fields, post_load, pre_load, va
 
 
 class FinancialValidators:
-    """Custom validators for financial data"""
 
     @staticmethod
     def validate_currency_code(value: str) -> str:
-        """Validate ISO 4217 currency code"""
         if not re.match("^[A-Z]{3}$", value):
             raise ValidationError("Currency code must be a 3-letter ISO 4217 code")
         return value
 
     @staticmethod
     def validate_amount(value: object) -> Decimal:
-        """Validate monetary amount"""
         try:
             amount = Decimal(str(value))
             if amount.as_tuple().exponent < -2:
@@ -38,7 +30,6 @@ class FinancialValidators:
 
     @staticmethod
     def validate_account_number(value: str) -> str:
-        """Validate account number format"""
         clean_value = re.sub("[\\s-]", "", value)
         if not re.match("^[A-Z0-9]{8,20}$", clean_value):
             raise ValidationError("Account number must be 8-20 alphanumeric characters")
@@ -46,7 +37,6 @@ class FinancialValidators:
 
     @staticmethod
     def validate_routing_number(value: str) -> str:
-        """Validate bank routing number"""
         clean_value = re.sub("[\\s-]", "", value)
         if not re.match("^\\d{9}$", clean_value):
             raise ValidationError("Routing number must be 9 digits")
@@ -54,7 +44,6 @@ class FinancialValidators:
 
     @staticmethod
     def validate_card_number(value: str) -> str:
-        """Validate credit card number using Luhn algorithm"""
         clean_value = re.sub("[\\s-]", "", value)
         if not re.match("^\\d{13,19}$", clean_value):
             raise ValidationError("Card number must be 13-19 digits")
@@ -78,7 +67,6 @@ class FinancialValidators:
 
     @staticmethod
     def validate_email(value: str) -> str:
-        """Comprehensive email validation"""
         email_regex = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
         if not re.match(email_regex, value):
             raise ValidationError("Invalid email format")
@@ -86,7 +74,6 @@ class FinancialValidators:
 
     @staticmethod
     def validate_phone(value: str) -> str:
-        """Validate phone number"""
         clean_value = re.sub("[\\s\\-\\(\\)\\+]", "", value)
         if not re.match("^\\d{10,15}$", clean_value):
             raise ValidationError("Phone number must be 10-15 digits")
@@ -94,11 +81,9 @@ class FinancialValidators:
 
 
 class SanitizationMixin:
-    """Mixin for input sanitization"""
 
     @pre_load
     def sanitize_strings(self, data: object, **kwargs) -> object:
-        """Sanitize string inputs"""
         if isinstance(data, dict):
             sanitized: Dict[str, Any] = {}
             for key, value in data.items():
@@ -234,7 +219,6 @@ class PredictionRequestSchema(SanitizationMixin, Schema):
 
 
 def validate_request_data(schema_class: type, data: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate request data using specified schema"""
     schema = schema_class()
     try:
         return schema.load(data)
@@ -243,7 +227,6 @@ def validate_request_data(schema_class: type, data: Dict[str, Any]) -> Dict[str,
 
 
 def validate_json_request(schema_class: object) -> object:
-    """Decorator for validating JSON request data"""
 
     def decorator(f):
         from functools import wraps

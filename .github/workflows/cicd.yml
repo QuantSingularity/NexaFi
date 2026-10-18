@@ -111,7 +111,128 @@ jobs:
           retention-days: 30
 
   # ============================================================
-  # Job 3 -- Web Build
+  # Job 3 -- Backend Build
+  # ============================================================
+  backend_build:
+    name: Backend Build (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    needs: backend_tests
+    timeout-minutes: 25
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            context: code/backend
+            dockerfile: code/backend/api-gateway/Dockerfile
+            health_path: /health
+          - service: auth-service
+            context: code/backend
+            dockerfile: code/backend/auth-service/Dockerfile
+            health_path: /api/v1/health
+          - service: compliance-service
+            context: code/backend
+            dockerfile: code/backend/compliance-service/Dockerfile
+            health_path: /api/v1/health
+          - service: credit-service
+            context: code/backend
+            dockerfile: code/backend/credit-service/Dockerfile
+            health_path: /api/v1/health
+          - service: document-service
+            context: code/backend
+            dockerfile: code/backend/document-service/Dockerfile
+            health_path: /api/v1/health
+          - service: ledger-service
+            context: code/backend
+            dockerfile: code/backend/ledger-service/Dockerfile
+            health_path: /api/v1/health
+          - service: notification-service
+            context: code/backend
+            dockerfile: code/backend/notification-service/Dockerfile
+            health_path: /api/v1/health
+          - service: open-banking-gateway
+            context: code/backend
+            dockerfile: code/backend/open-banking-gateway/Dockerfile
+            health_path: /api/v1/health
+          - service: payment-service
+            context: code/backend
+            dockerfile: code/backend/payment-service/Dockerfile
+            health_path: /api/v1/health
+          - service: user-service
+            context: code/backend
+            dockerfile: code/backend/user-service/Dockerfile
+            health_path: /api/v1/health
+          - service: ai-service
+            context: code
+            dockerfile: code/ml_services/ai-service/Dockerfile
+            health_path: /api/v1/health
+          - service: analytics-service
+            context: code
+            dockerfile: code/ml_services/analytics-service/Dockerfile
+            health_path: /api/v1/health
+
+    env:
+      IMAGE: nexafi/${{ matrix.service }}:ci-${{ github.sha }}
+      CONTAINER: nexafi-ci-${{ matrix.service }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Smoke test container
+        shell: bash
+        env:
+          HEALTH_PATH: ${{ matrix.health_path }}
+        run: |
+          set -euo pipefail
+          docker image ls "$IMAGE"
+          port=$(docker image inspect "$IMAGE" --format '{{json .Config.ExposedPorts}}' | jq -r 'keys[0]' | cut -d/ -f1)
+          docker run -d --name "$CONTAINER" \
+            -p "127.0.0.1:${port}:${port}" \
+            -e SECRET_KEY=ci-smoke-secret-key-with-sufficient-length \
+            -e JWT_SECRET_KEY=ci-smoke-secret-key-with-sufficient-length \
+            -e DATABASE_URL=sqlite:////tmp/ci.db \
+            "$IMAGE"
+          for attempt in $(seq 1 45); do
+            if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER")" != "true" ]; then
+              echo "Container exited before becoming healthy"
+              docker logs "$CONTAINER"
+              exit 1
+            fi
+            if curl -fsS "http://127.0.0.1:${port}${HEALTH_PATH}" > /dev/null; then
+              echo "Healthy on port ${port} after ${attempt} checks"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health check did not pass in time"
+          docker logs "$CONTAINER"
+          exit 1
+
+      - name: Remove container
+        if: always()
+        run: docker rm -f "$CONTAINER" || true
+
+  # ============================================================
+  # Job 4 -- Web Build
   # ============================================================
   web_build:
     name: Web Build

@@ -66,12 +66,21 @@ class DatabaseManager:
 
     def execute_query(self, query: str, params: Tuple = ()) -> object:
         with self.get_connection() as conn:
+            if not params and self._is_script(query):
+                conn.executescript(query)
+                conn.commit()
+                return []
             cursor = conn.execute(query, params)
             q = query.strip().upper()
             if q.startswith("SELECT") or q.startswith("WITH"):
                 return cursor.fetchall()
             conn.commit()
             return cursor
+
+    @staticmethod
+    def _is_script(query: str) -> bool:
+        statements = [part for part in query.split(";") if part.strip()]
+        return len(statements) > 1 and sqlite3.complete_statement(query.strip())
 
     def fetch_all(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
         with self.get_connection() as conn:

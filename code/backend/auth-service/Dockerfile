@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY auth-service/src/ /app/src/
 
-ENV PYTHONPATH=/app:/app/src
+ENV PYTHONPATH=/app:/app/src:/app/shared
 ENV FLASK_APP=src/main.py
 ENV PORT=5011
 

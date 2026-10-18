@@ -4,77 +4,151 @@ import os
 import re
 import sqlite3
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 
 logger = logging.getLogger(__name__)
 
 
+@contextmanager
+def _process_lock(path: str) -> Iterator[None]:
+    if fcntl is None:
+        yield
+        return
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    handle = open(path, "a+")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
+
+
+def _is_busy_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "locked" in message or "busy" in message
+
+
 class DatabaseManager:
+
+    BUSY_TIMEOUT_SECONDS = 30.0
+    WAL_ATTEMPTS = 20
 
     def __init__(self, db_path: str, pool_size: int = 10) -> None:
         self.db_path = db_path
         self.pool_size = pool_size
-        self.connections = []
+        self.connections: List[sqlite3.Connection] = []
         self.lock = threading.Lock()
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        directory = os.path.dirname(db_path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        with _process_lock(f"{db_path}.init.lock"):
+            self._enable_wal()
         self._initialize_pool()
 
-    def _initialize_pool(self) -> object:
+    def _enable_wal(self) -> None:
+        delay = 0.05
+        for attempt in range(self.WAL_ATTEMPTS):
+            conn = sqlite3.connect(
+                self.db_path,
+                timeout=self.BUSY_TIMEOUT_SECONDS,
+                isolation_level=None,
+            )
+            try:
+                current = conn.execute("PRAGMA journal_mode").fetchone()[0]
+                if str(current).lower() == "wal":
+                    return
+                conn.execute("PRAGMA journal_mode = WAL")
+                return
+            except sqlite3.OperationalError as exc:
+                if not _is_busy_error(exc) or attempt == self.WAL_ATTEMPTS - 1:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 2.0)
+            finally:
+                conn.close()
+
+    def _initialize_pool(self) -> None:
         for _ in range(self.pool_size):
-            conn = self._create_connection()
-            self.connections.append(conn)
+            self.connections.append(self._create_connection())
 
     def _create_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
+        conn = sqlite3.connect(
+            self.db_path,
+            check_same_thread=False,
+            timeout=self.BUSY_TIMEOUT_SECONDS,
+            isolation_level=None,
+        )
+        conn.execute(f"PRAGMA busy_timeout = {int(self.BUSY_TIMEOUT_SECONDS * 1000)}")
         conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
         conn.row_factory = sqlite3.Row
         return conn
 
     @contextmanager
-    def get_connection(self) -> object:
+    def get_connection(self) -> Iterator[sqlite3.Connection]:
         conn = None
         try:
             with self.lock:
                 if self.connections:
                     conn = self.connections.pop()
-                else:
-                    conn = self._create_connection()
+            if conn is None:
+                conn = self._create_connection()
             yield conn
         finally:
-            if conn:
+            if conn is not None:
+                try:
+                    if conn.in_transaction:
+                        conn.rollback()
+                except sqlite3.Error:
+                    try:
+                        conn.close()
+                    except sqlite3.Error:
+                        pass
+                    conn = None
+            if conn is not None:
                 with self.lock:
                     if len(self.connections) < self.pool_size:
                         self.connections.append(conn)
-                    else:
-                        conn.close()
+                        conn = None
+                if conn is not None:
+                    conn.close()
 
     @contextmanager
-    def transaction(self, immediate: bool = False) -> object:
+    def transaction(self, immediate: bool = False) -> Iterator[sqlite3.Connection]:
         with self.get_connection() as conn:
+            conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
             try:
-                conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
                 yield conn
                 conn.commit()
-            except Exception:
-                conn.rollback()
+            except BaseException:
+                if conn.in_transaction:
+                    conn.rollback()
                 raise
 
-    def execute_query(self, query: str, params: Tuple = ()) -> object:
+    def execute_query(self, query: str, params: Tuple = ()) -> Any:
         with self.get_connection() as conn:
             if not params and self._is_script(query):
                 conn.executescript(query)
-                conn.commit()
                 return []
             cursor = conn.execute(query, params)
             q = query.strip().upper()
-            if q.startswith("SELECT") or q.startswith("WITH"):
+            if q.startswith(("SELECT", "WITH", "PRAGMA")):
                 return cursor.fetchall()
-            conn.commit()
             return cursor
 
     @staticmethod
@@ -88,7 +162,7 @@ class DatabaseManager:
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
 
-    def fetch_one(self, query: str, params: Tuple = ()) -> object:
+    def fetch_one(self, query: str, params: Tuple = ()) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
             row = cursor.fetchone()
@@ -97,16 +171,14 @@ class DatabaseManager:
     def execute_update(self, query: str, params: Tuple = ()) -> int:
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
-            conn.commit()
             return cursor.rowcount
 
     def execute_insert(self, query: str, params: Tuple = ()) -> int:
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
-            conn.commit()
             return cursor.lastrowid
 
-    def close_all_connections(self) -> object:
+    def close_all_connections(self) -> None:
         with self.lock:
             for conn in self.connections:
                 conn.close()
@@ -120,8 +192,13 @@ class MigrationManager:
         self.migrations_table = "schema_migrations"
         self._ensure_migrations_table()
 
-    def _ensure_migrations_table(self) -> object:
-        query = f"\n        CREATE TABLE IF NOT EXISTS {self.migrations_table} (\n            version TEXT PRIMARY KEY,\n            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            description TEXT\n        )\n        "
+    def _ensure_migrations_table(self) -> None:
+        query = (
+            f"CREATE TABLE IF NOT EXISTS {self.migrations_table} ("
+            "version TEXT PRIMARY KEY, "
+            "applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+            "description TEXT)"
+        )
         self.db_manager.execute_update(query)
 
     def get_applied_migrations(self) -> List[str]:
@@ -129,7 +206,7 @@ class MigrationManager:
         rows = self.db_manager.execute_query(query)
         return [row["version"] for row in rows]
 
-    def apply_migration(self, version: str, description: str, sql: str) -> object:
+    def apply_migration(self, version: str, description: str, sql: str) -> None:
         if version in self.get_applied_migrations():
             logger.info(f"Migration {version} already applied")
             return
@@ -151,13 +228,13 @@ class MigrationManager:
             )
         logger.info(f"Migration {version} applied successfully")
 
-    def rollback_migration(self, version: str, rollback_sql: str) -> object:
+    def rollback_migration(self, version: str, rollback_sql: str) -> None:
         applied_migrations = self.get_applied_migrations()
         if version not in applied_migrations:
             logger.info(f"Migration {version} not applied")
             return
         logger.info(f"Rolling back migration {version}")
-        with self.db_manager.transaction() as conn:
+        with self.db_manager.transaction(immediate=True) as conn:
             for statement in rollback_sql.split(";"):
                 statement = statement.strip()
                 if statement:
@@ -186,7 +263,7 @@ class BaseModel:
                 setattr(self, column, None)
 
     @classmethod
-    def set_db_manager(cls, db_manager: DatabaseManager) -> object:
+    def set_db_manager(cls, db_manager: DatabaseManager) -> None:
         cls.db_manager = db_manager
         BaseModel._schema_cache = {}
 
@@ -229,7 +306,7 @@ class BaseModel:
         return order_by.strip()
 
     @classmethod
-    def find_by_id(cls, id_value: object) -> object:
+    def find_by_id(cls, id_value: Any) -> Optional["BaseModel"]:
         query = f"SELECT * FROM {cls.table_name} WHERE id = ?"
         rows = cls.db_manager.execute_query(query, (id_value,))
         if rows:
@@ -244,7 +321,7 @@ class BaseModel:
         order_by: Optional[str] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-    ) -> object:
+    ) -> List["BaseModel"]:
         query = f"SELECT * FROM {cls.table_name}"
         if where_clause:
             query += f" WHERE {where_clause}"
@@ -254,14 +331,16 @@ class BaseModel:
         if limit is not None:
             query += " LIMIT ?"
             values.append(int(limit))
-            if offset:
-                query += " OFFSET ?"
-                values.append(int(offset))
+        elif offset:
+            query += " LIMIT -1"
+        if offset:
+            query += " OFFSET ?"
+            values.append(int(offset))
         rows = cls.db_manager.execute_query(query, tuple(values))
         return [cls(**dict(row)) for row in rows]
 
     @classmethod
-    def find_one(cls, where_clause: str, params: Tuple = ()) -> object:
+    def find_one(cls, where_clause: str, params: Tuple = ()) -> Optional["BaseModel"]:
         query = f"SELECT * FROM {cls.table_name} WHERE {where_clause} LIMIT 1"
         rows = cls.db_manager.execute_query(query, params)
         if rows:
@@ -282,7 +361,7 @@ class BaseModel:
         )
         return row is not None
 
-    def save(self) -> object:
+    def save(self) -> "BaseModel":
         if getattr(self, "id", None) and self._exists():
             return self._update()
         return self._insert()
@@ -305,7 +384,7 @@ class BaseModel:
                 return "INT" not in str(row["type"]).upper()
         return False
 
-    def _insert(self) -> object:
+    def _insert(self) -> "BaseModel":
         fields = self._persisted_fields(skip_none=True)
         generated = None
         if getattr(self, "id", None):
@@ -336,8 +415,10 @@ class BaseModel:
             if getattr(self, key, None) is None:
                 setattr(self, key, value)
 
-    def _update(self) -> object:
+    def _update(self) -> "BaseModel":
         fields = self._persisted_fields(skip_none=False)
+        if not fields:
+            return self
         values = [self._adapt(getattr(self, k)) for k in fields]
         set_clause = ", ".join([f"{field} = ?" for field in fields])
         query = f"UPDATE {self.table_name} SET {set_clause} WHERE id = ?"
@@ -351,7 +432,7 @@ class BaseModel:
             if isinstance(getattr(self, name, None), (dict, list, tuple)):
                 setattr(self, name, adapted)
 
-    def delete(self) -> object:
+    def delete(self) -> None:
         if getattr(self, "id", None):
             query = f"DELETE FROM {self.table_name} WHERE id = ?"
             self.db_manager.execute_update(query, (self.id,))
@@ -378,9 +459,10 @@ INITIAL_MIGRATIONS = {
 
 def initialize_database(db_path: str) -> Tuple[DatabaseManager, MigrationManager]:
     db_manager = DatabaseManager(db_path)
-    migration_manager = MigrationManager(db_manager)
-    for version, migration in INITIAL_MIGRATIONS.items():
-        migration_manager.apply_migration(
-            version, migration["description"], migration["sql"]
-        )
+    with _process_lock(f"{db_path}.migrate.lock"):
+        migration_manager = MigrationManager(db_manager)
+        for version, migration in INITIAL_MIGRATIONS.items():
+            migration_manager.apply_migration(
+                version, migration["description"], migration["sql"]
+            )
     return (db_manager, migration_manager)

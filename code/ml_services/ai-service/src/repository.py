@@ -320,12 +320,33 @@ class Repository:
         metrics: Any,
         training_info: Any,
     ) -> None:
-        existing = self._rows("SELECT id FROM ai_models WHERE name = ?", (name,))
-        if existing:
-            self.db.execute_update(
-                "UPDATE ai_models SET model_type = ?, version = ?, description = ?, model_config = ?, training_data_info = ?, "
-                "performance_metrics = ?, updated_at = ? WHERE name = ?",
+        with self.db.transaction(immediate=True) as conn:
+            existing = conn.execute(
+                "SELECT id FROM ai_models WHERE name = ?", (name,)
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    "UPDATE ai_models SET model_type = ?, version = ?, description = ?, model_config = ?, "
+                    "training_data_info = ?, performance_metrics = ?, updated_at = ? WHERE name = ?",
+                    (
+                        model_type,
+                        version,
+                        description,
+                        _dumps(config),
+                        _dumps(training_info),
+                        _dumps(metrics),
+                        _now(),
+                        name,
+                    ),
+                )
+                return
+            conn.execute(
+                "INSERT INTO ai_models (id, name, model_type, version, description, model_config, "
+                "training_data_info, performance_metrics, is_active, is_production, created_at, updated_at) "
+                "VALUES (?,?,?,?,?,?,?,?,1,0,?,?)",
                 (
+                    str(uuid.uuid4()),
+                    name,
                     model_type,
                     version,
                     description,
@@ -333,23 +354,6 @@ class Repository:
                     _dumps(training_info),
                     _dumps(metrics),
                     _now(),
-                    name,
+                    _now(),
                 ),
             )
-            return
-        self.db.execute_update(
-            "INSERT INTO ai_models (id, name, model_type, version, description, model_config, training_data_info, performance_metrics, "
-            "is_active, is_production, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,1,0,?,?)",
-            (
-                str(uuid.uuid4()),
-                name,
-                model_type,
-                version,
-                description,
-                _dumps(config),
-                _dumps(training_info),
-                _dumps(metrics),
-                _now(),
-                _now(),
-            ),
-        )

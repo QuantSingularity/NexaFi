@@ -147,6 +147,46 @@ class TestMigrationManager(unittest.TestCase):
         applied = self.migration_manager.get_applied_migrations()
         self.assertNotIn("003", applied)
 
+    def test_concurrent_workers_apply_migration_once(self):
+        import threading
+
+        path = os.path.join(tempfile.mkdtemp(), "race.db")
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def worker():
+            try:
+                manager = MigrationManager(DatabaseManager(path))
+                original = manager.get_applied_migrations
+
+                def synced():
+                    result = original()
+                    try:
+                        barrier.wait(timeout=3)
+                    except threading.BrokenBarrierError:
+                        pass
+                    return result
+
+                manager.get_applied_migrations = synced
+                manager.apply_migration(
+                    "001_race",
+                    "race",
+                    "CREATE TABLE IF NOT EXISTS race_t (id INTEGER); CREATE INDEX IF NOT EXISTS race_i ON race_t(id)",
+                )
+            except Exception as exc:
+                errors.append(repr(exc))
+
+        threads = [threading.Thread(target=worker) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(errors, [])
+        rows = DatabaseManager(path).execute_query(
+            "SELECT version FROM schema_migrations"
+        )
+        self.assertEqual([r["version"] for r in rows], ["001_race"])
+
     def test_initialize_database(self):
         db_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         db_file.close()

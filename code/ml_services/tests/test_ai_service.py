@@ -359,3 +359,71 @@ def test_drift_endpoint_requires_enough_traffic(client, headers):
         client.get("/api/v1/models/credit-scorecard/drift", headers=headers).status_code
         == 200
     )
+
+
+def test_concurrent_service_startup_is_safe(tmp_path):
+    import threading
+
+    from app_factory import build_services
+    from service_config import Config
+
+    config = Config(
+        secret_key="unit-test-secret-key-with-sufficient-length",
+        internal_key="k",
+        allow_user_header=False,
+        db_path=str(tmp_path / "shared.db"),
+        model_dir=str(tmp_path / "models"),
+        payment_service_url="http://payments.invalid",
+        request_timeout=1.0,
+        cors_origins=("*",),
+        port=5004,
+    )
+    barrier = threading.Barrier(4)
+    errors = []
+
+    def start():
+        try:
+            barrier.wait(timeout=5)
+            build_services(config)
+        except Exception as exc:
+            errors.append(repr(exc))
+
+    threads = [threading.Thread(target=start) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == []
+    import sqlite3
+
+    rows = (
+        sqlite3.connect(config.db_path).execute("SELECT name FROM ai_models").fetchall()
+    )
+    assert sorted(r[0] for r in rows) == [
+        "cash_flow_forecaster",
+        "credit_scorecard",
+        "transaction_anomaly_detector",
+    ]
+
+
+def test_entry_point_imports_without_pythonpath(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    src = os.path.join(os.path.dirname(__file__), "..", "ai-service", "src")
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("PYTHONPATH", "INTERNAL_SERVICE_KEY")
+    }
+    env.update(AI_DB_PATH=str(tmp_path / "e.db"), AI_MODEL_DIR=str(tmp_path / "m"))
+    result = subprocess.run(
+        [sys.executable, "-c", "import main; print(main.app.name)"],
+        cwd=src,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr[-400:]

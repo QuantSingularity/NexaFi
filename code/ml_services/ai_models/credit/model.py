@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
@@ -195,7 +196,7 @@ class CreditModelStore:
     def save(self, model: CreditModel) -> None:
         self._current = model
         if self.directory:
-            temp = self._path(model.version) + ".tmp"
+            temp = f"{self._path(model.version)}.{uuid.uuid4().hex}.tmp"
             with open(temp, "w") as handle:
                 json.dump(model.to_dict(), handle)
             os.replace(temp, self._path(model.version))

@@ -54,10 +54,10 @@ class DatabaseManager:
                         conn.close()
 
     @contextmanager
-    def transaction(self) -> object:
+    def transaction(self, immediate: bool = False) -> object:
         with self.get_connection() as conn:
             try:
-                conn.execute("BEGIN")
+                conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
                 yield conn
                 conn.commit()
             except Exception:
@@ -130,18 +130,23 @@ class MigrationManager:
         return [row["version"] for row in rows]
 
     def apply_migration(self, version: str, description: str, sql: str) -> object:
-        applied_migrations = self.get_applied_migrations()
-        if version in applied_migrations:
+        if version in self.get_applied_migrations():
             logger.info(f"Migration {version} already applied")
             return
-        logger.info(f"Applying migration {version}: {description}")
-        with self.db_manager.transaction() as conn:
+        with self.db_manager.transaction(immediate=True) as conn:
+            already = conn.execute(
+                f"SELECT 1 FROM {self.migrations_table} WHERE version = ?", (version,)
+            ).fetchone()
+            if already:
+                logger.info(f"Migration {version} already applied by another process")
+                return
+            logger.info(f"Applying migration {version}: {description}")
             for statement in sql.split(";"):
                 statement = statement.strip()
                 if statement:
                     conn.execute(statement)
             conn.execute(
-                f"INSERT INTO {self.migrations_table} (version, description) VALUES (?, ?)",
+                f"INSERT OR IGNORE INTO {self.migrations_table} (version, description) VALUES (?, ?)",
                 (version, description),
             )
         logger.info(f"Migration {version} applied successfully")

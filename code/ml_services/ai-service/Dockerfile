@@ -13,7 +13,7 @@ COPY backend/shared/ /app/code/backend/shared/
 COPY ml_services/ai_models/ /app/code/ml_services/ai_models/
 COPY ml_services/ai-service/src/ /app/code/ml_services/ai-service/src/
 
-ENV PORT=5004 AI_DB_PATH=/data/ai.db AI_MODEL_DIR=/data/models
+ENV PORT=5004 AI_DB_PATH=/data/ai.db AI_MODEL_DIR=/data/models PYTHONPATH=/app/code/ml_services:/app/code/backend/shared:/app/code/ml_services/ai-service/src
 WORKDIR /app/code/ml_services/ai-service/src
 USER appuser
 VOLUME ["/data"]

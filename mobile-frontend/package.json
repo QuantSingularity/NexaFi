@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "build:web": "expo export --platform web",
+    "test:ci": "jest --coverage --watchAll=false --forceExit --ci",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

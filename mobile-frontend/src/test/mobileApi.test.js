@@ -38,6 +38,21 @@ describe("MobileApiClient", () => {
       );
     });
 
+    it("stores access_token when the API returns it instead of token", async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "alt-token" }),
+      });
+
+      await mobileApiClient.login({ email: "a@b.com", password: "pw" });
+
+      expect(localStorage.setItem).toHaveBeenCalledWith(
+        "access_token",
+        "alt-token",
+      );
+      expect(mobileApiClient.token).toBe("alt-token");
+    });
+
     it("includes auth token in subsequent requests", async () => {
       mobileApiClient.token = "test-token";
 
@@ -87,6 +102,23 @@ describe("MobileApiClient", () => {
         "Unauthorized",
       );
       expect(localStorage.removeItem).toHaveBeenCalledWith("access_token");
+
+      window.location = originalLocation;
+    });
+
+    it("does not redirect or clear the session when login credentials are rejected", async () => {
+      const originalLocation = window.location;
+      delete window.location;
+      window.location = { href: "" };
+      mobileApiClient.token = "existing-token";
+
+      fetch.mockResolvedValueOnce({ ok: false, status: 401 });
+
+      await expect(
+        mobileApiClient.login({ email: "a@b.com", password: "wrong" }),
+      ).rejects.toThrow("Invalid email or password");
+      expect(window.location.href).toBe("");
+      expect(localStorage.removeItem).not.toHaveBeenCalled();
 
       window.location = originalLocation;
     });

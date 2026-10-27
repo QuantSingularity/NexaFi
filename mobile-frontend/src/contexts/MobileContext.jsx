@@ -43,7 +43,8 @@ export const AuthProvider = ({ children }) => {
   }, [logout]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    // Must match the key mobileApiClient persists the session under.
+    const token = localStorage.getItem("access_token");
     if (token) {
       mobileApiClient.setToken(token);
       loadUserProfile();
@@ -54,10 +55,11 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
+      // mobileApiClient.login() already persists the token (token or
+      // access_token); re-setting it here could wipe it when the key differs.
       const response = await mobileApiClient.login(credentials);
-      const { token, user: userData } = response;
+      const userData = response?.user ?? null;
 
-      mobileApiClient.setToken(token);
       setUser(userData);
       setIsAuthenticated(true);
 
@@ -71,9 +73,8 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await mobileApiClient.register(userData);
-      const { token, user: newUser } = response;
+      const newUser = response?.user ?? null;
 
-      mobileApiClient.setToken(token);
       setUser(newUser);
       setIsAuthenticated(true);
 

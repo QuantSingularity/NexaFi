@@ -1,5 +1,11 @@
 // Mobile-optimized API configuration and utilities
-const API_BASE_URL = "http://localhost:5000/api/v1"; // API Gateway (all routes under /api/v1)
+// API Gateway (all routes under /api/v1). The Docker build injects
+// VITE_API_BASE_URL; local development falls back to the gateway on :5000.
+const API_BASE_URL =
+  import.meta.env?.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
+
+// Endpoint where a 401 means "bad credentials", not "expired session".
+const LOGIN_ENDPOINT = "/auth/login";
 
 class MobileApiClient {
   constructor() {
@@ -34,9 +40,9 @@ class MobileApiClient {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const config = {
-      headers: this.getHeaders(),
       signal: controller.signal,
       ...options,
+      headers: { ...this.getHeaders(), ...(options.headers || {}) },
     };
 
     try {
@@ -45,6 +51,11 @@ class MobileApiClient {
 
       if (!response.ok) {
         if (response.status === 401) {
+          if (endpoint === LOGIN_ENDPOINT) {
+            // Failed sign-in: surface the error to the form instead of
+            // wiping state and hard-redirecting (which would reload the page).
+            throw new Error("Invalid email or password");
+          }
           this.setToken(null);
           window.location.href = "/auth";
           throw new Error("Unauthorized");

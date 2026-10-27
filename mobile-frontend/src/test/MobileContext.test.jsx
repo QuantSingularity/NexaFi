@@ -75,6 +75,20 @@ describe("MobileContext - AuthProvider", () => {
     expect(screen.getByTestId("user").textContent).toBe("user@example.com");
   });
 
+  it("restores the session from the same key the API client persists", async () => {
+    localStorage.getItem.mockImplementation((key) =>
+      key === "access_token" ? "saved-token" : null,
+    );
+    mobileApiClient.getProfile.mockResolvedValue({ email: "user@example.com" });
+
+    render(<TestAuthComponent />, { wrapper });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("authenticated").textContent).toBe("true");
+    });
+    expect(mobileApiClient.setToken).toHaveBeenCalledWith("saved-token");
+  });
+
   it("logs out when profile load fails", async () => {
     localStorage.getItem.mockReturnValue("bad-token");
     mobileApiClient.getProfile.mockRejectedValue(new Error("Unauthorized"));
